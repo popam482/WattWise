@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 import joblib
 
 def read_dataframe():
-    df = pd.read_csv('../datasets/electricityConsumptionAndProductioction.csv')
+    df = pd.read_csv('../datasets/electricityConsumptionAndProduction.csv')
     df['DateTime'] = pd.to_datetime(df['DateTime'])
     # df.set_index('DateTime', inplace=True)
     return df
@@ -27,6 +27,14 @@ def clear_data(df):
     df_to_clean['Solar'] = df_to_clean['Solar'].fillna(df_to_clean['Solar'].median())
     df_to_clean['Biomass'] = df_to_clean['Biomass'].fillna(df_to_clean['Biomass'].median())
     return df_to_clean
+
+def fossil_foot(clean_df):
+    clean_df['Total Fossil'] = clean_df['Coal'] + clean_df['Oil and Gas']
+    return clean_df
+
+def green_foot(clean_df):
+    clean_df['Total Green'] = clean_df['Wind'] + clean_df['Hydroelectric'] + clean_df['Solar'] + clean_df['Biomass']
+    return clean_df
 
 def add_time_series_features(clean_df):
     df_feat = clean_df.copy()
@@ -55,7 +63,9 @@ def train_energy_pipeline(clean_df):
 
     #define features and target
     feature_cols = [
+        'Total Green',
         'Nuclear',
+        'Total Fossil',
         'Hour',
         'Day',
         'Month',
@@ -98,6 +108,9 @@ def save_energy_model(model, filepath='../exports/energy_model.joblib'):
 def main():
     df = read_dataframe()
     clean_df = clear_data(df)
+
+    clean_df = fossil_foot(clean_df)
+    clean_df = green_foot(clean_df)
 
     df_feat = add_time_series_features(clean_df)
 
