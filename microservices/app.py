@@ -5,7 +5,7 @@ import pandas as pd
 
 app = FastAPI(title="EcoDispatch ML API")
 
-model = joblib.load('../exports/models/energy_model.joblib')
+model = joblib.load('../exports/energy_model.joblib')
 
 class EnergyScenario(BaseModel):
     Total_Green: float
