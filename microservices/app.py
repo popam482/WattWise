@@ -29,6 +29,10 @@ class SolarRequest(BaseModel):
     system_kwp: float
     performance_factor: float
 
+@app.get("/")
+def home():
+    return {"status": "EcoDispatch ML API is running. Go to /docs to test endpoints."}
+
 #national consumption
 @app.post("/api/predict-consumption")
 def predict_consumption(scenario: EnergyScenario):
@@ -48,6 +52,7 @@ def predict_consumption(scenario: EnergyScenario):
 
     return {"prognosed_consumption_mw": float(prediction)}
 
+#solar forecast
 @app.post("/api/solar-forecast")
 def get_solar_forecast(request: SolarRequest):
     url = 'https://api.open-meteo.com/v1/forecast'
