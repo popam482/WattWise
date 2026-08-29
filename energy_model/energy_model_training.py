@@ -105,6 +105,12 @@ def save_energy_model(model, filepath='../exports/energy_model.joblib'):
     joblib.dump(model, filepath)
     print(f"\n Model successfully saved to {filepath}")
 
+def load_and_predict(filepath, new_data_df):
+    loaded_model = joblib.load(filepath)
+    prediction = loaded_model.predict(new_data_df)
+    return prediction
+
+
 def main():
     df = read_dataframe()
     clean_df = clear_data(df)
@@ -127,6 +133,9 @@ def main():
         'Consumption_Lag_24h': 6000,
         'Consumption_Rolling_24h': 6100
     }])
+
+    prognosed_consumption = load_and_predict('../exports/energy_model.joblib', scenario)
+    print(f'\n Prognosed Consumption Scenario: {prognosed_consumption}')
 
 if __name__ == '__main__':
     main()
