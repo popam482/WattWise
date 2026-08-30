@@ -3,7 +3,7 @@ __pycache__/
 *.pyc
 .env
 
-exports/*.joblib
+*.joblib
 
 .idea/
 *.iml
