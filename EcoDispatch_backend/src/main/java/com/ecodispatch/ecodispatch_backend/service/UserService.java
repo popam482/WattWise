@@ -1,5 +1,7 @@
 package com.ecodispatch.ecodispatch_backend.service;
 
+import com.ecodispatch.ecodispatch_backend.errors.InvalidCredentials;
+import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import com.ecodispatch.ecodispatch_backend.login.LoginRequestDTO;
 import com.ecodispatch.ecodispatch_backend.login.LoginResponseDTO;
 import com.ecodispatch.ecodispatch_backend.model.User;

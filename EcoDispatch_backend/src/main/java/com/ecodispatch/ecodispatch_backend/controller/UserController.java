@@ -1,5 +1,7 @@
 package com.ecodispatch.ecodispatch_backend.controller;
 
+import com.ecodispatch.ecodispatch_backend.login.LoginRequestDTO;
+import com.ecodispatch.ecodispatch_backend.login.LoginResponseDTO;
 import com.ecodispatch.ecodispatch_backend.model.UserRequestDTO;
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.service.UserService;
