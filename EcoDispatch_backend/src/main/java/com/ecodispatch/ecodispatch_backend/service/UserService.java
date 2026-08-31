@@ -1,5 +1,10 @@
 package com.ecodispatch.ecodispatch_backend.service;
 
+import com.ecodispatch.ecodispatch_backend.login.LoginRequestDTO;
+import com.ecodispatch.ecodispatch_backend.login.LoginResponseDTO;
+import com.ecodispatch.ecodispatch_backend.model.User;
+import com.ecodispatch.ecodispatch_backend.model.UserRequestDTO;
+import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
