@@ -1,5 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.model;
 
+import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfile;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +22,9 @@ public class User {
     @NotBlank
     @Email
     private String email;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private EnergyProfile energyProfile;
 
     public User(Integer user_id, String email, String password, String username) {
         this.user_id = user_id;
