@@ -5,14 +5,12 @@ import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import com.ecodispatch.ecodispatch_backend.login.LoginRequestDTO;
 import com.ecodispatch.ecodispatch_backend.login.LoginResponseDTO;
 import com.ecodispatch.ecodispatch_backend.model.User;
-import com.ecodispatch.ecodispatch_backend.model.UserRepository;
+import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.model.UserRequestDTO;
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.utils.JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 public class UserService {

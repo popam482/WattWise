@@ -40,6 +40,10 @@ public class EnergyProfile {
         return longitude;
     }
 
+    public Integer getId() {
+        return id;
+    }
+
     public void setPvSystemKw(Double pvSystemKw) {
         this.pvSystemKw = pvSystemKw;
     }
@@ -51,4 +55,17 @@ public class EnergyProfile {
     public void setLongitude(Double longitude) {
         this.longitude = longitude;
     }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
 }

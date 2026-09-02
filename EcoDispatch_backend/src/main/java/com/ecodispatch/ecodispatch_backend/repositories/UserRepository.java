@@ -1,5 +1,6 @@
-package com.ecodispatch.ecodispatch_backend.model;
+package com.ecodispatch.ecodispatch_backend.repositories;
 
+import com.ecodispatch.ecodispatch_backend.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
