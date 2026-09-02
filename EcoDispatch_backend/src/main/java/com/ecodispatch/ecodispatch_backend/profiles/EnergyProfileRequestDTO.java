@@ -2,35 +2,35 @@ package com.ecodispatch.ecodispatch_backend.profiles;
 
 public class EnergyProfileRequestDTO {
 
-    private Integer latitude;
-    private Integer longitude;
+    private Double latitude;
+    private Double longitude;
 
-    private Integer pvSystemKw;
+    private Double pvSystemKw;
 
     public EnergyProfileRequestDTO() {
     }
 
-    public Integer getLatitude() {
+    public Double getLatitude() {
         return latitude;
     }
 
-    public Integer getLongitude() {
+    public Double getLongitude() {
         return longitude;
     }
 
-    public Integer getPvSystemKw() {
+    public Double getPvSystemKw() {
         return pvSystemKw;
     }
 
-    public void setLatitude(Integer latitude) {
+    public void setLatitude(Double latitude) {
         this.latitude = latitude;
     }
 
-    public void setLongitude(Integer longitude) {
+    public void setLongitude(Double longitude) {
         this.longitude = longitude;
     }
 
-    public void setPvSystemKw(Integer pvSystemKw) {
+    public void setPvSystemKw(Double pvSystemKw) {
         this.pvSystemKw = pvSystemKw;
     }
 }
