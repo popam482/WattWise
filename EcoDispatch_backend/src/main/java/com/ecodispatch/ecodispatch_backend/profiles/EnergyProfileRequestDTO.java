@@ -1,5 +1,10 @@
 package com.ecodispatch.ecodispatch_backend.profiles;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
 public class EnergyProfileRequestDTO {
 
     private Double latitude;
@@ -10,27 +15,4 @@ public class EnergyProfileRequestDTO {
     public EnergyProfileRequestDTO() {
     }
 
-    public Double getLatitude() {
-        return latitude;
-    }
-
-    public Double getLongitude() {
-        return longitude;
-    }
-
-    public Double getPvSystemKw() {
-        return pvSystemKw;
-    }
-
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
-
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
-
-    public void setPvSystemKw(Double pvSystemKw) {
-        this.pvSystemKw = pvSystemKw;
-    }
 }

@@ -1,7 +1,12 @@
 package com.ecodispatch.ecodispatch_backend.login;
 
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
+import lombok.Getter;
+import lombok.Setter;
 
+
+@Setter
+@Getter
 public class LoginResponseDTO {
 
     private String token;
@@ -16,19 +21,4 @@ public class LoginResponseDTO {
         this.user = user;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
-    }
-
-    public UserResponseDTO getUser() {
-        return user;
-    }
-
-    public void setUser(UserResponseDTO user) {
-        this.user = user;
-    }
 }

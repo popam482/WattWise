@@ -1,5 +1,10 @@
 package com.ecodispatch.ecodispatch_backend.model;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
 public class UserResponseDTO {
     private Integer id;
     private String username;
@@ -12,19 +17,4 @@ public class UserResponseDTO {
         this.username = username;
     }
 
-    public Integer getId() {
-        return id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
 }
