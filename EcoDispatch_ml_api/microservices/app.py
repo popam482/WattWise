@@ -57,8 +57,8 @@ def predict_consumption(scenario: EnergyScenario):
 def get_solar_forecast(request: SolarRequest):
     url = 'https://api.open-meteo.com/v1/forecast'
     params = {
-        'lat': request.lat,
-        'lon': request.lon,
+        'latitude': request.lat,
+        'longitude': request.lon,
         'hourly': ['shortwave_radiation', 'temperature_2m', 'cloudcover'],
         'timezone': 'auto',
         'forecast_days': 2
