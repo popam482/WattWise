@@ -1,23 +1,34 @@
 package com.ecodispatch.ecodispatch_backend.service;
 
 import com.ecodispatch.ecodispatch_backend.model.User;
+import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfile;
 import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileRequestDTO;
 import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileResponseDTO;
+import com.ecodispatch.ecodispatch_backend.solar_forecast.SolarForecastResponseDTO;
 import com.ecodispatch.ecodispatch_backend.repositories.EnergyProfileRepository;
-import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EnergyProfileService {
 
     private final UserRepository userRepository;
     private final EnergyProfileRepository energyRepository;
+    private final RestTemplate restTemplate;
 
-    public EnergyProfileService(UserRepository userRepository, EnergyProfileRepository energyRepository) {
+    public EnergyProfileService(UserRepository userRepository,
+                                EnergyProfileRepository energyRepository,
+                                RestTemplate restTemplate) {
         this.userRepository = userRepository;
         this.energyRepository = energyRepository;
+        this.restTemplate = restTemplate;
     }
 
     private EnergyProfileResponseDTO toResponseDTO(EnergyProfile energyProfile) {
@@ -54,5 +65,27 @@ public class EnergyProfileService {
 
         EnergyProfile savedProfile = energyRepository.save(profile);
         return toResponseDTO(savedProfile);
+    }
+
+    // Apelul către API-ul de Python
+    public List<SolarForecastResponseDTO> getSolarForecastForUser(Integer userId) {
+        EnergyProfile profile = energyRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Profilul energetic nu exista pentru userul: " + userId));
+
+        String pythonApiUrl = "http://localhost:8000/api/solar-forecast";
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("lat", profile.getLatitude());
+        requestBody.put("lon", profile.getLongitude());
+        requestBody.put("system_kwp", profile.getPvSystemKw());
+        requestBody.put("performance_factor", 0.8);
+
+        SolarForecastResponseDTO[] response = restTemplate.postForObject(
+                pythonApiUrl,
+                requestBody,
+                SolarForecastResponseDTO[].class
+        );
+
+        return Arrays.asList(response);
     }
 }
