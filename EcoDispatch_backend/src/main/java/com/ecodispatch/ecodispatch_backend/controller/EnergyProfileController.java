@@ -1,5 +1,7 @@
 package com.ecodispatch.ecodispatch_backend.controller;
 
+import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionPredictionResponseDTO;
+import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionScenarioRequestDTO;
 import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileRequestDTO;
 import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileResponseDTO;
 import com.ecodispatch.ecodispatch_backend.service.EnergyProfileService;
@@ -34,5 +36,10 @@ public class EnergyProfileController {
     @GetMapping("/users/{userId}/solar-forecast")
     public List<SolarForecastResponseDTO> getSolarForecast(@PathVariable Integer userId) {
         return energyService.getSolarForecastForUser(userId);
+    }
+
+    @PostMapping("/predict-consumption")
+    public ConsumptionPredictionResponseDTO predictConsumption(@Valid @RequestBody ConsumptionScenarioRequestDTO scenario) {
+        return energyService.predictNationalConsumption(scenario);
     }
 }
