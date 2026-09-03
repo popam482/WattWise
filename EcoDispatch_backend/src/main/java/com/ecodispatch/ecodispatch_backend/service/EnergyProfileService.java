@@ -1,5 +1,7 @@
 package com.ecodispatch.ecodispatch_backend.service;
 
+import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionPredictionResponseDTO;
+import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionScenarioRequestDTO;
 import com.ecodispatch.ecodispatch_backend.model.User;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
@@ -87,5 +89,15 @@ public class EnergyProfileService {
         );
 
         return Arrays.asList(response);
+    }
+
+    public ConsumptionPredictionResponseDTO predictNationalConsumption(ConsumptionScenarioRequestDTO scenario) {
+        String pythonApiUrl = "http://localhost:8000/api/predict-consumption";
+
+        return restTemplate.postForObject(
+                pythonApiUrl,
+                scenario,
+                ConsumptionPredictionResponseDTO.class
+        );
     }
 }
