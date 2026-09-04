@@ -3,6 +3,7 @@ package com.ecodispatch.ecodispatch_backend.service;
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionPredictionResponseDTO;
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionScenarioRequestDTO;
 import com.ecodispatch.ecodispatch_backend.model.User;
+import com.ecodispatch.ecodispatch_backend.model.UserType;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.profile.EnergyProfile;
@@ -59,6 +60,9 @@ public class EnergyProfileService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
+        if(user.getUserType() == UserType.CONSUMER){
+            throw new RuntimeException("Consumers don't have photovoltaics");
+        }
         EnergyProfile profile = new EnergyProfile();
         profile.setLatitude(dto.getLatitude());
         profile.setLongitude(dto.getLongitude());
