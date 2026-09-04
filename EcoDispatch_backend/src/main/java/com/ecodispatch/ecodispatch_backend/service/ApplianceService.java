@@ -30,14 +30,14 @@ public class ApplianceService {
         return dto;
     }
 
-    public List<ApplianceResponseDTO> getUserApplianceResponseDTO(Integer userId) {
+    public List<ApplianceResponseDTO> getUserAppliance(Integer userId) {
         return applianceRepository.findByUserId(userId)
                 .stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    public ApplianceResponseDTO addApliance(Integer userId, ApplianceRequestDTO dto) {
+    public ApplianceResponseDTO addAppliance(Integer userId, ApplianceRequestDTO dto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found " + userId));
 
@@ -49,4 +49,5 @@ public class ApplianceService {
         Appliance savedAppliance = applianceRepository.save(appliance);
         return toResponseDTO(savedAppliance);
     }
+
 }
