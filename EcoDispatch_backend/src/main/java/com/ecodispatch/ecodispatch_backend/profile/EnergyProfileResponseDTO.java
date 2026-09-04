@@ -1,4 +1,4 @@
-package com.ecodispatch.ecodispatch_backend.profiles;
+package com.ecodispatch.ecodispatch_backend.profile;
 
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
 import lombok.Getter;

@@ -2,8 +2,8 @@ package com.ecodispatch.ecodispatch_backend.controller;
 
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionPredictionResponseDTO;
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionScenarioRequestDTO;
-import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileRequestDTO;
-import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileResponseDTO;
+import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileRequestDTO;
+import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileResponseDTO;
 import com.ecodispatch.ecodispatch_backend.service.EnergyProfileService;
 import com.ecodispatch.ecodispatch_backend.solar_forecast.SolarForecastResponseDTO;
 import jakarta.validation.Valid;

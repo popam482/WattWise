@@ -1,6 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.model;
 
-import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfile;
+import com.ecodispatch.ecodispatch_backend.profile.EnergyProfile;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

@@ -1,4 +1,4 @@
-package com.ecodispatch.ecodispatch_backend.profiles;
+package com.ecodispatch.ecodispatch_backend.profile;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,4 +1,4 @@
-package com.ecodispatch.ecodispatch_backend;
+package com.ecodispatch.ecodispatch_backend.appliance;
 
 import com.ecodispatch.ecodispatch_backend.model.User;
 import jakarta.persistence.*;

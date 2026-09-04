@@ -5,9 +5,9 @@ import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionScenarioReques
 import com.ecodispatch.ecodispatch_backend.model.User;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
-import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfile;
-import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileRequestDTO;
-import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfileResponseDTO;
+import com.ecodispatch.ecodispatch_backend.profile.EnergyProfile;
+import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileRequestDTO;
+import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileResponseDTO;
 import com.ecodispatch.ecodispatch_backend.solar_forecast.SolarForecastResponseDTO;
 import com.ecodispatch.ecodispatch_backend.repositories.EnergyProfileRepository;
 import org.springframework.stereotype.Service;

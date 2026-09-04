@@ -1,6 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.repositories;
 
-import com.ecodispatch.ecodispatch_backend.profiles.EnergyProfile;
+import com.ecodispatch.ecodispatch_backend.profile.EnergyProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
