@@ -69,7 +69,6 @@ public class EnergyProfileService {
         return toResponseDTO(savedProfile);
     }
 
-    // Apelul către API-ul de Python
     public List<SolarForecastResponseDTO> getSolarForecastForUser(Integer userId) {
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Profilul energetic nu exista pentru userul: " + userId));
