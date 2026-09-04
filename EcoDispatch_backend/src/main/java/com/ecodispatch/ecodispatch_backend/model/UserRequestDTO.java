@@ -2,6 +2,7 @@ package com.ecodispatch.ecodispatch_backend.model;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,13 +19,10 @@ public class UserRequestDTO {
     @Email(message = "Invalid mail format")
     private String email;
 
-    public UserRequestDTO() {
-    }
+    @NotNull(message = "User type is required(Consumer/Prosumer)")
+    private UserType userType;
 
-    public UserRequestDTO(String email, String username, String password) {
-        this.email = email;
-        this.username = username;
-        this.password = password;
+    public UserRequestDTO() {
     }
 
 }

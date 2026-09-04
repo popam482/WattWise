@@ -8,13 +8,9 @@ import lombok.Setter;
 public class UserResponseDTO {
     private Integer id;
     private String username;
+    private UserType userType;
 
     public UserResponseDTO() {
-    }
-
-    public UserResponseDTO(Integer id, String password, String username) {
-        this.id = id;
-        this.username = username;
     }
 
 }
