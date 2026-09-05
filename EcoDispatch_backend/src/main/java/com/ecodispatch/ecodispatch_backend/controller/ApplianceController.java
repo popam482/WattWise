@@ -2,6 +2,7 @@ package com.ecodispatch.ecodispatch_backend.controller;
 
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceRequestDTO;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceResponseDTO;
+import com.ecodispatch.ecodispatch_backend.appliance.ApplianceUsageLogRequestDTO;
 import com.ecodispatch.ecodispatch_backend.service.ApplianceService;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +26,11 @@ public class ApplianceController {
     @PostMapping("/users/{userId}/appliances")
     public ApplianceResponseDTO addAppliance(@PathVariable Integer userId, @RequestBody ApplianceRequestDTO dto) {
         return applianceService.addAppliance(userId, dto);
+    }
+
+    @PostMapping("/users/{userId}/appliances/log")
+    public void logUsage(@PathVariable Integer userId, @RequestBody ApplianceUsageLogRequestDTO dto){
+        applianceService.logApplianceUsage(userId, dto);
     }
 
 
