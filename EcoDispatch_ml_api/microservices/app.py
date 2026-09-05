@@ -115,7 +115,7 @@ def get_solar_forecast(request: SolarRequest):
 
 @app.post("/api/recommendations/best-time", response_model=ScheduleRecommendation)
 def get_best_time_for_appliance(req: ApplianceScheduleRequest):
-    current_hour = datetime.now().hour
+    current_hour = datetime.datetime.now().hour
     forecast_hours = 24
     hourly_energy_scores = []
 
@@ -132,7 +132,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
                 estimated_pv_power = max(0.0, estimated_pv_power)
             # score
             if req.power_kw > 0.0:
-                coverage_ratio = estimated_pv_power / req.system_kwp
+                coverage_ratio = estimated_pv_power / req.power_kw
                 score = min(coverage_ratio, 1.0)
             else:
                 score = 1.0
@@ -152,28 +152,28 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         })
 
         #sliding window
-        best_window_start = 0
-        max_window_score = -1.0
+    best_window_start = 0
+    max_window_score = -1.0
 
-        for i in range(forecast_hours - req.duration_hours + 1):
-            window_score = sum(item["score"] for item in hourly_energy_scores[i : i + req.duration_hours])
-            if window_score > max_window_score:
-                max_window_score = window_score
-                best_window_start = i
+    for i in range(forecast_hours - req.duration_hours + 1):
+        window_score = sum(item["score"] for item in hourly_energy_scores[i : i + req.duration_hours])
+        if window_score > max_window_score:
+            max_window_score = window_score
+            best_window_start = i
 
-        start_time = datetime.datetime.now() + datetime.timedelta(hours=best_window_start)
-        end_time = start_time + datetime.timedelta(hours=req.duration_hours)
+    start_time = datetime.datetime.now() + datetime.timedelta(hours=best_window_start)
+    end_time = start_time + datetime.timedelta(hours=req.duration_hours)
 
-        avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
+    avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
 
-        if req.user_type == "PROSUMER":
-            reason = f"During this interval, the photovoltaics cover {avg_coverage}% of the appliance's {req.power_kw} kW consumption."
-        else:
-            reason = f"Optimal interval! The national grid is using a high percentage of green energy."
+    if req.user_type == "PROSUMER":
+        reason = f"During this interval, the photovoltaics cover {avg_coverage}% of the appliance's {req.power_kw} kW consumption."
+    else:
+        reason = f"Optimal interval! The national grid is using a high percentage of green energy."
 
-        return ScheduleRecommendation(
-            best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
-            best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
-            total_green_energy_score=round(max_window_score, 2),
-            reason=reason
-        )
+    return ScheduleRecommendation(
+        best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
+        best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
+        total_green_energy_score=round(max_window_score, 2),
+        reason=reason
+    )
