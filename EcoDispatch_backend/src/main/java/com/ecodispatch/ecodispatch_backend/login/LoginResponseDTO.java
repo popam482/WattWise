@@ -1,6 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.login;
 
-import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
+import com.ecodispatch.ecodispatch_backend.user.UserResponseDTO;
 import lombok.Getter;
 import lombok.Setter;
 

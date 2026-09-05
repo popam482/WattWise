@@ -3,7 +3,7 @@ package com.ecodispatch.ecodispatch_backend.service;
 import com.ecodispatch.ecodispatch_backend.appliance.Appliance;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceRequestDTO;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceResponseDTO;
-import com.ecodispatch.ecodispatch_backend.model.User;
+import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceRepository;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import org.springframework.stereotype.Service;

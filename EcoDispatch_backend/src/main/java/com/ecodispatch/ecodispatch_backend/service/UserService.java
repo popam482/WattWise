@@ -4,10 +4,10 @@ import com.ecodispatch.ecodispatch_backend.errors.InvalidCredentials;
 import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import com.ecodispatch.ecodispatch_backend.login.LoginRequestDTO;
 import com.ecodispatch.ecodispatch_backend.login.LoginResponseDTO;
-import com.ecodispatch.ecodispatch_backend.model.User;
+import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
-import com.ecodispatch.ecodispatch_backend.model.UserRequestDTO;
-import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
+import com.ecodispatch.ecodispatch_backend.user.UserRequestDTO;
+import com.ecodispatch.ecodispatch_backend.user.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.utils.JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,6 +28,7 @@ public class UserService {
         UserResponseDTO dto = new UserResponseDTO();
         dto.setId(user.getUser_id());
         dto.setUsername(user.getUsername());
+        dto.setUserType(user.getUserType());
         return dto;
     }
 
@@ -36,6 +37,7 @@ public class UserService {
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setEmail(dto.getEmail());
+        user.setUserType(dto.getUserType());
         return user;
     }
 

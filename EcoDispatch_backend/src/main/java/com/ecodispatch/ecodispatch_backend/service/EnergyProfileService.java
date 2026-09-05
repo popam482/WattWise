@@ -2,10 +2,10 @@ package com.ecodispatch.ecodispatch_backend.service;
 
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionPredictionResponseDTO;
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionScenarioRequestDTO;
-import com.ecodispatch.ecodispatch_backend.model.User;
-import com.ecodispatch.ecodispatch_backend.model.UserType;
+import com.ecodispatch.ecodispatch_backend.user.User;
+import com.ecodispatch.ecodispatch_backend.user.UserType;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
-import com.ecodispatch.ecodispatch_backend.model.UserResponseDTO;
+import com.ecodispatch.ecodispatch_backend.user.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.profile.EnergyProfile;
 import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileRequestDTO;
 import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileResponseDTO;

@@ -1,4 +1,4 @@
-package com.ecodispatch.ecodispatch_backend.model;
+package com.ecodispatch.ecodispatch_backend.user;
 
 public enum UserType{
 

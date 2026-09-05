@@ -1,6 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.appliance;
 
-import com.ecodispatch.ecodispatch_backend.model.User;
+import com.ecodispatch.ecodispatch_backend.user.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

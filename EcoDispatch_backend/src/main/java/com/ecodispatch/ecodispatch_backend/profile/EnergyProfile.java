@@ -1,6 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.profile;
 
-import com.ecodispatch.ecodispatch_backend.model.User;
+import com.ecodispatch.ecodispatch_backend.user.User;
 import jakarta.persistence.*;
 
 @Entity
