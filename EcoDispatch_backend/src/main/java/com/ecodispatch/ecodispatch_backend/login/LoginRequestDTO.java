@@ -1,7 +1,11 @@
 package com.ecodispatch.ecodispatch_backend.login;
 
 import jakarta.validation.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class LoginRequestDTO {
     @NotBlank
     private String username;
@@ -11,19 +15,4 @@ public class LoginRequestDTO {
     public LoginRequestDTO() {
     }
 
-    public String getUsername() {
-        return username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
 }

@@ -2,6 +2,9 @@ package com.ecodispatch.ecodispatch_backend.service;
 
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionPredictionResponseDTO;
 import com.ecodispatch.ecodispatch_backend.consumption.ConsumptionScenarioRequestDTO;
+import com.ecodispatch.ecodispatch_backend.errors.ConsumerPhotovoltaics;
+import com.ecodispatch.ecodispatch_backend.errors.EnergyProfileNotFound;
+import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.user.UserType;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
@@ -52,16 +55,16 @@ public class EnergyProfileService {
 
     public EnergyProfileResponseDTO getProfileByUserId(Integer userId) {
         EnergyProfile profile = energyRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Energy profile not found for user id: " + userId));
+                .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user id: " + userId));
         return toResponseDTO(profile);
     }
 
     public EnergyProfileResponseDTO createEnergyProfile(Integer userId, EnergyProfileRequestDTO dto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+                .orElseThrow(() -> new UserNotFound("User not found with id: " + userId));
 
         if(user.getUserType() == UserType.CONSUMER){
-            throw new RuntimeException("Consumers don't have photovoltaics");
+            throw new ConsumerPhotovoltaics("Consumers don't have photovoltaics");
         }
         EnergyProfile profile = new EnergyProfile();
         profile.setLatitude(dto.getLatitude());
@@ -75,7 +78,7 @@ public class EnergyProfileService {
 
     public List<SolarForecastResponseDTO> getSolarForecastForUser(Integer userId) {
         EnergyProfile profile = energyRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Profilul energetic nu exista pentru userul: " + userId));
+                .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user: " + userId));
 
         String pythonApiUrl = "http://localhost:8000/api/solar-forecast";
 

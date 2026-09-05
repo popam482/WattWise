@@ -3,6 +3,7 @@ package com.ecodispatch.ecodispatch_backend.service;
 import com.ecodispatch.ecodispatch_backend.appliance.Appliance;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceRequestDTO;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceResponseDTO;
+import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceRepository;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
@@ -39,7 +40,7 @@ public class ApplianceService {
 
     public ApplianceResponseDTO addAppliance(Integer userId, ApplianceRequestDTO dto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found " + userId));
+                .orElseThrow(() -> new UserNotFound("User not found " + userId));
 
         Appliance appliance = new Appliance();
         appliance.setName(dto.getName());
