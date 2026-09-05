@@ -1,3 +1,6 @@
+import datetime
+from typing import Optional
+
 import joblib
 import requests
 from fastapi import FastAPI, HTTPException
@@ -12,6 +15,7 @@ MODEL_PATH = BASE_DIR / "exports" / "energy_model.joblib"
 
 model = joblib.load(MODEL_PATH)
 
+
 class EnergyScenario(BaseModel):
     Total_Green: float
     Nuclear: float
@@ -23,17 +27,36 @@ class EnergyScenario(BaseModel):
     Consumption_Lag_24h: float
     Consumption_Rolling_24h: float
 
+
 class SolarRequest(BaseModel):
     lat: float
     lon: float
     system_kwp: float
     performance_factor: float
 
+
+class ApplianceScheduleRequest(BaseModel):
+    user_type: str  # 'PROSUMER' or 'CONSUMER'
+    duration_hours: int
+    power_kw: float
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    system_kwp: Optional[float] = 0.0
+
+
+class ScheduleRecommendation(BaseModel):
+    best_start_time: str
+    best_end_time: str
+    total_green_energy_score: float
+    reason: str
+
+
 @app.get("/")
 def home():
     return {"status": "EcoDispatch ML API is running. Go to /docs to test endpoints."}
 
-#national consumption
+
+# national consumption
 @app.post("/api/predict-consumption")
 def predict_consumption(scenario: EnergyScenario):
     input_data = pd.DataFrame([{
@@ -52,7 +75,8 @@ def predict_consumption(scenario: EnergyScenario):
 
     return {"prognosed_consumption_mw": float(prediction)}
 
-#solar forecast
+
+# solar forecast
 @app.post("/api/solar-forecast")
 def get_solar_forecast(request: SolarRequest):
     url = 'https://api.open-meteo.com/v1/forecast'
@@ -87,3 +111,69 @@ def get_solar_forecast(request: SolarRequest):
     )
 
     return df.round(2).to_dict(orient='records')
+
+
+@app.post("/api/recommendations/best-time", response_model=ScheduleRecommendation)
+def get_best_time_for_appliance(req: ApplianceScheduleRequest):
+    current_hour = datetime.now().hour
+    forecast_hours = 24
+    hourly_energy_scores = []
+
+    for i in range(forecast_hours):
+        hour_of_day = (current_hour + i) % 24
+        score = 0.0
+
+        if req.user_type == "PROSUMER":
+            estimated_pv_power = 0.0
+            # solar production based on the hour of the day
+            if 7 <= hour_of_day <= 19:
+                distance_from_noon = abs(13 - hour_of_day)
+                estimated_pv_power = (req.system_kwp or 0.0) * (1.0 - (distance_from_noon * 0.15))
+                estimated_pv_power = max(0.0, estimated_pv_power)
+            # score
+            if req.power_kw > 0.0:
+                coverage_ratio = estimated_pv_power / req.system_kwp
+                score = min(coverage_ratio, 1.0)
+            else:
+                score = 1.0
+        else:
+            # CONSUMER - based on green energy
+            if 11 <= hour_of_day <= 15:
+                score = 0.9
+            elif hour_of_day < 6 or hour_of_day > 22:
+                score = 0.7
+            else:
+                score = 0.3
+
+        hourly_energy_scores.append({
+            "hour_offset": i,
+            "actual_hour": hour_of_day,
+            "score": score
+        })
+
+        #sliding window
+        best_window_start = 0
+        max_window_score = -1.0
+
+        for i in range(forecast_hours - req.duration_hours + 1):
+            window_score = sum(item["score"] for item in hourly_energy_scores[i : i + req.duration_hours])
+            if window_score > max_window_score:
+                max_window_score = window_score
+                best_window_start = i
+
+        start_time = datetime.datetime.now() + datetime.timedelta(hours=best_window_start)
+        end_time = start_time + datetime.timedelta(hours=req.duration_hours)
+
+        avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
+
+        if req.user_type == "PROSUMER":
+            reason = f"During this interval, the photovoltaics cover {avg_coverage}% of the appliance's {req.power_kw} kW consumption."
+        else:
+            reason = f"Optimal interval! The national grid is using a high percentage of green energy."
+
+        return ScheduleRecommendation(
+            best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
+            best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
+            total_green_energy_score=round(max_window_score, 2),
+            reason=reason
+        )
