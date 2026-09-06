@@ -1,5 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.controller;
 
+import com.ecodispatch.ecodispatch_backend.appliance.ApplianceRecommendationResponseDTO;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceRequestDTO;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceResponseDTO;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceUsageLogRequestDTO;
@@ -33,5 +34,14 @@ public class ApplianceController {
         applianceService.logApplianceUsage(userId, dto);
     }
 
+    @PostMapping("users/{userId}/appliances/{applianceId}/recommendation")
+    public ApplianceRecommendationResponseDTO getRecommendation(
+            @PathVariable Integer userId,
+            @PathVariable Integer applianceId,
+            @RequestParam(defaultValue = "1") Integer durationHours){
+
+        return applianceService.getBestTimeForAppliance(userId, applianceId, durationHours);
+        
+    }
 
 }
