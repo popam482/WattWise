@@ -29,7 +29,7 @@ public class User {
     private String email;
 
     @Enumerated(EnumType.STRING)
-    UserType userType;
+    private UserType userType;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private EnergyProfile energyProfile;

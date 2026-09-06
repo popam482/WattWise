@@ -6,7 +6,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RecommendationResponseDTO {
+public class ApplianceRecommendationResponseDTO {
 
     @JsonProperty("best_start_time")
     private String bestStartTime;
@@ -19,5 +19,5 @@ public class RecommendationResponseDTO {
 
     private String reason;
 
-    public RecommendationResponseDTO() {}
+    public ApplianceRecommendationResponseDTO() {}
 }
