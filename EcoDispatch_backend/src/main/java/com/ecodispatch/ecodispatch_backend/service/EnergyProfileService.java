@@ -14,6 +14,7 @@ import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileRequestDTO;
 import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileResponseDTO;
 import com.ecodispatch.ecodispatch_backend.solar_forecast.SolarForecastResponseDTO;
 import com.ecodispatch.ecodispatch_backend.repositories.EnergyProfileRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -28,6 +29,9 @@ public class EnergyProfileService {
     private final UserRepository userRepository;
     private final EnergyProfileRepository energyRepository;
     private final RestTemplate restTemplate;
+
+    @Value("${PYTHON_API_URL:http://localhost:8000}")
+    private String pythonApiBaseUrl;
 
     public EnergyProfileService(UserRepository userRepository,
                                 EnergyProfileRepository energyRepository,
@@ -80,7 +84,7 @@ public class EnergyProfileService {
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user: " + userId));
 
-        String pythonApiUrl = "http://localhost:8000/api/solar-forecast";
+        String pythonApiUrl = pythonApiBaseUrl + "api/solar-forecast";
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("lat", profile.getLatitude());
@@ -98,7 +102,7 @@ public class EnergyProfileService {
     }
 
     public ConsumptionPredictionResponseDTO predictNationalConsumption(ConsumptionScenarioRequestDTO scenario) {
-        String pythonApiUrl = "http://localhost:8000/api/predict-consumption";
+        String pythonApiUrl = pythonApiBaseUrl + "api/predict-consumption";
 
         return restTemplate.postForObject(
                 pythonApiUrl,

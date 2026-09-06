@@ -8,6 +8,7 @@ import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceRepository;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.user.UserType;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -21,6 +22,9 @@ public class ApplianceService {
     private final UserRepository userRepository;
     private final ApplianceUsageLogRepository applianceUsageLogRepository;
     private final RestTemplate restTemplate;
+
+    @Value("${PYTHON_API_URL:http://localhost:8000}")
+    private String pythonApiBaseUrl;
 
     public ApplianceService(ApplianceRepository applianceRepository, UserRepository userRepository,
                             ApplianceUsageLogRepository applianceUsageLogRepository, RestTemplate restTemplate) {
@@ -92,7 +96,7 @@ public class ApplianceService {
             request.setSystemKwp(user.getEnergyProfile().getPvSystemKw());
         }
 
-        String pythonApiUrl = "https://localhost:8000/api/recommendations/best-time";
+        String pythonApiUrl = pythonApiBaseUrl + "api/recommendations/best-time";
 
         return restTemplate.postForObject(
                 pythonApiUrl,

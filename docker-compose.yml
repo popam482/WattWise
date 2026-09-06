@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:15
+    container_name: ecodispatch-db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: ecodispatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  ml-api:
+    build: ./EcoDispatch_ml_api
+    container_name: ecodispatch-ml
+    ports:
+      - "8000:8000"
+
+  backend:
+    build: ./EcoDispatch_backend
+    container_name: ecodispatch-java
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/ecodispatch
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - PYTHON_API_URL=http://ml-api:8000
+    depends_on:
+      - postgres-db
+      - ml-api
+
+volumes:
+  postgres_data:
