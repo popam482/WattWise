@@ -41,7 +41,7 @@ public class ApplianceController {
             @RequestParam(defaultValue = "1") Integer durationHours){
 
         return applianceService.getBestTimeForAppliance(userId, applianceId, durationHours);
-        
+
     }
 
 }
