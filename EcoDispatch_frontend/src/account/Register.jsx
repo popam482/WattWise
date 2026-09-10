@@ -26,7 +26,7 @@ function Register({ onRegisterSuccess, switchToLogin }) {
         setError('');
 
         const payload = {
-            name,
+            username,
             email,
             password,
             userType,
@@ -87,7 +87,7 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                             onChange={e => setPassword(e.target.value)}
                         />
                         <button className="authenticationButton" type="submit">
-                            Continuă
+                            Continue
                         </button>
                     </form>
                 ) : (
@@ -115,6 +115,8 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                                 <input
                                     type="number"
                                     step="0.1"
+                                    min={"1.0"}
+                                    max={"27.0"}
                                     placeholder="Photovoltaics capacity (kWp)"
                                     value={pvSystemKw}
                                     onChange={e => setPvSystemKw(e.target.value)}
