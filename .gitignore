@@ -48,3 +48,17 @@ application-local.yaml
 *.jar
 *.war
 *.ear
+
+# React / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+.cache/
+.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
