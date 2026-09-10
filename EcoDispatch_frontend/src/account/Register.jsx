@@ -1,19 +1,21 @@
 import { useState } from 'react';
+import LocationPicker from './LocationPicker.jsx';
 
 function Register({ onRegisterSuccess, switchToLogin }) {
     const [step, setStep] = useState(1);
 
-    const [name, setName] = useState('');
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
     const [userType, setUserType] = useState('CONSUMER');
     const [pvSystemKw, setPvSystemKw] = useState('');
+    const [coords, setCoords] = useState({ latitude: 45.7925, longitude: 24.1520 });
     const [error, setError] = useState('');
 
     function handleNextStep(e) {
         e.preventDefault();
-        if (!name || !password || !email) {
+        if (!username || !password || !email) {
             setError("Please fill all the required fields.");
             return;
         }
@@ -48,8 +50,8 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             pvSystemKw: parseFloat(pvSystemKw),
-                            latitude: 45.7925,
-                            longitude: 24.1520
+                            latitude: coords.latitude,
+                            longitude: coords.longitude,
                         })
                     });
                 }
@@ -71,8 +73,8 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                         <input
                             type="text"
                             placeholder="Username"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
                         />
                         <input
                             type="email"
@@ -120,6 +122,9 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                                     placeholder="Photovoltaics capacity (kWp)"
                                     value={pvSystemKw}
                                     onChange={e => setPvSystemKw(e.target.value)}
+                                />
+                                <LocationPicker
+                                    onLocationSelect={(selectedCoords) => setCoords(selectedCoords)}
                                 />
                             </div>
                         )}
