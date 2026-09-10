@@ -1,21 +1,19 @@
-import {useState} from 'react'
+import { useState } from 'react';
 
-function Register({onRegisterSuccess, switchToLogin}) {
-    const [step, setStep] = useState(1); // control current step
+function Register({ onRegisterSuccess, switchToLogin }) {
+    const [step, setStep] = useState(1);
 
-    // step 1: name, email, password
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    // step 2:
-    const [userType, setUserType] = useState('CONSUMER') // default state: consumer
+    const [userType, setUserType] = useState('CONSUMER');
     const [pvSystemKw, setPvSystemKw] = useState('');
     const [error, setError] = useState('');
 
     function handleNextStep(e) {
         e.preventDefault();
-        if(!username || !password || !email) {
+        if (!name || !password || !email) {
             setError("Please fill all the required fields.");
             return;
         }
@@ -23,7 +21,7 @@ function Register({onRegisterSuccess, switchToLogin}) {
         setStep(2);
     }
 
-    function handleFinalRegister(e){
+    function handleFinalRegister(e) {
         e.preventDefault();
         setError('');
 
@@ -31,7 +29,7 @@ function Register({onRegisterSuccess, switchToLogin}) {
             name,
             email,
             password,
-            userType, // Consumer or Prosumer
+            userType,
         };
 
         fetch('http://localhost:8080/users', {
@@ -56,7 +54,9 @@ function Register({onRegisterSuccess, switchToLogin}) {
                     });
                 }
             })
-            .then(() => switchToLogin())
+            .then(() => {
+                if (switchToLogin) switchToLogin();
+            })
             .catch(err => setError(err.message));
     }
 
@@ -71,8 +71,8 @@ function Register({onRegisterSuccess, switchToLogin}) {
                         <input
                             type="text"
                             placeholder="Username"
-                            value={username}
-                            onChange={e => setUsername(e.target.value)}
+                            value={name}
+                            onChange={e => setName(e.target.value)}
                         />
                         <input
                             type="email"
@@ -142,7 +142,6 @@ function Register({onRegisterSuccess, switchToLogin}) {
             </div>
         </div>
     );
-
 }
 
 export default Register;
