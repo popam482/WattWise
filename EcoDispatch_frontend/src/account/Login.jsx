@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 function Login({ onLoginSuccess, switchToRegister }) {
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
@@ -11,10 +11,10 @@ function Login({ onLoginSuccess, switchToRegister }) {
         fetch('http://localhost:8080/login', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username, password})
+            body: JSON.stringify({email, password})
         })
             .then(res => {
-                if (!res.ok) throw new Error('Invalid username or password');
+                if (!res.ok) throw new Error('Invalid email or password');
                 return res.json();
             })
             .then(data => {
@@ -32,10 +32,10 @@ function Login({ onLoginSuccess, switchToRegister }) {
                 {error && <div className="error-banner">{error}</div>}
                 <form onSubmit={handleLogin}>
                     <input
-                        type="text"
-                        placeholder="Username"
-                        value={username}
-                        onChange={e => setUsername(e.target.value)}
+                        type="email"
+                        placeholder="Email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
                     />
                     <input
                         type="password"

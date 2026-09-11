@@ -72,7 +72,7 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                     <form onSubmit={handleNextStep}>
                         <input
                             type="text"
-                            placeholder="Username"
+                            placeholder="Name"
                             value={username}
                             onChange={e => setUsername(e.target.value)}
                         />
