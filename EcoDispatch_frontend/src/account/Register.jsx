@@ -45,7 +45,7 @@ function Register({ onRegisterSuccess, switchToLogin }) {
             })
             .then(data => {
                 if (userType === 'PROSUMER' && pvSystemKw) {
-                    return fetch(`http://localhost:8080/users/${data.id}/energy-profile`, {
+                    return fetch(`http://localhost:8080/users/${data.id}/energy`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
