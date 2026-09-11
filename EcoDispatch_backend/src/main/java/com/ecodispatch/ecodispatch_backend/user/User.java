@@ -19,7 +19,7 @@ public class User {
     private Integer user_id;
 
     @NotBlank
-    private String username;
+    private String name;
 
     @NotBlank
     private String password;
@@ -34,11 +34,11 @@ public class User {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private EnergyProfile energyProfile;
 
-    public User(Integer user_id, String email, String password, String username, EnergyProfile energyProfile) {
+    public User(Integer user_id, String email, String password, String name, EnergyProfile energyProfile) {
         this.user_id = user_id;
         this.email = email;
         this.password = password;
-        this.username = username;
+        this.name = name;
         this.energyProfile = energyProfile;
     }
 

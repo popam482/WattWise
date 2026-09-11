@@ -7,7 +7,7 @@ import lombok.Setter;
 @Getter
 public class UserResponseDTO {
     private Integer id;
-    private String username;
+    private String name;
     private UserType userType;
 
     public UserResponseDTO() {

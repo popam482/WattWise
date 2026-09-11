@@ -27,14 +27,14 @@ public class UserService {
     private UserResponseDTO toResponseDTO(User user) {
         UserResponseDTO dto = new UserResponseDTO();
         dto.setId(user.getUser_id());
-        dto.setUsername(user.getUsername());
+        dto.setName(user.getName());
         dto.setUserType(user.getUserType());
         return dto;
     }
 
     private User toEntity(UserRequestDTO dto) {
         User user = new User();
-        user.setUsername(dto.getUsername());
+        user.setName(dto.getName());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setEmail(dto.getEmail());
         user.setUserType(dto.getUserType());
@@ -53,14 +53,21 @@ public class UserService {
         return toResponseDTO(savedUser);
     }
 
-    public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
-        User user = userRepository.findByUsername(loginRequestDTO.getUsername())
-                .orElseThrow(InvalidCredentials::new);
-        if(!passwordEncoder.matches(loginRequestDTO.getPassword(), user.getPassword())) {
-            throw new InvalidCredentials();
+    public LoginResponseDTO login(LoginRequestDTO loginRequest) {
+        User user = userRepository.findByEmail(loginRequest.getEmail())
+                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Invalid email or password");
         }
-        String token = jwtUtil.generateToken(user.getUsername());
-        UserResponseDTO userResponseDTO = toResponseDTO(user);
-        return new LoginResponseDTO(token, userResponseDTO);
+
+        String token = jwtUtil.generateToken(user.getEmail());
+
+        UserResponseDTO userResponse = new UserResponseDTO();
+        userResponse.setId(user.getUser_id());
+        userResponse.setName(user.getName());
+        userResponse.setUserType(user.getUserType());
+
+        return new LoginResponseDTO(token, userResponse);
     }
 }

@@ -51,7 +51,7 @@ public class EnergyProfileService {
         if (energyProfile.getUser() != null) {
             UserResponseDTO userDto = new UserResponseDTO();
             userDto.setId(energyProfile.getUser().getUser_id());
-            userDto.setUsername(energyProfile.getUser().getUsername());
+            userDto.setName(energyProfile.getUser().getName());
             dto.setUser(userDto);
         }
         return dto;
