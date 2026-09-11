@@ -44,8 +44,8 @@ export default function LocationPicker({ onLocationSelect }) {
                 style={{ height: '100%', width: '100%', borderRadius: '8px' }}
             >
                 <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; OpenStreetMap contributors'
+                    url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap contributors'
                 />
                 <LocationMarker
                     position={position}
