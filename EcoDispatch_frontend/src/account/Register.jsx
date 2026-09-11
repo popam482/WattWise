@@ -4,7 +4,7 @@ import LocationPicker from './LocationPicker.jsx';
 function Register({ onRegisterSuccess, switchToLogin }) {
     const [step, setStep] = useState(1);
 
-    const [username, setUsername] = useState('');
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
@@ -15,7 +15,7 @@ function Register({ onRegisterSuccess, switchToLogin }) {
 
     function handleNextStep(e) {
         e.preventDefault();
-        if (!username || !password || !email) {
+        if (!name || !password || !email) {
             setError("Please fill all the required fields.");
             return;
         }
@@ -28,7 +28,7 @@ function Register({ onRegisterSuccess, switchToLogin }) {
         setError('');
 
         const payload = {
-            username,
+            name,
             email,
             password,
             userType,
@@ -73,8 +73,8 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                         <input
                             type="text"
                             placeholder="Name"
-                            value={username}
-                            onChange={e => setUsername(e.target.value)}
+                            value={name}
+                            onChange={e => setName(e.target.value)}
                         />
                         <input
                             type="email"
