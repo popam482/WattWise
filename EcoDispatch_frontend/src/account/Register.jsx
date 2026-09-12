@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import LocationPicker from './LocationPicker.jsx';
 
-function Register({switchToLogin}) {
+function Register({ switchToLogin }) {
     const [step, setStep] = useState(1);
 
     const [name, setName] = useState('');
@@ -10,7 +10,7 @@ function Register({switchToLogin}) {
 
     const [userType, setUserType] = useState('CONSUMER');
     const [pvSystemKw, setPvSystemKw] = useState('');
-    const [coords, setCoords] = useState({latitude: 45.7925, longitude: 24.1520});
+    const [coords, setCoords] = useState({ latitude: 45.7925, longitude: 24.1520 });
 
     const [appliances, setAppliances] = useState([]);
     const [applianceName, setApplianceName] = useState('');
@@ -27,7 +27,7 @@ function Register({switchToLogin}) {
                 return;
             }
             setError('');
-            setStep(2); // step 2 - consumer/prosumer
+            setStep(2);
         } else if (step === 2) {
             if (userType === 'PROSUMER') {
                 if (!pvSystemKw) {
@@ -35,16 +35,15 @@ function Register({switchToLogin}) {
                     return;
                 }
                 setError('');
-                setStep(3); // step 3 - go to map
+                setStep(3);
             } else {
                 setError('');
-                setStep(4); // step 4 - appliances
+                setStep(4);
             }
         } else if (step === 3) {
             setError('');
             setStep(4);
         }
-
     }
 
     function handleAddAppliance(e) {
@@ -59,52 +58,59 @@ function Register({switchToLogin}) {
         setAppliances(appliances.filter((_, i) => i !== index));
     }
 
-    function handleFinalRegister(e) {
+    async function handleFinalRegister(e) {
         e.preventDefault();
         setError('');
 
         const payload = { name, email, password, userType };
 
-        fetch('http://localhost:8080/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-            .then(async res => {
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
-                    throw new Error(errorData.message || 'User creation failed');
-                }
-                return res.json();
-            })
-            .then(async (user) => {
-                if (userType === 'PROSUMER' && pvSystemKw) {
-                    const profileRes = await fetch(`http://localhost:8080/users/${user.id}/energy`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            pvSystemKw: parseFloat(pvSystemKw),
-                            latitude: coords.latitude,
-                            longitude: coords.longitude,
-                        })
-                    });
-                    if (!profileRes.ok) throw new Error('Energy profile creation failed');
-                }
-                for (const app of appliances) {
-                    await fetch(`http://localhost:8080/users/${user.id}/appliances`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(app)
-                    });
-                }
-            })
-            .then(() => {
-                if (switchToLogin) switchToLogin();
-            })
-            .catch(err => {
-                console.error("Detailed backend error:", err);
-                setError(err.message);
+        try {
+            // create user
+            const res = await fetch('http://localhost:8080/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.message || 'User creation failed');
+            }
+
+            const user = await res.json();
+            const targetUserId = user.id || user.userId || user.user_id;
+
+            //energy profile - prosumers
+            if (userType === 'PROSUMER' && pvSystemKw) {
+                const profileRes = await fetch(`http://localhost:8080/users/${targetUserId}/energy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pvSystemKw: parseFloat(pvSystemKw),
+                        latitude: coords.latitude,
+                        longitude: coords.longitude,
+                    })
+                });
+
+                if (!profileRes.ok) throw new Error('Energy profile creation failed');
+            }
+
+            // save appliances
+            for (const app of appliances) {
+                await fetch(`http://localhost:8080/users/${targetUserId}/appliances`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(app)
+                });
+            }
+
+            // redirect to login
+            if (switchToLogin) switchToLogin();
+
+        } catch (err) {
+            console.error("Detailed backend error:", err);
+            setError(err.message);
+        }
     }
 
     return (

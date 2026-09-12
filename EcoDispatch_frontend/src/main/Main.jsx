@@ -5,11 +5,11 @@ import Register from '../account/Register.jsx';
 import Dashboard from '../dashboard/Dashboard.jsx';
 
 function App() {
-    const [user, setUser] = useState(null); // contains { id, name, email, userType }
+    const [user, setUser] = useState(null); // contains { id, name, userType }
     const [view, setView] = useState('login'); // login or register
 
-    const handleLoginSuccess = (userData) => {
-        setUser(userData);
+    const handleLoginSuccess = (loginResponse) => {
+        setUser(loginResponse.user);
     };
 
     const handleLogout = () => {

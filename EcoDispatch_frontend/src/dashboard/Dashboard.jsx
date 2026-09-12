@@ -55,7 +55,7 @@ function Dashboard({ userId, onLogout }) {
                         {userAppliances.map(app => (
                             <div key={app.id} className="appliance-card">
                                 <h3>{app.name}</h3>
-                                <p><strong>Consum:</strong> {app.powerConsumptionKw} kW</p>
+                                <p><strong>Consumption:</strong> {app.powerConsumptionKw} kW</p>
 
                                 <button
                                     onClick={() => handleGetRecommendation(app.id)}
