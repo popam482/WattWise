@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import {useState} from 'react';
 import LocationPicker from './LocationPicker.jsx';
 
-function Register({ onRegisterSuccess, switchToLogin }) {
+function Register({onRegisterSuccess, switchToLogin}) {
     const [step, setStep] = useState(1);
 
     const [name, setName] = useState('');
@@ -10,29 +10,60 @@ function Register({ onRegisterSuccess, switchToLogin }) {
 
     const [userType, setUserType] = useState('CONSUMER');
     const [pvSystemKw, setPvSystemKw] = useState('');
-    const [coords, setCoords] = useState({ latitude: 45.7925, longitude: 24.1520 });
+    const [coords, setCoords] = useState({latitude: 45.7925, longitude: 24.1520});
+
+    const [appliances, setAppliances] = useState([]);
+    const [applianceName, setApplianceName] = useState('');
+    const [powerKw, setPowerKw] = useState('');
+
     const [error, setError] = useState('');
 
     function handleNextStep(e) {
         e.preventDefault();
-        if (!name || !password || !email) {
-            setError("Please fill all the required fields.");
-            return;
+
+        if (step === 1) {
+            if (!name || !password || !email) {
+                setError("Please fill all the required fields.");
+                return;
+            }
+            setError('');
+            setStep(2); // step 2 - consumer/prosumer
+        } else if (step === 2) {
+            if (userType === 'PROSUMER') {
+                if (!pvSystemKw) {
+                    setError("Please enter the Photovoltaics capacity");
+                    return;
+                }
+                setError('');
+                setStep(3); // step 3 - go to map
+            } else {
+                setError('');
+                setStep(4); // step 4 - appliances
+            }
+        } else if (step === 3) {
+            setError('');
+            setStep(4);
         }
-        setError('');
-        setStep(2);
+
+    }
+
+    function handleAddAppliance(e) {
+        e.preventDefault();
+        if (!applianceName || !powerKw) return;
+        setAppliances([...appliances, { name: applianceName, powerConsumptionKw: parseFloat(powerKw) }]);
+        setApplianceName('');
+        setPowerKw('');
+    }
+
+    function handleRemoveAppliance(index) {
+        setAppliances(appliances.filter((_, i) => i !== index));
     }
 
     function handleFinalRegister(e) {
         e.preventDefault();
         setError('');
 
-        const payload = {
-            name,
-            email,
-            password,
-            userType,
-        };
+        const payload = { name, email, password, userType };
 
         fetch('http://localhost:8080/users', {
             method: 'POST',
@@ -46,9 +77,9 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                 }
                 return res.json();
             })
-            .then(data => {
+            .then(async (user) => {
                 if (userType === 'PROSUMER' && pvSystemKw) {
-                    return fetch(`http://localhost:8080/users/${data.id}/energy`, {
+                    const profileRes = await fetch(`http://localhost:8080/users/${user.id}/energy`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -56,12 +87,14 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                             latitude: coords.latitude,
                             longitude: coords.longitude,
                         })
-                    }).then(async profileRes => {
-                        if (!profileRes.ok) {
-                            const profileErr = await profileRes.json().catch(() => ({}));
-                            throw new Error(profileErr.message || 'Energy profile creation failed');
-                        }
-                        return profileRes.json();
+                    });
+                    if (!profileRes.ok) throw new Error('Energy profile creation failed');
+                }
+                for (const app of appliances) {
+                    await fetch(`http://localhost:8080/users/${user.id}/appliances`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(app)
                     });
                 }
             })
@@ -72,7 +105,6 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                 console.error("Detailed backend error:", err);
                 setError(err.message);
             });
-
     }
 
     return (
@@ -81,7 +113,7 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                 <h1 className="auth-title">Sign up</h1>
                 {error && <div className="error-banner">{error}</div>}
 
-                {step === 1 ? (
+                {step === 1 && (
                     <form onSubmit={handleNextStep}>
                         <input
                             type="text"
@@ -105,8 +137,10 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                             Continue
                         </button>
                     </form>
-                ) : (
-                    <form onSubmit={handleFinalRegister}>
+                )}
+
+                {step === 2 && (
+                    <form onSubmit={handleNextStep}>
                         <h3>Are you a prosumer or consumer?</h3>
                         <div className="user-type-selector">
                             <button
@@ -136,9 +170,6 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                                     value={pvSystemKw}
                                     onChange={e => setPvSystemKw(e.target.value)}
                                 />
-                                <LocationPicker
-                                    onLocationSelect={(selectedCoords) => setCoords(selectedCoords)}
-                                />
                             </div>
                         )}
 
@@ -147,10 +178,67 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                                 Back
                             </button>
                             <button className="authenticationButton" type="submit">
-                                Finish registration
+                                Next
                             </button>
                         </div>
                     </form>
+                )}
+
+                {step === 3 && (
+                    <form onSubmit={handleNextStep}>
+                        <h3>Select consumption location</h3>
+                        <LocationPicker
+                            onLocationSelect={(selectedCoords) => setCoords(selectedCoords)}
+                        />
+                        <div className="actions" style={{ marginTop: '15px' }}>
+                            <button type="button" onClick={() => setStep(2)}>
+                                Back
+                            </button>
+                            <button className="authenticationButton" type="submit">
+                                Next
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {step === 4 && (
+                    <div>
+                        <h3>Add Appliances</h3>
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                            <input
+                                type="text"
+                                placeholder="Appliance name (e.g. Boiler)"
+                                value={applianceName}
+                                onChange={e => setApplianceName(e.target.value)}
+                            />
+                            <input
+                                type="number"
+                                step="0.1"
+                                placeholder="Power (kW)"
+                                value={powerKw}
+                                onChange={e => setPowerKw(e.target.value)}
+                            />
+                            <button type="button" onClick={handleAddAppliance}>Add</button>
+                        </div>
+
+                        <div className="appliances-list">
+                            {appliances.map((app, idx) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                    <span>{app.name} - {app.powerConsumptionKw} kW</span>
+                                    <button type="button" onClick={() => handleRemoveAppliance(idx)}>Delete</button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="actions" style={{ marginTop: '15px' }}>
+                            <button type="button" onClick={() => setStep(userType === 'PROSUMER' ? 3 : 2)}>
+                                Back
+                            </button>
+                            <button className="authenticationButton" type="button" onClick={handleFinalRegister}>
+                                Finish Registration
+                            </button>
+                        </div>
+                    </div>
                 )}
 
                 <p>

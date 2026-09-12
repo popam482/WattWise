@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin("*")
+@CrossOrigin(origins = "*")
 public class ApplianceController {
 
     private final ApplianceService applianceService;
@@ -30,7 +30,7 @@ public class ApplianceController {
     }
 
     @PostMapping("/users/{userId}/appliances/log")
-    public void logUsage(@PathVariable Integer userId, @RequestBody ApplianceUsageLogRequestDTO dto){
+    public void logUsage(@PathVariable Integer userId, @RequestBody ApplianceUsageLogRequestDTO dto) {
         applianceService.logApplianceUsage(userId, dto);
     }
 
@@ -38,7 +38,7 @@ public class ApplianceController {
     public ApplianceRecommendationResponseDTO getRecommendation(
             @PathVariable Integer userId,
             @PathVariable Integer applianceId,
-            @RequestParam(defaultValue = "1") Integer durationHours){
+            @RequestParam(defaultValue = "1") Integer durationHours) {
 
         return applianceService.getBestTimeForAppliance(userId, applianceId, durationHours);
 
