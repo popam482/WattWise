@@ -1,22 +1,42 @@
-import { useState } from "react";
-import { createRoot } from "react-dom/client";
-import Register from "../account/Register.jsx";
-import Login from "../account/Login.jsx";
+import { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import Login from '../account/Login.jsx';
+import Register from '../account/Register.jsx';
+import Dashboard from '../dashboard/Dashboard.jsx';
 
 function App() {
-    const [isLogin, setIsLogin] = useState(false);
+    const [user, setUser] = useState(null); // contains { id, name, email, userType }
+    const [view, setView] = useState('login'); // login or register
+
+    const handleLoginSuccess = (userData) => {
+        setUser(userData);
+    };
+
+    const handleLogout = () => {
+        setUser(null);
+        setView('login');
+    };
+
+    if (user) {
+        return <Dashboard userId={user.id} userType={user.userType} userName={user.name} onLogout={handleLogout} />;
+    }
 
     return (
-        <div>
-            {isLogin ? (
-                <Login switchToRegister={() => setIsLogin(false)} />
+        <div className="app-container">
+            {view === 'login' ? (
+                <Login
+                    onLoginSuccess={handleLoginSuccess}
+                    switchToRegister={() => setView('register')}
+                />
             ) : (
-                <Register switchToLogin={() => setIsLogin(true)} />
+                <Register
+                    switchToLogin={() => setView('login')}
+                />
             )}
         </div>
     );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
-
 export default App;
+
+createRoot(document.getElementById('root')).render(<App />);

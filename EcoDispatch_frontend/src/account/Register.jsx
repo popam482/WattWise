@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import LocationPicker from './LocationPicker.jsx';
 
-function Register({onRegisterSuccess, switchToLogin}) {
+function Register({switchToLogin}) {
     const [step, setStep] = useState(1);
 
     const [name, setName] = useState('');

@@ -4,49 +4,67 @@ function Login({ onLoginSuccess, switchToRegister }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    function handleLogin(e) {
+    const handleLogin = (e) => {
         e.preventDefault();
         setError('');
-        fetch('http://localhost:8080/login', {
+        setLoading(true);
+
+        fetch('http://localhost:8080/users/login', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email, password})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
         })
-            .then(res => {
-                if (!res.ok) throw new Error('Invalid email or password');
+            .then(async (res) => {
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.message || 'Invalid email or password');
+                }
                 return res.json();
             })
-            .then(data => {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('userId', data.user.id);
-                if (onLoginSuccess) onLoginSuccess(data.token, data.user.id);
+            .then((userData) => {
+                onLoginSuccess(userData);
             })
-            .catch(err => setError(err.message));
-    }
+            .catch((err) => {
+                setError(err.message);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    };
 
     return (
         <div className="container">
             <div className="auth-card">
                 <h1 className="auth-title">Sign in</h1>
-                {error && <div className="error-banner">{error}</div>}
+                {error && <div className="error-banner" style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+
                 <form onSubmit={handleLogin}>
                     <input
                         type="email"
                         placeholder="Email"
                         value={email}
-                        onChange={e => setEmail(e.target.value)}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
                     />
                     <input
                         type="password"
                         placeholder="Password"
                         value={password}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
                     />
-                    <button className="authenticationButton" type="submit">Login</button>
+                    <button className="authenticationButton" type="submit" disabled={loading}>
+                        {loading ? 'Signing in...' : 'Sign in'}
+                    </button>
                 </form>
-                <p>New here?
-                    <button className="authenticationButton" onClick={switchToRegister}>Sign up</button>
+
+                <p>
+                    Don't have an account?{' '}
+                    <button className="authenticationButton" onClick={switchToRegister}>
+                        Sign up
+                    </button>
                 </p>
             </div>
         </div>
