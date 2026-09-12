@@ -48,6 +48,10 @@ public class UserService {
     }
 
     public UserResponseDTO createUser(UserRequestDTO dto) {
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new RuntimeException("Email already in use!");
+        }
+
         User user = toEntity(dto);
         User savedUser = userRepository.save(user);
         return toResponseDTO(savedUser);

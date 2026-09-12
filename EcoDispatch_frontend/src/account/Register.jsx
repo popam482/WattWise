@@ -39,8 +39,11 @@ function Register({ onRegisterSuccess, switchToLogin }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
-            .then(res => {
-                if (!res.ok) throw new Error('Registration failed');
+            .then(async res => {
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({}));
+                    throw new Error(errorData.message || 'User creation failed');
+                }
                 return res.json();
             })
             .then(data => {
@@ -53,13 +56,23 @@ function Register({ onRegisterSuccess, switchToLogin }) {
                             latitude: coords.latitude,
                             longitude: coords.longitude,
                         })
+                    }).then(async profileRes => {
+                        if (!profileRes.ok) {
+                            const profileErr = await profileRes.json().catch(() => ({}));
+                            throw new Error(profileErr.message || 'Energy profile creation failed');
+                        }
+                        return profileRes.json();
                     });
                 }
             })
             .then(() => {
                 if (switchToLogin) switchToLogin();
             })
-            .catch(err => setError(err.message));
+            .catch(err => {
+                console.error("Detailed backend error:", err);
+                setError(err.message);
+            });
+
     }
 
     return (
