@@ -96,7 +96,8 @@ public class ApplianceService {
             request.setSystemKwp(user.getEnergyProfile().getPvSystemKw());
         }
 
-        String pythonApiUrl = pythonApiBaseUrl + "api/recommendations/best-time";
+        String baseUrl = pythonApiBaseUrl.endsWith("/") ? pythonApiBaseUrl : pythonApiBaseUrl + "/";
+        String pythonApiUrl = baseUrl + "api/recommendations/best-time";
 
         return restTemplate.postForObject(
                 pythonApiUrl,
