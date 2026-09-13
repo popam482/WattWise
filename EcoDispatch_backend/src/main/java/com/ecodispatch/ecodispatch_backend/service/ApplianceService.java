@@ -106,4 +106,30 @@ public class ApplianceService {
         );
     }
 
+    public void deleteAppliance(Integer userId, Integer applianceId) {
+        Appliance appliance = applianceRepository.findById(applianceId)
+                .orElseThrow(() -> new ApplianceNotFound("Appliance not found"));
+
+        if (!appliance.getUser().getUser_id().equals(userId)) {
+            throw new ApplianceNotFound("Appliance does not belong to user");
+        }
+
+        applianceRepository.delete(appliance);
+    }
+
+    public ApplianceResponseDTO updateAppliance(Integer userId, Integer applianceId, ApplianceRequestDTO dto) {
+        Appliance appliance = applianceRepository.findById(applianceId)
+                .orElseThrow(() -> new ApplianceNotFound("Appliance not found"));
+
+        if (!appliance.getUser().getUser_id().equals(userId)) {
+            throw new ApplianceNotFound("Appliance does not belong to user");
+        }
+
+        appliance.setName(dto.getName());
+        appliance.setPowerConsumptionKw(dto.getPowerConsumptionKw());
+
+        Appliance updated = applianceRepository.save(appliance);
+        return toResponseDTO(updated);
+    }
+
 }

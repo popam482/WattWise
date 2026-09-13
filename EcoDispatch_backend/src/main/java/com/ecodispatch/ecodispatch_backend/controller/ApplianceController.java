@@ -44,4 +44,17 @@ public class ApplianceController {
 
     }
 
+    @DeleteMapping("/users/{userId}/appliances/{applianceId}")
+    public void deleteAppliance(@PathVariable Integer userId, @PathVariable Integer applianceId) {
+        applianceService.deleteAppliance(userId, applianceId);
+    }
+
+    @PutMapping("/users/{userId}/appliances/{applianceId}")
+    public ApplianceResponseDTO updateAppliance(
+            @PathVariable Integer userId,
+            @PathVariable Integer applianceId,
+            @RequestBody ApplianceRequestDTO dto) {
+        return applianceService.updateAppliance(userId, applianceId, dto);
+    }
+
 }
