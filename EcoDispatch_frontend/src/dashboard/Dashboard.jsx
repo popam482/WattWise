@@ -1,12 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 function Dashboard({ userId, onLogout }) {
     const [userAppliances, setUserAppliances] = useState([]);
     const [recommendations, setRecommendations] = useState({});
     const [loadingApplianceId, setLoadingApplianceId] = useState(null);
+
+    const [newName, setNewName] = useState("");
+    const [newPower, setNewPower] = useState("");
+
+    const [editingId, setEditingId] = useState(null);
+    const [editName, setEditName] = useState("");
+    const [editPower, setEditPower] = useState("");
+
     const [error, setError] = useState('');
 
-    useEffect(() => {
+    const fetchAppliances = useCallback(() => {
         if (!userId) return;
         fetch(`http://localhost:8080/users/${userId}/appliances`)
             .then(res => {
@@ -15,7 +23,58 @@ function Dashboard({ userId, onLogout }) {
             })
             .then(data => setUserAppliances(data))
             .catch(err => setError(err.message));
-    }, [userId]);
+            }, [userId]);
+
+    useEffect(() => {
+       fetchAppliances();
+            }, [fetchAppliances]);
+
+    const handleAddAppliance = (e) => {
+        e.preventDefault();
+        if(!newName || !newPower) return;
+
+        fetch(`http://localhost:8080/users/${userId}/appliances`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: newName, powerConsumptionKw: parseFloat(newPower)})
+        })
+            .then(res => {
+                if(!res.ok) throw new Error('Failed to create appliance');
+                return res.json();
+            })
+            .then(() => {
+                setNewName("");
+                setNewPower("");
+                fetchAppliances();
+            })
+            .catch(err => setError(err.message));
+    };
+
+    const handleDeleteAppliance = (applianceId) => {
+        fetch("http://localhost:8080/users/" + userId + "/appliances/" + applianceId, {
+            method: "DELETE"
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to delete appliance");
+                fetchAppliances();
+            })
+            .catch(err => setError(err.message));
+    };
+
+    const handleSaveEdit = (e, applianceId) => {
+        e.preventDefault();
+        fetch(`http://localhost:8080/users/${userId}/appliances/${applianceId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: editName, powerConsumptionKw: parseFloat(editPower) })
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to update appliance');
+                setEditingId(null);
+                fetchAppliances();
+            })
+            .catch(err => setError(err.message));
+    };
 
     const handleGetRecommendation = (applianceId) => {
         setLoadingApplianceId(applianceId);
@@ -48,16 +107,73 @@ function Dashboard({ userId, onLogout }) {
             <section className="appliances-section">
                 <h2>Your Appliances & Optimal Dispatch</h2>
 
+                <form onSubmit={handleAddAppliance} className="add-appliance-form">
+                    <input
+                        type="text"
+                        placeholder="Appliance name"
+                        value={newName}
+                        onChange={e => setNewName(e.target.value)}
+                        required
+                    />
+                    <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="Power (kW)"
+                        value={newPower}
+                        onChange={e => setNewPower(e.target.value)}
+                        required
+                    />
+                    <button type="submit">Add appliance</button>
+                </form>
+
                 {userAppliances.length === 0 ? (
                     <p>You don't have any appliance added yet</p>
                 ) : (
                     <div className="appliances-grid">
                         {userAppliances.map(app => (
                             <div key={app.id} className="appliance-card">
-                                <h3>{app.name}</h3>
-                                <p><strong>Consumption:</strong> {app.powerConsumptionKw} kW</p>
+                                {editingId === app.id ? (
+                                    <form onSubmit={e => handleSaveEdit(e, app.id)}>
+                                        <input
+                                            type="text"
+                                            value={editName}
+                                            onChange={e => setEditName(e.target.value)}
+                                            required
+                                        />
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            value={editPower}
+                                            onChange={e => setEditPower(e.target.value)}
+                                            required
+                                        />
+                                        <button type="submit">Save</button>
+                                        <button type="button" onClick={() => setEditingId(null)}>Cancel</button>
+                                    </form>
+                                ) : (
+                                    <>
+                                        <h3>{app.name}</h3>
+                                        <p><strong>Consumption:</strong> {app.powerConsumptionKw} kW</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEditingId(app.id);
+                                                setEditName(app.name);
+                                                setEditPower(app.powerConsumptionKw);
+                                            }}
+                                        >
+                                            Edit
+                                        </button>
+                                        <button type="button" onClick={() => handleDeleteAppliance(app.id)}>
+                                            Delete
+                                        </button>
+                                    </>
+                                )}
 
                                 <button
+                                    type="button"
                                     onClick={() => handleGetRecommendation(app.id)}
                                     disabled={loadingApplianceId === app.id}
                                 >
