@@ -34,7 +34,7 @@ public class ApplianceController {
         applianceService.logApplianceUsage(userId, dto);
     }
 
-    @PostMapping("users/{userId}/appliances/{applianceId}/recommendation")
+    @PostMapping("/users/{userId}/appliances/{applianceId}/recommendation")
     public ApplianceRecommendationResponseDTO getRecommendation(
             @PathVariable Integer userId,
             @PathVariable Integer applianceId,
