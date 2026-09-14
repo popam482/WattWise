@@ -56,6 +56,21 @@ def home():
     return {"status": "EcoDispatch ML API is running. Go to /docs to test endpoints."}
 
 
+# current national grid status
+@app.get("/api/grid/status")
+def get_grid_status():
+    grid_data = pd.read_csv(BASE_DIR / "datasets" / "electricityConsumptionAndProduction.csv")
+    latest = grid_data.iloc[-1]
+
+    return {
+        "Total_Green_MW": float(latest["Total Green"]),
+        "Total_Fossil": float(latest["Total Fossil"]),
+        "Nuclear_MW": float(latest["Nuclear"]),
+        "Green_Share_Percent": float(latest["Green Percentage"]),
+        "Predicted_Consumption_MW": float(latest["Consumption"])
+    }
+
+
 # national consumption
 @app.post("/api/predict-consumption")
 def predict_consumption(scenario: EnergyScenario):

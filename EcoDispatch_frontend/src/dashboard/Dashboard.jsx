@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
+import NationalGridWidget from "../widgets/NationalGridWidget";
 
-function Dashboard({ userId, onLogout }) {
+function Dashboard({ userId, userType, onLogout }) {
     const [userAppliances, setUserAppliances] = useState([]);
     const [recommendations, setRecommendations] = useState({});
     const [loadingApplianceId, setLoadingApplianceId] = useState(null);
@@ -105,8 +106,14 @@ function Dashboard({ userId, onLogout }) {
 
             {error && <div className="error-banner">{error}</div>}
 
-            <section className="weather-section">
-                <WeatherSolarWidget userId={userId}/>
+            {userType === 'PROSUMER' && (
+                <section className="weather-section">
+                    <WeatherSolarWidget userId={userId}/>
+                </section>
+            )}
+
+            <section className="grid-section">
+                <NationalGridWidget userId={userId}/>
             </section>
 
             <section className="appliances-section">
