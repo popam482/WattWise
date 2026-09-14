@@ -38,6 +38,10 @@ function WeatherSolarWidget({userId}) {
                     <h4>{current.Irradiance_W_m2} W/m²</h4>
                 </div>
                 <div>
+                    <span>Cloud Coverage</span>
+                    <h4>{current.Cloud_Cover ?? current["Cloud_Cover_%"]} %</h4>
+                </div>
+                <div>
                     <span>Estimated Power</span>
                     <h4>{current.Estimated_PV_Power_kW} kW</h4>
                 </div>

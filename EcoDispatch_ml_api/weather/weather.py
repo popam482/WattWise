@@ -37,7 +37,7 @@ def calculate_pv_production(
         'Time': pd.to_datetime(hourly_data['time']),
         'Irradiance_W_m2': hourly_data['shortwave_radiation'],
         'Temp_C': hourly_data['temperature_2m'],
-        'Cloud_Cover_%': hourly_data['cloudcover']
+        'Cloud_Cover': hourly_data['cloudcover']
     })
 
     # Estimated PV power:
