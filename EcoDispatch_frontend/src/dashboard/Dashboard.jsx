@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import WeatherSolarWidget from '../weather/WeatherSolarWidget';
 
 function Dashboard({ userId, onLogout }) {
     const [userAppliances, setUserAppliances] = useState([]);
@@ -103,6 +104,10 @@ function Dashboard({ userId, onLogout }) {
             </header>
 
             {error && <div className="error-banner">{error}</div>}
+
+            <section className="weather-section">
+                <WeatherSolarWidget userId={userId}/>
+            </section>
 
             <section className="appliances-section">
                 <h2>Your Appliances & Optimal Dispatch</h2>
