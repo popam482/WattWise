@@ -20,5 +20,12 @@ public class SolarForecastResponseDTO {
     @JsonProperty("Estimated_PV_Power_kW")
     private Double estimatedPVPowerKW;
 
+    @JsonProperty("Cloud_Cover_%")
+    private double cloudCover;
+
+    @JsonProperty("Weather_Code")
+    private Integer weatherCode;
+
+
     public SolarForecastResponseDTO() {}
 }
