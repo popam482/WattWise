@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import WeatherSolarWidget from '../weather/WeatherSolarWidget';
+import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 
 function Dashboard({ userId, onLogout }) {
     const [userAppliances, setUserAppliances] = useState([]);
