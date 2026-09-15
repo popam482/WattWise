@@ -22,6 +22,14 @@ public class NationalGridResponseDTO {
     @JsonProperty("Predicted_Consumption_MW")
     private Double predictedConsumptionMW;
 
-    public NationalGridResponseDTO() {
-    }
+    @JsonProperty("Production_MW")
+    private Double productionMW;
+
+    @JsonProperty("Balance_MW")
+    private Double balanceMW;
+
+    @JsonProperty("Timestamp")
+    private String timestamp;
+
+    public NationalGridResponseDTO() {}
 }
