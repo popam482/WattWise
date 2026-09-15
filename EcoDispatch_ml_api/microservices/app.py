@@ -8,6 +8,8 @@ from pydantic import BaseModel
 import pandas as pd
 from pathlib import Path
 
+from EcoDispatch_ml_api.energy_model.sen_realtime import get_current_hourly_sen_data
+
 app = FastAPI(title="EcoDispatch ML API")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -192,3 +194,18 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         total_green_energy_score=round(max_window_score, 2),
         reason=reason
     )
+
+@app.get("/api/grid/status")
+def get_grid_status():
+    realtime_data = get_current_hourly_sen_data()
+
+    return {
+        "Total_Green_MW": realtime_data["total_green_mw"],
+        "Total_Fossil": realtime_data["total_fossil_mw"],
+        "Nuclear_MW": realtime_data["nuclear_mw"],
+        "Green_Share_Percent": realtime_data["green_share_percent"],
+        "Predicted_Consumption_MW": realtime_data["consumption_mw"],
+        "Production_MW": realtime_data["production_mw"],
+        "Balance_MW": realtime_data["balance_mw"],
+        "Timestamp": realtime_data["timestamp"]
+    }
