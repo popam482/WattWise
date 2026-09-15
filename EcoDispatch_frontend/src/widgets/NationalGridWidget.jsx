@@ -23,6 +23,11 @@ function NationalGridWidget({userId}) {
     if (loading) return <div>Loading national grid data...</div>;
     if (!gridData) return null;
 
+    const formatValue = (val) => {
+        if (val === undefined || val === null || isNaN(val)) return "0.00";
+        return Number(val).toFixed(2);
+    };
+
     const totalGreen = gridData.Total_Green_MW ?? gridData.totalGreenMW ?? 0;
     const totalFossil = gridData.Total_Fossil ?? gridData.totalFossil ?? 0;
     const nuclear = gridData.Nuclear_MW ?? gridData.nuclearMW ?? 0;
@@ -35,22 +40,22 @@ function NationalGridWidget({userId}) {
 
             <div>
                 <div>
+                    <span>Predicted Energy Production</span>
+                    <h2>{formatValue(predictedConsumption)} MW</h2>
+                </div>
+                <div>
                     <span>Total Green Energy</span>
-                    <h2>{totalGreen} MW</h2>
+                    <h2>{formatValue(totalGreen)} MW</h2>
                     <span>Total Green Energy Percent</span>
-                    <h2>{greenShare} %</h2>
+                    <h2>{formatValue(greenShare)} %</h2>
                 </div>
                 <div>
                     <span>Total Fossil</span>
-                    <h4>{totalFossil} MW</h4>
+                    <h4>{formatValue(totalFossil)} MW</h4>
                 </div>
                 <div>
                     <span>Total Nuclear</span>
-                    <h4>{nuclear} MW</h4>
-                </div>
-                <div>
-                    <span>Predicted Energy Production</span>
-                    <h4>{predictedConsumption} MW</h4>
+                    <h4>{formatValue(nuclear)} MW</h4>
                 </div>
             </div>
         </div>
