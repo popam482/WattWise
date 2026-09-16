@@ -1,49 +1,79 @@
-import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 from datetime import datetime
-from pathlib import Path
+import re
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-def get_current_hourly_sen_data():
-    csv_path = BASE_DIR / "datasets" / "electricityConsumptionAndProduction.csv"
+def _parse_number(value):
+    cleaned = value.replace("\u202f", "").replace("\xa0", "").replace(" ", "")
+    cleaned = re.sub(r"[^0-9,.-]", "", cleaned)
+    if not cleaned:
+        raise ValueError("empty numeric value")
+    if "," in cleaned and "." in cleaned:
+        cleaned = cleaned.replace(".", "").replace(",", ".")
+    elif "," in cleaned:
+        cleaned = cleaned.replace(",", ".")
+    return float(cleaned)
 
-    if not csv_path.exists():
-        csv_path = BASE_DIR / "electricityConsumptionAndProduction.csv"
 
-    df = pd.read_csv(csv_path)
-    df['DateTime'] = pd.to_datetime(df['DateTime'])
+def _find_latest_table_row(soup):
+    measurements = []
+
+    for row in soup.select("tr"):
+        cells = [cell.get_text(" ", strip=True) for cell in row.select("th, td")]
+        if len(cells) < 12:
+            continue
+
+        try:
+            timestamp_dt = datetime.fromisoformat(cells[0])
+            timestamp_str = timestamp_dt.strftime("%Y-%m-%d %H:%M:%S")
+            values = [_parse_number(value) for value in cells[1:12]]
+        except (ValueError, TypeError):
+            continue
+
+        if values[1] <= 0:
+            continue
+
+        measurements.append((timestamp_dt, timestamp_str, values))
+
+    if not measurements:
+        raise RuntimeError("No live SEN measurement row was found on sistemulenergetic.ro")
 
     now = datetime.now()
-    rounded_hour = now.replace(minute=0, second=0, microsecond=0)
+    target_hour = now.replace(minute=0, second=0, microsecond=0)
 
-    matching_rows = df[df['DateTime'].dt.hour == rounded_hour.hour]
+    hour_measurements = [
+        m for m in measurements
+        if m[0].date() == target_hour.date() and m[0].hour == target_hour.hour
+    ]
 
-    if not matching_rows.empty:
-        latest = matching_rows.iloc[-1]
+    if hour_measurements:
+        _, timestamp, values = min(hour_measurements, key=lambda m: abs(m[0].minute))
+        return timestamp, values
     else:
-        latest = df.iloc[-1]
+        _, timestamp, values = max(measurements, key=lambda m: m[0])
+        return timestamp, values
 
-    hydro = float(latest.get("Hydroelectric", 0))
-    wind = float(latest.get("Wind", 0))
-    solar = float(latest.get("Solar", 0))
-    biomass = float(latest.get("Biomass", 0))
+def get_current_hourly_sen_data():
+    url = "https://www.sistemulenergetic.ro/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
 
+    response = requests.get(url, headers=headers, timeout=10)
+    response.raise_for_status()
+    timestamp, values = _find_latest_table_row(BeautifulSoup(response.text, "html.parser"))
+
+    consumption, production, _storage, wind, hydro, gas, coal, solar, biomass, nuclear, balance = values
     total_green = hydro + wind + solar + biomass
-    coal = float(latest.get("Coal", 0))
-    oil_gas = float(latest.get("Oil and Gas", 0))
-    total_fossil = coal + oil_gas
-    nuclear = float(latest.get("Nuclear", 0))
-
-    total_production = total_green + total_fossil + nuclear
-    consumption = float(latest.get("Consumption", 0))
-
-    green_share = (total_green / total_production * 100) if total_production > 0 else 0.0
+    total_fossil = gas + coal
+    green_share = (total_green / production * 100) if production > 0 else 0.0
 
     return {
-        "timestamp": rounded_hour.strftime("%Y-%m-%d %H:00:00"),
+        "timestamp": timestamp,
         "consumption_mw": round(consumption, 2),
-        "production_mw": round(total_production, 2),
-        "balance_mw": round(total_production - consumption, 2), # > 0 Export, < 0 Import
+        "production_mw": round(production, 2),
+        "balance_mw": round(balance, 2),
         "total_green_mw": round(total_green, 2),
         "total_fossil_mw": round(total_fossil, 2),
         "nuclear_mw": round(nuclear, 2),
