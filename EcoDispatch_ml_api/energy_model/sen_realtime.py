@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 
 
@@ -64,13 +64,17 @@ def get_current_hourly_sen_data():
     response.raise_for_status()
     timestamp, values = _find_latest_table_row(BeautifulSoup(response.text, "html.parser"))
 
+    dt_utc = datetime.fromisoformat(timestamp)
+    dt_ro = dt_utc + timedelta(hours=3)
+    formatted_timestamp = dt_ro.strftime("%Y-%m-%d %H:00:00")
+
     consumption, production, _storage, wind, hydro, gas, coal, solar, biomass, nuclear, balance = values
     total_green = hydro + wind + solar + biomass
     total_fossil = gas + coal
     green_share = (total_green / production * 100) if production > 0 else 0.0
 
     return {
-        "timestamp": timestamp,
+        "timestamp": formatted_timestamp,
         "consumption_mw": round(consumption, 2),
         "production_mw": round(production, 2),
         "balance_mw": round(balance, 2),
