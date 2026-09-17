@@ -51,7 +51,7 @@ def get_current_hourly_sen_data():
     solar = values[7]
     biomass = values[8]
     _storage = values[9]
-    balance = values[10]
+    balance = -values[10]
 
     total_green = hydro + wind + solar + biomass
     total_fossil = gas + coal
