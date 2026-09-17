@@ -2,23 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 
-const GREETINGS = [
-    'Hello, ',
-    'Hi, ',
-    'Welcome, ',
-    'Welcome back, ',
-    'Good to see you, ',
-    'Hello again, ',
-    'Hey, ',
-    'Hey there, ',
-    'Nice to see you, ',
-    'Glad to have you back, ',
-    'Greetings, ',
-    'It\'s good to see you, '
-]
-
-
-
 function Dashboard({ userId, userName, userType, onLogout }) {
     const [userAppliances, setUserAppliances] = useState([]);
     const [recommendations, setRecommendations] = useState({});
@@ -30,6 +13,8 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState("");
     const [editPower, setEditPower] = useState("");
+
+    const [ecoMessage, setEcoMessage] = useState(null);
 
     const [error, setError] = useState('');
 
@@ -43,6 +28,13 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             .then(data => setUserAppliances(data))
             .catch(err => setError(err.message));
             }, [userId]);
+
+    useEffect(() => {
+        fetch('http://localhost:8080/api/messages/random')
+            .then(res => res.ok ? res.json() : null)
+            .then(data => setEcoMessage(data))
+            .catch(err => console.error("Error fetching message:", err));
+    }, []);
 
     useEffect(() => {
        fetchAppliances();
@@ -119,11 +111,17 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     };
     return (
         <div className="dashboard-container">
-            <header>
-                <h1>EcoDispatch Dashboard</h1>
+            <header className="dashboard-header">
+                <div className="welcome-banner">
+                    <h1>{ecoMessage?.welcomeMessage || "Welcome"}{userName}!</h1>
+                    {ecoMessage?.content && (
+                        <p className="sustainable-tip">
+                            <strong>Tip of the day:</strong> {ecoMessage.content}
+                        </p>
+                    )}
+                </div>
                 <button onClick={onLogout} className="btn-secondary">Logout</button>
             </header>
-
             {error && <div className="error-banner">{error}</div>}
 
             {userType === 'PROSUMER' && (
