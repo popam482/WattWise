@@ -5,20 +5,46 @@ import Register from '../account/Register.jsx';
 import Dashboard from '../dashboard/Dashboard.jsx';
 
 function App() {
-    const [user, setUser] = useState(null); // contains { id, name, userType }
-    const [view, setView] = useState('login'); // login or register
+    const [user, setUser] = useState(() => {
+        const savedUser = localStorage.getItem('user');
+        if (!savedUser) return null;
 
-    const handleLoginSuccess = (loginResponse) => {
-        setUser(loginResponse.user);
+        try {
+            const storedUser = JSON.parse(savedUser);
+            return storedUser?.user ?? storedUser;
+        } catch {
+            localStorage.removeItem('user');
+            return null;
+        }
+    });
+    const [view, setView] = useState('login');
+
+    const handleLoginSuccess = (userData) => {
+        const loggedInUser = userData?.user ?? userData;
+        setUser(loggedInUser);
+        localStorage.setItem('user', JSON.stringify(loggedInUser));
+
+        if (userData?.token) {
+            localStorage.setItem('token', userData.token);
+        }
     };
 
     const handleLogout = () => {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
         setUser(null);
         setView('login');
     };
 
     if (user) {
-        return <Dashboard userId={user.id} userType={user.userType} userName={user.name} onLogout={handleLogout} />;
+        return (
+            <Dashboard
+                userId={user.id}
+                userType={user.userType}
+                userName={user.name}
+                onLogout={handleLogout}
+            />
+        );
     }
 
     return (
