@@ -2,7 +2,24 @@ import { useState, useEffect, useCallback } from 'react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 
-function Dashboard({ userId, userType, onLogout }) {
+const GREETINGS = [
+    'Hello, ',
+    'Hi, ',
+    'Welcome, ',
+    'Welcome back, ',
+    'Good to see you, ',
+    'Hello again, ',
+    'Hey, ',
+    'Hey there, ',
+    'Nice to see you, ',
+    'Glad to have you back, ',
+    'Greetings, ',
+    'It\'s good to see you, '
+]
+
+
+
+function Dashboard({ userId, userName, userType, onLogout }) {
     const [userAppliances, setUserAppliances] = useState([]);
     const [recommendations, setRecommendations] = useState({});
     const [loadingApplianceId, setLoadingApplianceId] = useState(null);
@@ -30,6 +47,9 @@ function Dashboard({ userId, userType, onLogout }) {
     useEffect(() => {
        fetchAppliances();
             }, [fetchAppliances]);
+
+    useEffect(() =>{
+    });
 
     const handleAddAppliance = (e) => {
         e.preventDefault();
