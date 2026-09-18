@@ -15,7 +15,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     const [editPower, setEditPower] = useState("");
 
     const [ecoMessage, setEcoMessage] = useState(null);
-
+    const [scheduledStatus, setScheduledStatus] = useState({});
     const [error, setError] = useState('');
 
     const fetchAppliances = useCallback(() => {
@@ -27,7 +27,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             })
             .then(data => setUserAppliances(data))
             .catch(err => setError(err.message));
-            }, [userId]);
+    }, [userId]);
 
     useEffect(() => {
         fetch('http://localhost:8080/api/messages/random')
@@ -37,23 +37,20 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     }, []);
 
     useEffect(() => {
-       fetchAppliances();
-            }, [fetchAppliances]);
-
-    useEffect(() =>{
-    });
+        fetchAppliances();
+    }, [fetchAppliances]);
 
     const handleAddAppliance = (e) => {
         e.preventDefault();
-        if(!newName || !newPower) return;
+        if (!newName || !newPower) return;
 
         fetch(`http://localhost:8080/users/${userId}/appliances`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name: newName, powerConsumptionKw: parseFloat(newPower)})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName, powerConsumptionKw: parseFloat(newPower) })
         })
             .then(res => {
-                if(!res.ok) throw new Error('Failed to create appliance');
+                if (!res.ok) throw new Error('Failed to create appliance');
                 return res.json();
             })
             .then(() => {
@@ -65,7 +62,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     };
 
     const handleDeleteAppliance = (applianceId) => {
-        fetch("http://localhost:8080/users/" + userId + "/appliances/" + applianceId, {
+        fetch(`http://localhost:8080/users/${userId}/appliances/${applianceId}`, {
             method: "DELETE"
         })
             .then(res => {
@@ -109,11 +106,34 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             .catch(err => console.error(err))
             .finally(() => setLoadingApplianceId(null));
     };
+
+    const handleConfirmSchedule = (applianceId) => {
+        const rec = recommendations[applianceId];
+        if (!rec) return;
+
+        const payload = {
+            id: applianceId,
+            startTime: rec.best_start_time.replace(" ", "T"),
+            durationMinutes: 120
+        };
+
+        fetch(`http://localhost:8080/users/${userId}/appliances/schedule`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to schedule appliance run');
+                setScheduledStatus(prev => ({ ...prev, [applianceId]: true }));
+            })
+            .catch(err => setError(err.message));
+    };
+
     return (
         <div className="dashboard-container">
             <header className="dashboard-header">
                 <div className="welcome-banner">
-                    <h1>{ecoMessage?.welcomeMessage || "Welcome"}{userName}!</h1>
+                    <h1>{ecoMessage?.welcomeMessage || "Welcome"}, {userName || "User"}! 🌱</h1>
                     {ecoMessage?.content && (
                         <p className="sustainable-tip">
                             <strong>Tip of the day:</strong> {ecoMessage.content}
@@ -122,16 +142,17 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                 </div>
                 <button onClick={onLogout} className="btn-secondary">Logout</button>
             </header>
+
             {error && <div className="error-banner">{error}</div>}
 
             {userType === 'PROSUMER' && (
                 <section className="weather-section">
-                    <WeatherSolarWidget userId={userId}/>
+                    <WeatherSolarWidget userId={userId} />
                 </section>
             )}
 
             <section className="grid-section">
-                <NationalGridWidget userId={userId}/>
+                <NationalGridWidget userId={userId} />
             </section>
 
             <section className="appliances-section">
@@ -211,17 +232,24 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                                 </button>
 
                                 {recommendations[app.id] && (
-                                    <div>
-                                        <p>
-                                            <strong>Recommended Interval:</strong>
-                                        </p>
-                                        <p>
-                                            {recommendations[app.id].best_start_time} - {recommendations[app.id].best_end_time}
-                                        </p>
+                                    <div className="recommendation-box">
+                                        <p><strong>Recommended Interval:</strong></p>
+                                        <p>{recommendations[app.id].best_start_time} - {recommendations[app.id].best_end_time}</p>
                                         {recommendations[app.id].reason && (
                                             <small>
                                                 {recommendations[app.id].reason}
                                             </small>
+                                        )}
+
+                                        {scheduledStatus[app.id] ? (
+                                            <span>Scheduled!</span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleConfirmSchedule(app.id)}
+                                            >
+                                                Confirm Schedule
+                                            </button>
                                         )}
                                     </div>
                                 )}
