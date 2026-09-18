@@ -126,27 +126,24 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         score = 0.0
 
         if req.user_type == "PROSUMER":
-            estimated_pv_power = 0.0
-            # solar production based on the hour of the day
             if 7 <= hour_of_day <= 19:
                 distance_from_noon = abs(13 - hour_of_day)
                 estimated_pv_power = (req.system_kwp or 0.0) * (1.0 - (distance_from_noon * 0.15))
-                estimated_pv_power = max(0.0, estimated_pv_power)
-            # score
-            if req.power_kw > 0.0:
-                coverage_ratio = estimated_pv_power / req.power_kw
-                score = min(coverage_ratio, 1.0)
+                score = min(estimated_pv_power / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
             else:
-                score = 1.0
+                score = 0.0
         else:
-            # CONSUMER - based on green energy
-            if 11 <= hour_of_day <= 15:
-                score = 0.9
-            elif hour_of_day < 6 or hour_of_day > 22:
-                score = 0.7
+        # CONSUMER
+        try:
+            realtime_grid = get_current_hourly_sen_data()
+            green_share = realtime_grid["green_share_percent"] / 100.0  # ex: 0.67
+            if 10 <= hour_of_day <= 16:
+                score = green_share * 1.2
             else:
-                score = 0.3
-
+                score = green_share * 0.8
+            score = min(max(score, 0.0), 1.0)
+        except Exception:
+            score = 0.5  # Fallback
         hourly_energy_scores.append({
             "hour_offset": i,
             "actual_hour": hour_of_day,
