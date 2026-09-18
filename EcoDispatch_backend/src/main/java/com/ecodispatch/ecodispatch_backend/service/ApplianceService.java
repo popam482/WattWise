@@ -132,4 +132,20 @@ public class ApplianceService {
         return toResponseDTO(updated);
     }
 
+    public void scheduleApplianceUsage(Integer userId, ApplianceUsageLogRequestDTO dto) {
+        Appliance appliance = applianceRepository.findById(dto.getId())
+                .orElseThrow(() -> new ApplianceNotFound("Appliance not found."));
+
+        if (!appliance.getUser().getUser_id().equals(userId)) {
+            throw new ApplianceNotFound("The appliance does not belong to the user");
+        }
+
+        ApplianceUsageLog log = new ApplianceUsageLog();
+        log.setAppliance(appliance);
+        log.setStartTime(dto.getStartTime());
+        log.setDurationMinutes(dto.getDurationMinutes());
+        log.setStatus("SCHEDULED");
+
+        applianceUsageLogRepository.save(log);
+    }
 }

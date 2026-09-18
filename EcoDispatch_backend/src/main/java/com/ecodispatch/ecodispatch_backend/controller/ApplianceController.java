@@ -57,4 +57,8 @@ public class ApplianceController {
         return applianceService.updateAppliance(userId, applianceId, dto);
     }
 
+    @PostMapping("/users/{userId}/appliances/schedule")
+    public void scheduleUsage(@PathVariable Integer userId, @RequestBody ApplianceUsageLogRequestDTO dto) {
+        applianceService.scheduleApplianceUsage(userId, dto);
+    }
 }
