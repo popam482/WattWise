@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class ApplianceUsageLogResponseDTO {
 
     private Integer id;
+    private Integer applianceId;
     private String applianceName;
     private LocalDateTime startTime;
     private Integer durationMinutes;

@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -150,10 +152,16 @@ public class ApplianceService {
     }
 
     public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId) {
-        return applianceUsageLogRepository.findByApplianceUserIdAndStatus(userId, "SCHEDULED")
+        LocalDate today = LocalDate.now(ZoneId.of("Europe/Bucharest"));
+        return applianceUsageLogRepository.findByApplianceUserIdAndStatusAndStartTimeBetween(
+                userId,
+                "SCHEDULED",
+                today.atStartOfDay(),
+                today.plusDays(1).atStartOfDay())
                 .stream()
                 .map(log -> new ApplianceUsageLogResponseDTO(
                         log.getId(),
+                    log.getAppliance().getId(),
                         log.getAppliance().getName(),
                         log.getStartTime(),
                         log.getDurationMinutes(),

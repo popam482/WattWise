@@ -1,5 +1,6 @@
 import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import joblib
 import requests
@@ -117,7 +118,8 @@ def get_solar_forecast(request: SolarRequest):
 
 @app.post("/api/recommendations/best-time", response_model=ScheduleRecommendation)
 def get_best_time_for_appliance(req: ApplianceScheduleRequest):
-    current_hour = datetime.datetime.now().hour
+    current_time = datetime.datetime.now(ZoneInfo("Europe/Bucharest"))
+    current_hour = current_time.hour
     forecast_hours = 24
     hourly_energy_scores = []
 
@@ -160,7 +162,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             max_window_score = window_score
             best_window_start = i
 
-    start_time = datetime.datetime.now() + datetime.timedelta(hours=best_window_start)
+    start_time = current_time.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=best_window_start)
     end_time = start_time + datetime.timedelta(hours=req.duration_hours)
 
     avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
