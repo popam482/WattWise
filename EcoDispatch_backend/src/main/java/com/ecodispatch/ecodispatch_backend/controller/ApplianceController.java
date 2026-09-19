@@ -60,8 +60,10 @@ public class ApplianceController {
     }
 
     @GetMapping("/users/{userId}/appliances/scheduled")
-    public List<ApplianceUsageLogResponseDTO> getScheduledTasks(@PathVariable Integer userId) {
-        return applianceService.getUserScheduledTasks(userId);
+    public List<ApplianceUsageLogResponseDTO> getScheduledTasks(
+            @PathVariable Integer userId,
+            @RequestParam(required = false) String date) {
+        return applianceService.getUserScheduledTasks(userId, date);
     }
 
     @DeleteMapping("/users/{userId}/appliances/scheduled/{logId}")

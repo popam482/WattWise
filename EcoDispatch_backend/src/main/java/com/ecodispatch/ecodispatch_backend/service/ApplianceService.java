@@ -151,17 +151,23 @@ public class ApplianceService {
         applianceUsageLogRepository.save(log);
     }
 
-    public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId) {
-        LocalDate today = LocalDate.now(ZoneId.of("Europe/Bucharest"));
+    public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId, String dateStr) {
+        LocalDate targetDate;
+        if (dateStr != null && !dateStr.isBlank()) {
+            targetDate = LocalDate.parse(dateStr);
+        } else {
+            targetDate = LocalDate.now(ZoneId.of("Europe/Bucharest"));
+        }
+
         return applianceUsageLogRepository.findByApplianceUserIdAndStatusAndStartTimeBetween(
-                userId,
-                "SCHEDULED",
-                today.atStartOfDay(),
-                today.plusDays(1).atStartOfDay())
+                        userId,
+                        "SCHEDULED",
+                        targetDate.atStartOfDay(),
+                        targetDate.plusDays(1).atStartOfDay())
                 .stream()
                 .map(log -> new ApplianceUsageLogResponseDTO(
                         log.getId(),
-                    log.getAppliance().getId(),
+                        log.getAppliance().getId(),
                         log.getAppliance().getName(),
                         log.getStartTime(),
                         log.getDurationMinutes(),
