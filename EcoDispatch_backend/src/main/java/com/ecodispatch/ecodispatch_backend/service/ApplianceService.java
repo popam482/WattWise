@@ -148,4 +148,5 @@ public class ApplianceService {
 
         applianceUsageLogRepository.save(log);
     }
+
 }
