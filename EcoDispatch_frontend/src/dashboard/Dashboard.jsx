@@ -19,6 +19,27 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     const [scheduledStatus, setScheduledStatus] = useState({});
     const [scheduledTasks, setScheduledTasks] = useState([]);
 
+    const [, setTicks] = useState(0);
+
+    useEffect(() => {
+        const timer = setInterval(() => setTicks(t => t + 1), 60000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const getTaskStatus = (startTimeStr, durationMinutes) => {
+        const now = new Date();
+        const start = new Date(startTimeStr);
+        const end = new Date(start.getTime() + durationMinutes * 60000);
+
+        if (now < start) {
+            return { label: 'PENDING', color: 'yellow', desc: 'Waiting for green window' };
+        } else if (now >= start && now <= end) {
+            return { label: 'RUNNING', color: 'green', desc: 'Device currently running on green energy' };
+        } else {
+            return { label: 'COMPLETED', color: 'blue', desc: 'Optimized run finished' };
+        }
+    }
+
     const formatLocalDate = (date) => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -377,12 +398,24 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                     <div className="scheduled-grid">
                         {scheduledTasks.map(task => (
                             <div key={task.id} className="scheduled-card">
+                                {(() => {
+                                    const taskStatus = getTaskStatus(task.startTime, task.durationMinutes);
+                                    return (
+                                        <p className={`schedule-status schedule-status-${taskStatus.color}`}>
+                                            <strong>Status:</strong> {taskStatus.label}
+                                            <small> {taskStatus.desc}</small>
+                                        </p>
+                                    );
+                                })()}
                                 <h3>{task.applianceName}</h3>
                                 <p>
                                     <strong>Start:</strong> {new Date(task.startTime).toLocaleString()}
                                 </p>
                                 <p>
                                     <strong>Duration:</strong> {task.durationMinutes} mins
+                                </p>
+                                <p>
+                                    <strong> Status:</strong> {status.label}
                                 </p>
                                 <button
                                     type="button"
