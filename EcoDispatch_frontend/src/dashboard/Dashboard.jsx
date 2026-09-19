@@ -6,6 +6,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     const [userAppliances, setUserAppliances] = useState([]);
     const [recommendations, setRecommendations] = useState({});
     const [loadingApplianceId, setLoadingApplianceId] = useState(null);
+    const [applianceDuration, setApplianceDuration] = useState({});
 
     const [newName, setNewName] = useState("");
     const [newPower, setNewPower] = useState("");
@@ -16,7 +17,18 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
     const [ecoMessage, setEcoMessage] = useState(null);
     const [scheduledStatus, setScheduledStatus] = useState({});
+
+    const [scheduledTasks, setScheduledTasks] = useState([]);
+
     const [error, setError] = useState('');
+
+    const fetchScheduledTasks = useCallback(() => {
+        if(!userId)
+            return;
+        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled`)            .then(res => res.ok ? res.json() : [])
+            .then(data => setScheduledTasks(data))
+            .catch(err => console.error("Error fetching scheduled tasks: ", err));
+    }, [userId]);
 
     const fetchAppliances = useCallback(() => {
         if (!userId) return;
@@ -30,6 +42,10 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     }, [userId]);
 
     useEffect(() => {
+        fetchScheduledTasks();
+    }, [fetchScheduledTasks]);
+
+    useEffect(() => {
         fetch('http://localhost:8080/api/messages/random')
             .then(res => res.ok ? res.json() : null)
             .then(data => setEcoMessage(data))
@@ -39,6 +55,13 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     useEffect(() => {
         fetchAppliances();
     }, [fetchAppliances]);
+
+    const handleDurationChange = (applianceId, hours) => {
+      setApplianceDuration(prev => ({
+          ...prev,
+          [applianceId]: parseInt(hours, 10)
+      }));
+    };
 
     const handleAddAppliance = (e) => {
         e.preventDefault();
@@ -90,6 +113,8 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     const handleGetRecommendation = (applianceId) => {
         setLoadingApplianceId(applianceId);
 
+        const selectedDuration = applianceDuration[applianceId] || 2;
+
         fetch(`http://localhost:8080/users/${userId}/appliances/${applianceId}/recommendation?durationHours=2`, {
             method: 'POST'
         })
@@ -100,7 +125,10 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             .then(data => {
                 setRecommendations(prev => ({
                     ...prev,
-                    [applianceId]: data
+                    [applianceId]: {
+                        ...data,
+                        durationMinutes: selectedDuration * 60,
+                    }
                 }));
             })
             .catch(err => console.error(err))
@@ -125,6 +153,18 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             .then(res => {
                 if (!res.ok) throw new Error('Failed to schedule appliance run');
                 setScheduledStatus(prev => ({ ...prev, [applianceId]: true }));
+                fetchScheduledTasks();
+            })
+            .catch(err => setError(err.message));
+    };
+
+    const handleCancelTask = (logId) => {
+        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled/${logId}`, {
+            method: 'DELETE'
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to cancel task');
+                fetchScheduledTasks();
             })
             .catch(err => setError(err.message));
     };
@@ -223,13 +263,27 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                                     </>
                                 )}
 
-                                <button
-                                    type="button"
-                                    onClick={() => handleGetRecommendation(app.id)}
-                                    disabled={loadingApplianceId === app.id}
-                                >
-                                    {loadingApplianceId === app.id ? 'Calculating...' : 'Find the optimal start hour'}
-                                </button>
+                                <div className="recommendation-controls">
+                                    <label htmlFor={`duration-${app.id}`}>Run duration:</label>
+                                    <select
+                                        id={`duration-${app.id}`}
+                                        value={applianceDuration[app.id] || 2}
+                                        onChange={(e) => handleDurationChange(app.id, e.target.value)}
+                                    >
+                                        <option value={1}>1 hour</option>
+                                        <option value={2}>2 hours</option>
+                                        <option value={3}>3 hours</option>
+                                        <option value={4}>4 hours</option>
+                                    </select>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => handleGetRecommendation(app.id)}
+                                        disabled={loadingApplianceId === app.id}
+                                    >
+                                        {loadingApplianceId === app.id ? 'Calculating...' : 'Find optimal start'}
+                                    </button>
+                                </div>
 
                                 {recommendations[app.id] && (
                                     <div className="recommendation-box">
@@ -253,6 +307,32 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                                         )}
                                     </div>
                                 )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+            <section className="scheduled-section">
+                <h2>My Active Eco-Schedules</h2>
+                {scheduledTasks.length === 0 ? (
+                    <p>No active eco-schedules for today.</p>
+                ) : (
+                    <div className="scheduled-grid">
+                        {scheduledTasks.map(task => (
+                            <div key={task.id}>
+                                <h3>{task.applianceName}</h3>
+                                <p>
+                                    <strong>Start:</strong> {new Date(task.startTime).toLocaleString()}
+                                </p>
+                                <p>
+                                    <strong>Duration:</strong> {task.durationMinutes} mins
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCancelTask(task.id)}
+                                >
+                                    Cancel Schedule
+                                </button>
                             </div>
                         ))}
                     </div>
