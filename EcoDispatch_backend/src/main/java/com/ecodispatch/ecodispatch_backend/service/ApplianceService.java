@@ -149,4 +149,28 @@ public class ApplianceService {
         applianceUsageLogRepository.save(log);
     }
 
+    public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId) {
+        return applianceUsageLogRepository.findByApplianceUserIdAndStatus(userId, "SCHEDULED")
+                .stream()
+                .map(log -> new ApplianceUsageLogResponseDTO(
+                        log.getId(),
+                        log.getAppliance().getName(),
+                        log.getStartTime(),
+                        log.getDurationMinutes(),
+                        log.getStatus()
+                ))
+                .collect(Collectors.toList());
+    }
+
+    public void cancelScheduledTask(Integer userId, Integer logId) {
+        ApplianceUsageLog log = applianceUsageLogRepository.findById(logId)
+                .orElseThrow(() -> new ApplianceNotFound("Scheduled task not found"));
+
+        if (!log.getAppliance().getUser().getUser_id().equals(userId)) {
+            throw new ApplianceNotFound("Task does not belong to user");
+        }
+
+        applianceUsageLogRepository.delete(log);
+    }
+
 }
