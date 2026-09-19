@@ -1,9 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.controller;
 
-import com.ecodispatch.ecodispatch_backend.appliance.ApplianceRecommendationResponseDTO;
-import com.ecodispatch.ecodispatch_backend.appliance.ApplianceRequestDTO;
-import com.ecodispatch.ecodispatch_backend.appliance.ApplianceResponseDTO;
-import com.ecodispatch.ecodispatch_backend.appliance.ApplianceUsageLogRequestDTO;
+import com.ecodispatch.ecodispatch_backend.appliance.*;
 import com.ecodispatch.ecodispatch_backend.service.ApplianceService;
 import org.springframework.web.bind.annotation.*;
 
@@ -60,5 +57,15 @@ public class ApplianceController {
     @PostMapping("/users/{userId}/appliances/schedule")
     public void scheduleUsage(@PathVariable Integer userId, @RequestBody ApplianceUsageLogRequestDTO dto) {
         applianceService.scheduleApplianceUsage(userId, dto);
+    }
+
+    @GetMapping("/users/{userId}/appliances/scheduled")
+    public List<ApplianceUsageLogResponseDTO> getScheduledTasks(@PathVariable Integer userId) {
+        return applianceService.getUserScheduledTasks(userId);
+    }
+
+    @DeleteMapping("/users/{userId}/appliances/scheduled/{logId}")
+    public void cancelScheduledTask(@PathVariable Integer userId, @PathVariable Integer logId) {
+        applianceService.cancelScheduledTask(userId, logId);
     }
 }
