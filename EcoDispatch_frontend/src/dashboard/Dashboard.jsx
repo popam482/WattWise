@@ -19,13 +19,26 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     const [scheduledStatus, setScheduledStatus] = useState({});
     const [scheduledTasks, setScheduledTasks] = useState([]);
 
+    const formatLocalDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getTodayString = () => formatLocalDate(new Date());
+    const [selectedDate, setSelectedDate] = useState(getTodayString());
+
     const [error, setError] = useState('');
 
     const fetchScheduledTasks = useCallback(() => {
         if (!userId) return;
-        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled`)
-            .then(res => {
-                if (!res.ok) throw new Error(`Failed to fetch scheduled tasks (${res.status})`);
+        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled?date=${selectedDate}`)
+            .then(async res => {
+                if (!res.ok) {
+                    const detail = await res.text();
+                    throw new Error(detail || `Failed to load schedules (${res.status})`);
+                }
                 return res.json();
             })
             .then(data => {
@@ -37,7 +50,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                 setScheduledStatus(statusMap);
             })
             .catch(err => setError(err.message));
-    }, [userId]);
+    }, [userId, selectedDate]);
 
     const fetchAppliances = useCallback(() => {
         if (!userId) return;
@@ -159,10 +172,13 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         })
-            .then(res => {
-                if (!res.ok) throw new Error('Failed to schedule appliance run');
+            .then(async res => {
+                if (!res.ok) {
+                    const detail = await res.text();
+                    throw new Error(detail || `Failed to schedule appliance run (${res.status})`);
+                }
                 setScheduledStatus(prev => ({ ...prev, [applianceId]: true }));
-                fetchScheduledTasks();
+                setSelectedDate(payload.startTime.slice(0, 10));
             })
             .catch(err => setError(err.message));
     };
@@ -325,10 +341,38 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                 )}
             </section>
 
+            {/* Navigation between days */}
             <section className="scheduled-section">
-                <h2>My Active Eco-Schedules</h2>
+                <div>
+                    <h2>My Active Eco-Schedules</h2>
+
+                    <div className="date-picker-buttons">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedDate(getTodayString())}
+                        >
+                            Today
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const tomorrow = new Date();
+                                tomorrow.setDate(tomorrow.getDate() + 1);
+                                setSelectedDate(formatLocalDate(tomorrow));
+                            }}
+                        >
+                            Tomorrow
+                        </button>
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                        />
+                    </div>
+                </div>
+
                 {scheduledTasks.length === 0 ? (
-                    <p>No active eco-schedules for today.</p>
+                    <p>No active eco-schedules for {selectedDate}.</p>
                 ) : (
                     <div className="scheduled-grid">
                         {scheduledTasks.map(task => (
