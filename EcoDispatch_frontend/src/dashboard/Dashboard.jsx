@@ -133,7 +133,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
         <div className="dashboard-container">
             <header className="dashboard-header">
                 <div className="welcome-banner">
-                    <h1>{ecoMessage?.welcomeMessage || "Welcome"}, {userName || "User"}! 🌱</h1>
+                    <h1>{ecoMessage?.welcomeMessage || "Welcome"}{userName || "User"}!</h1>
                     {ecoMessage?.content && (
                         <p className="sustainable-tip">
                             <strong>Tip of the day:</strong> {ecoMessage.content}

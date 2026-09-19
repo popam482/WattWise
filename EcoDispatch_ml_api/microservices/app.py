@@ -133,17 +133,17 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             else:
                 score = 0.0
         else:
-        # CONSUMER
-        try:
-            realtime_grid = get_current_hourly_sen_data()
-            green_share = realtime_grid["green_share_percent"] / 100.0  # ex: 0.67
-            if 10 <= hour_of_day <= 16:
-                score = green_share * 1.2
-            else:
-                score = green_share * 0.8
-            score = min(max(score, 0.0), 1.0)
-        except Exception:
-            score = 0.5  # Fallback
+            # CONSUMER
+            try:
+                realtime_grid = get_current_hourly_sen_data()
+                green_share = realtime_grid["green_share_percent"] / 100.0  # ex: 0.67
+                if 10 <= hour_of_day <= 16:
+                    score = green_share * 1.2
+                else:
+                    score = green_share * 0.8
+                score = min(max(score, 0.0), 1.0)
+            except Exception:
+                score = 0.5  # Fallback
         hourly_energy_scores.append({
             "hour_offset": i,
             "actual_hour": hour_of_day,
