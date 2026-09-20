@@ -13,7 +13,6 @@ import lombok.Setter;
 @Setter
 public class User {
 
-    @Getter
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer user_id;
@@ -21,7 +20,7 @@ public class User {
     @NotBlank
     private String name;
 
-    @NotBlank
+    @Column(nullable = false)
     private String password;
 
     @NotBlank
@@ -42,8 +41,5 @@ public class User {
         this.energyProfile = energyProfile;
     }
 
-    public User() {
-
-    }
-
+    public User() {}
 }
