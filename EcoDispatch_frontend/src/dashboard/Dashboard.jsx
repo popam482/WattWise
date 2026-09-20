@@ -21,6 +21,14 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
     const [, setTicks] = useState(0);
 
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+    };
+
     useEffect(() => {
         const timer = setInterval(() => setTicks(t => t + 1), 60000);
         return () => clearInterval(timer);
@@ -54,7 +62,9 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
     const fetchScheduledTasks = useCallback(() => {
         if (!userId) return;
-        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled?date=${selectedDate}`)
+        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled?date=${selectedDate}`, {
+            headers: getAuthHeaders()
+        })
             .then(async res => {
                 if (!res.ok) {
                     const detail = await res.text();
@@ -75,7 +85,9 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
     const fetchAppliances = useCallback(() => {
         if (!userId) return;
-        fetch(`http://localhost:8080/users/${userId}/appliances`)
+        fetch(`http://localhost:8080/users/${userId}/appliances`, {
+            headers: getAuthHeaders()
+        })
             .then(res => {
                 if (!res.ok) throw new Error('Failed to fetch appliances');
                 return res.json();
@@ -112,7 +124,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
         fetch(`http://localhost:8080/users/${userId}/appliances`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ name: newName, powerConsumptionKw: parseFloat(newPower) })
         })
             .then(res => {
@@ -190,7 +202,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
         fetch(`http://localhost:8080/users/${userId}/appliances/schedule`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload)
         })
             .then(async res => {
@@ -396,35 +408,32 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                     <p>No active eco-schedules for {selectedDate}.</p>
                 ) : (
                     <div className="scheduled-grid">
-                        {scheduledTasks.map(task => (
-                            <div key={task.id} className="scheduled-card">
-                                {(() => {
-                                    const taskStatus = getTaskStatus(task.startTime, task.durationMinutes);
-                                    return (
-                                        <p className={`schedule-status schedule-status-${taskStatus.color}`}>
-                                            <strong>Status:</strong> {taskStatus.label}
-                                            <small> {taskStatus.desc}</small>
-                                        </p>
-                                    );
-                                })()}
-                                <h3>{task.applianceName}</h3>
-                                <p>
-                                    <strong>Start:</strong> {new Date(task.startTime).toLocaleString()}
-                                </p>
-                                <p>
-                                    <strong>Duration:</strong> {task.durationMinutes} mins
-                                </p>
-                                <p>
-                                    <strong> Status:</strong> {status.label}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={() => handleCancelTask(task.id, task.applianceId)}
-                                >
-                                    Cancel Schedule
-                                </button>
-                            </div>
-                        ))}
+                        {scheduledTasks.map(task => {
+                            const taskStatus = getTaskStatus(task.startTime, task.durationMinutes);
+                            return (
+                                <div key={task.id} className="scheduled-card">
+                                    <p className={`schedule-status schedule-status-${taskStatus.color}`}>
+                                        <strong>Status:</strong> {taskStatus.label}
+                                        <small> - {taskStatus.desc}</small>
+                                    </p>
+                                    <h3>{task.applianceName}</h3>
+                                    <p>
+                                        <strong>Start:</strong> {new Date(task.startTime).toLocaleString()}
+                                    </p>
+                                    <p>
+                                        <strong>Duration:</strong> {task.durationMinutes} mins
+                                    </p>
+                                    {taskStatus.label !== 'COMPLETED' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCancelTask(task.id, task.applianceId)}
+                                        >
+                                            Cancel Schedule
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </section>
