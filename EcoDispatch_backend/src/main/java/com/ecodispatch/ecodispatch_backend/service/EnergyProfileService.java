@@ -47,6 +47,8 @@ public class EnergyProfileService {
         dto.setLatitude(energyProfile.getLatitude());
         dto.setLongitude(energyProfile.getLongitude());
         dto.setPvSystemKw(energyProfile.getPvSystemKw());
+        dto.setAzimuth(energyProfile.getAzimuth());
+        dto.setTilt(energyProfile.getTilt());
 
         if (energyProfile.getUser() != null) {
             UserResponseDTO userDto = new UserResponseDTO();
@@ -74,6 +76,8 @@ public class EnergyProfileService {
         profile.setLatitude(dto.getLatitude());
         profile.setLongitude(dto.getLongitude());
         profile.setPvSystemKw(dto.getPvSystemKw());
+        profile.setAzimuth(dto.getAzimuth());
+        profile.setTilt(dto.getTilt());
         profile.setUser(user);
 
         EnergyProfile savedProfile = energyRepository.save(profile);

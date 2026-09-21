@@ -11,6 +11,8 @@ public class EnergyProfileResponseDTO {
     private Double pvSystemKw;
     private Double latitude;
     private Double longitude;
+    private Double tilt;
+    private Double azimuth;
     private UserResponseDTO user;
 
     public EnergyProfileResponseDTO() {

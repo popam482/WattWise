@@ -2,7 +2,11 @@ package com.ecodispatch.ecodispatch_backend.profile;
 
 import com.ecodispatch.ecodispatch_backend.user.User;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 @Entity
 public class EnergyProfile {
 
@@ -13,7 +17,11 @@ public class EnergyProfile {
     private Double pvSystemKw;
 
     private Double latitude;
+    @Getter
     private Double longitude;
+
+    private Double tilt;
+    private Double azimuth;
 
     @OneToOne
     @JoinColumn(name = "user_id")
@@ -22,50 +30,12 @@ public class EnergyProfile {
     public EnergyProfile() {
     }
 
-    public EnergyProfile(Double latitude, Double pvSystemKw, Double longitude) {
+    public EnergyProfile(Double latitude, Double pvSystemKw, Double longitude,  Double tilt, Double azimuth) {
         this.latitude = latitude;
         this.pvSystemKw = pvSystemKw;
         this.longitude = longitude;
-    }
-
-    public Double getPvSystemKw() {
-        return pvSystemKw;
-    }
-
-    public Double getLatitude() {
-        return latitude;
-    }
-
-    public Double getLongitude() {
-        return longitude;
-    }
-
-    public Integer getId() {
-        return id;
-    }
-
-    public void setPvSystemKw(Double pvSystemKw) {
-        this.pvSystemKw = pvSystemKw;
-    }
-
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
-
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
+        this.tilt = tilt;
+        this.azimuth = azimuth;
     }
 
 }

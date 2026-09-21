@@ -12,6 +12,9 @@ public class EnergyProfileRequestDTO {
 
     private Double pvSystemKw;
 
+    private Double tilt;
+    private Double azimuth;
+
     public EnergyProfileRequestDTO() {
     }
 
