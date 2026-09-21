@@ -132,9 +132,16 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         score = 0.0
 
         if req.user_type == "PROSUMER":
-            if 7 <= hour_of_day <= 19:
-                distance_from_noon = abs(13 - hour_of_day)
-                estimated_pv_power = (req.system_kwp or 0.0) * (1.0 - (distance_from_noon * 0.15))
+            # South (180 deg) - peak hour 13:00
+            # East (90 deg) - peak hour 10:00
+            # West (270 deg) -> peak hour 16:00
+            peak_hour = 13.0 + ((req.azimuth or 180.0) - 180.0) / 30.0
+
+            if 6 <= hour_of_day <= 20:
+                distance_from_peak = abs(peak_hour - hour_of_day)
+                tilt_penalty = abs((req.tilt or 35.0) - 35.0) * 0.005
+
+                estimated_pv_power = (req.system_kwp or 0.0) * max(0, (1.0 - (distance_from_peak * 0.15) - tilt_penalty))
                 score = min(estimated_pv_power / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
             else:
                 score = 0.0
