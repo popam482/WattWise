@@ -35,6 +35,8 @@ class SolarRequest(BaseModel):
     lat: float
     lon: float
     system_kwp: float
+    tilt: Optional[float] = 35.0
+    azimuth: Optional[float] = 180.0
     performance_factor: float
 
 
@@ -45,6 +47,8 @@ class ApplianceScheduleRequest(BaseModel):
     lat: Optional[float] = None
     lon: Optional[float] = None
     system_kwp: Optional[float] = 0.0
+    tilt: Optional[float] = 35.0
+    azimuth: Optional[float] = 180.0
 
 
 class ScheduleRecommendation(BaseModel):
