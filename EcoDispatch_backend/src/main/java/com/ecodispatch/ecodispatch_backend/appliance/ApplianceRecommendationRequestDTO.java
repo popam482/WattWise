@@ -23,6 +23,8 @@ public class ApplianceRecommendationRequestDTO {
     @JsonProperty("system_kwp")
     private Double systemKwp;
 
-    public ApplianceRecommendationRequestDTO() {}
+    private Double tilt;
+    private Double azimuth;
 
+    public ApplianceRecommendationRequestDTO() {}
 }

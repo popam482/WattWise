@@ -96,6 +96,8 @@ public class ApplianceService {
             request.setLat(user.getEnergyProfile().getLatitude());
             request.setLon(user.getEnergyProfile().getLongitude());
             request.setSystemKwp(user.getEnergyProfile().getPvSystemKw());
+            request.setTilt(user.getEnergyProfile().getTilt());
+            request.setAzimuth(user.getEnergyProfile().getAzimuth());
         }
 
         String baseUrl = pythonApiBaseUrl.endsWith("/") ? pythonApiBaseUrl : pythonApiBaseUrl + "/";
