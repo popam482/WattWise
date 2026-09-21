@@ -11,6 +11,8 @@ function Register({ switchToLogin }) {
     const [userType, setUserType] = useState('CONSUMER');
     const [pvSystemKw, setPvSystemKw] = useState('');
     const [coords, setCoords] = useState({ latitude: 45.7925, longitude: 24.1520 });
+    const [tilt, setTilt] = useState(35);
+    const [azimuth, setAzimuth] = useState(180);
 
     const [appliances, setAppliances] = useState([]);
     const [applianceName, setApplianceName] = useState('');
@@ -192,7 +194,37 @@ function Register({ switchToLogin }) {
 
                 {step === 3 && (
                     <form onSubmit={handleNextStep}>
-                        <h3>Select consumption location</h3>
+                        <h3>Select consumption location & PV details</h3>
+
+                        <div style={{ marginBottom: '15px' }}>
+                            <label style={{ display: 'block', marginBottom: '5px' }}>Panels Orientation (Azimuth):</label>
+                            <select
+                                value={azimuth}
+                                onChange={e => setAzimuth(e.target.value)}
+                                style={{ width: '100%', padding: '8px' }}
+                                required
+                            >
+                                <option value={90}>East (Morning Sun)</option>
+                                <option value={135}>South-East</option>
+                                <option value={180}>South (Noon Sun)</option>
+                                <option value={225}>South-West</option>
+                                <option value={270}>West (Afternoon Sun)</option>
+                            </select>
+                        </div>
+
+                        <div style={{ marginBottom: '15px' }}>
+                            <label style={{ display: 'block', marginBottom: '5px' }}>Panels Tilt (Degrees):</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="90"
+                                value={tilt}
+                                onChange={e => setTilt(e.target.value)}
+                                style={{ width: '100%', padding: '8px' }}
+                                required
+                            />
+                        </div>
+
                         <LocationPicker
                             onLocationSelect={(selectedCoords) => setCoords(selectedCoords)}
                         />
