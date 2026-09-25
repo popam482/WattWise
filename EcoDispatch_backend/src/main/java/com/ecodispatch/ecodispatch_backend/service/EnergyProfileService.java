@@ -59,6 +59,13 @@ public class EnergyProfileService {
         return dto;
     }
 
+    private String pythonApiUrl(String endpoint) {
+        String baseUrl = pythonApiBaseUrl.endsWith("/")
+                ? pythonApiBaseUrl
+                : pythonApiBaseUrl + "/";
+        return baseUrl + endpoint;
+    }
+
     public EnergyProfileResponseDTO getProfileByUserId(Integer userId) {
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user id: " + userId));
@@ -88,7 +95,7 @@ public class EnergyProfileService {
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user: " + userId));
 
-        String pythonApiUrl = pythonApiBaseUrl + "api/solar-forecast";
+        String pythonApiUrl = pythonApiUrl("api/solar-forecast");
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("lat", profile.getLatitude());
@@ -106,7 +113,7 @@ public class EnergyProfileService {
     }
 
     public ConsumptionPredictionResponseDTO predictNationalConsumption(ConsumptionScenarioRequestDTO scenario) {
-        String pythonApiUrl = pythonApiBaseUrl + "api/predict-consumption";
+        String pythonApiUrl = pythonApiUrl("api/predict-consumption");
 
         return restTemplate.postForObject(
                 pythonApiUrl,

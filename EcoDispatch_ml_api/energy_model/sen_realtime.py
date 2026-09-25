@@ -29,7 +29,7 @@ def _find_latest_table_row(soup):
         except (ValueError, TypeError):
             continue
 
-    raise RuntimeError("Nu s-a găsit niciun rând valid cu date SEN pe sistemulenergetic.ro")
+    raise RuntimeError("No vaid data row found in the SEN table.")
 
 def get_current_hourly_sen_data():
     url = "https://www.sistemulenergetic.ro/"

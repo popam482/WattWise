@@ -133,7 +133,7 @@ def get_solar_forecast(request: SolarRequest):
     params = {
         'latitude': request.lat,
         'longitude': request.lon,
-        'hourly': ['shortwave_radiation', 'temperature_2m', 'cloudcover'],
+        'hourly': ['shortwave_radiation', 'temperature_2m', 'cloud_cover'],
         'timezone': 'auto',
         'forecast_days': 2
     }
@@ -151,7 +151,7 @@ def get_solar_forecast(request: SolarRequest):
         'Time': hourly_data['time'],
         'Irradiance_W_m2': hourly_data['shortwave_radiation'],
         'Temp_C': hourly_data['temperature_2m'],
-        'Cloud_Cover': hourly_data['cloudcover']
+        'Cloud_Cover': hourly_data['cloud_cover']
     })
 
     df['Estimated_PV_Power_kW'] = (
@@ -235,49 +235,79 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 
 @app.get("/api/grid/status")
 def get_grid_status():
-    realtime_data = get_current_hourly_sen_data()
+    try:
+        realtime_data = get_current_hourly_sen_data()
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail=f"SEN data is temporarily unavailable: {error}"
+        ) from error
 
-    timestamp = datetime.datetime.fromisoformat(realtime_data["timestamp"])
-    feature_cols = [
-        'Total Green', 'Nuclear', 'Total Fossil',
-        'Hour', 'Day', 'Month',
-        'Consumption_Lag_1h', 'Consumption_Lag_24h', 'Consumption_Rolling_24h'
-    ]
-    current_consumption = realtime_data["consumption_mw"]
-    input_data = pd.DataFrame([{
-        'Total Green': realtime_data["total_green_mw"],
-        'Nuclear': realtime_data["nuclear_mw"],
-        'Total Fossil': realtime_data["total_fossil_mw"],
-        'Hour': timestamp.hour,
-        'Day': timestamp.weekday(),
-        'Month': timestamp.month,
-        'Consumption_Lag_1h': current_consumption,
-        'Consumption_Lag_24h': current_consumption,
-        'Consumption_Rolling_24h': current_consumption
-    }])[feature_cols]
+    prediction_explanation = None
 
-    scaler = model.named_steps['scaler']
-    regressor = model.named_steps['regressor']
-    input_scaled = scaler.transform(input_data)
-    prediction = regressor.predict(input_scaled)[0]
-    explainer = shap.TreeExplainer(regressor)
-    shap_values = explainer.shap_values(input_scaled)[0]
-    shap_contributions = {
-        col: round(float(value), 2)
-        for col, value in zip(feature_cols, shap_values)
-    }
+    try:
+        raw_ts = str(realtime_data["timestamp"]).replace("Z", "").strip()
+        if "T" in raw_ts:
+            timestamp = datetime.datetime.fromisoformat(raw_ts)
+        else:
+            timestamp = datetime.datetime.strptime(raw_ts, "%Y-%m-%d %H:%M:%S")
 
-    return {
-        "Total_Green_MW": realtime_data["total_green_mw"],
-        "Total_Fossil": realtime_data["total_fossil_mw"],
-        "Nuclear_MW": realtime_data["nuclear_mw"],
-        "Green_Share_Percent": realtime_data["green_share_percent"],
-        "Predicted_Consumption_MW": realtime_data["consumption_mw"],
-        "Production_MW": realtime_data["production_mw"],
-        "Balance_MW": realtime_data["balance_mw"],
-        "Timestamp": realtime_data["timestamp"],
-        "Prediction_Explanation": {
-            "Predicted_Consumption_MW": round(float(prediction), 2),
+        feature_cols = [
+            'Total Green', 'Nuclear', 'Total Fossil',
+            'Hour', 'Day', 'Month',
+            'Consumption_Lag_1h', 'Consumption_Lag_24h', 'Consumption_Rolling_24h'
+        ]
+        current_consumption = float(realtime_data["consumption_mw"])
+
+        input_data = pd.DataFrame([{
+            'Total Green': float(realtime_data["total_green_mw"]),
+            'Nuclear': float(realtime_data["nuclear_mw"]),
+            'Total Fossil': float(realtime_data["total_fossil_mw"]),
+            'Hour': timestamp.hour,
+            'Day': timestamp.weekday(),
+            'Month': timestamp.month,
+            'Consumption_Lag_1h': current_consumption,
+            'Consumption_Lag_24h': current_consumption,
+            'Consumption_Rolling_24h': current_consumption
+        }])[feature_cols]
+
+        scaler = model.named_steps['scaler']
+        regressor = model.named_steps['regressor']
+
+        input_scaled = scaler.transform(input_data)
+        prediction = float(regressor.predict(input_scaled)[0])
+
+        explainer = shap.TreeExplainer(regressor)
+        raw_shap_values = explainer.shap_values(input_scaled)
+
+        if isinstance(raw_shap_values, list):
+            vals = raw_shap_values[0][0]
+        elif len(raw_shap_values.shape) == 2:
+            vals = raw_shap_values[0]
+        else:
+            vals = raw_shap_values
+
+        shap_contributions = {
+            col: float(round(float(val), 2))
+            for col, val in zip(feature_cols, vals)
+        }
+
+        prediction_explanation = {
+            "Predicted_Consumption_MW": float(round(prediction, 2)),
             "Shap_Contributions": shap_contributions
         }
+    except Exception as error:
+        print(f"SHAP / Prediction error handled: {error}")
+        prediction_explanation = None
+
+    return {
+        "Total_Green_MW": float(realtime_data["total_green_mw"]),
+        "Total_Fossil": float(realtime_data["total_fossil_mw"]),
+        "Nuclear_MW": float(realtime_data["nuclear_mw"]),
+        "Green_Share_Percent": float(realtime_data["green_share_percent"]),
+        "Predicted_Consumption_MW": float(realtime_data["consumption_mw"]),
+        "Production_MW": float(realtime_data["production_mw"]),
+        "Balance_MW": float(realtime_data["balance_mw"]),
+        "Timestamp": str(realtime_data["timestamp"]),
+        "Prediction_Explanation": prediction_explanation
     }

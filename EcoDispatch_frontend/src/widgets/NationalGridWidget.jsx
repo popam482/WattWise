@@ -3,27 +3,39 @@ import {useState, useEffect, useCallback} from 'react'
 function NationalGridWidget({userId}) {
     const [gridData, setGridData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const fetchNationalGrid = useCallback(() => {
         if (!userId) return;
+        setError('');
         fetch('/api/national-grid/current')
-            .then(res => {
-                if (!res.ok) throw new Error('Failed to fetch national grid data');
+            .then(async res => {
+                if (!res.ok) {
+                    const detail = await res.text();
+                    throw new Error(`Failed to fetch national grid data (${res.status}): ${detail}`);
+                }
                 return res.json();
             })
             .then(data => setGridData(data))
-            .catch(err => console.error("Error fetching national grid data: ", err))
+            .catch(err => {
+                console.error("Error fetching national grid data: ", err);
+                setError('National grid data is temporarily unavailable.');
+            })
             .finally(() => setLoading(false));
     }, [userId]);
 
     useEffect(() => {
-        fetchNationalGrid();
+        const initialFetch = setTimeout(fetchNationalGrid, 0);
         const refreshInterval = setInterval(fetchNationalGrid, 60000);
 
-        return () => clearInterval(refreshInterval);
+        return () => {
+            clearTimeout(initialFetch);
+            clearInterval(refreshInterval);
+        };
     },[fetchNationalGrid]);
 
     if (loading) return <div>Loading national grid data...</div>;
+    if (error) return <div className="error-banner">{error}</div>;
     if (!gridData) return null;
 
     const formatValue = (val) => {
@@ -38,6 +50,11 @@ function NationalGridWidget({userId}) {
     const totalFossil = gridData.Total_Fossil ?? gridData.totalFossil ?? gridData.total_fossil_mw ?? 0;
     const nuclear = gridData.Nuclear_MW ?? gridData.nuclearMW ?? gridData.nuclear_mw ?? 0;
     const timestamp = gridData.Timestamp ?? gridData.timestamp ?? "";
+    const explanation = gridData.Prediction_Explanation ?? gridData.predictionExplanation;
+    const shapContributions = explanation?.Shap_Contributions ?? explanation?.shapContributions ?? {};
+    const formatFeatureName = (name) => name.replaceAll('_', ' ');
+    const contributingFactors = Object.entries(shapContributions)
+        .sort(([, first], [, second]) => Math.abs(second) - Math.abs(first));
 
     return (
         <div>
@@ -69,6 +86,24 @@ function NationalGridWidget({userId}) {
                     <h4>{formatValue(nuclear)} MW</h4>
                 </div>
             </div>
+            {contributingFactors.length > 0 && (
+                <div className="prediction-explanation">
+                    <h3>What influenced the consumption prediction?</h3>
+                    <p>
+                        The bars show how each current factor moved the estimate from the model baseline.
+                    </p>
+                    <div>
+                        {contributingFactors.map(([feature, contribution]) => (
+                            <div key={feature}>
+                                <span>{formatFeatureName(feature)}</span>
+                                <strong>
+                                    {contribution >= 0 ? '+' : ''}{formatValue(contribution)} MW
+                                </strong>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
