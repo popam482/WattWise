@@ -39,7 +39,7 @@ public class EnergyProfileController {
     }
 
     @PostMapping("/predict-consumption")
-    public ConsumptionPredictionResponseDTO predictConsumption(@Valid @RequestBody ConsumptionScenarioRequestDTO scenario) {
+    public ConsumptionPredictionResponseDTO predict(@RequestBody ConsumptionScenarioRequestDTO scenario) {
         return energyService.predictNationalConsumption(scenario);
     }
 }
