@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import pandas as pd
 from pathlib import Path
 
-
+import shap
 
 from energy_model.sen_realtime import get_current_hourly_sen_data
 
@@ -71,8 +71,15 @@ def home():
 
 
 # national consumption
-@app.post("/api/predict-consumption")
+@app.post("/api/predict-consumption", response_model=PredictionExplanationResponse)
 def predict_consumption(scenario: EnergyScenario):
+    # entry data
+    feature_cols = [
+        'Total Green', 'Nuclear', 'Total Fossil',
+        'Hour', 'Day', 'Month',
+        'Consumption_Lag_1h', 'Consumption_Lag_24h', 'Consumption_Rolling_24h'
+    ]
+
     input_data = pd.DataFrame([{
         'Total Green': scenario.Total_Green,
         'Nuclear': scenario.Nuclear,
@@ -83,11 +90,40 @@ def predict_consumption(scenario: EnergyScenario):
         'Consumption_Lag_1h': scenario.Consumption_Lag_1h,
         'Consumption_Lag_24h': scenario.Consumption_Lag_24h,
         'Consumption_Rolling_24h': scenario.Consumption_Rolling_24h
-    }])
+    }])[feature_cols]
 
-    prediction = model.predict(input_data)[0]
+    # model and scaler
+    scaler = model.named_steps['scaler']
+    regressor = model.named_steps['regressor']
 
-    return {"prognosed_consumption_mw": float(prediction)}
+    # scale data
+    input_scaled = scaler.transform(input_data)
+
+    # prediction
+    prediction = regressor.predict(input_scaled)[0]
+
+    # 2. global feature importance - importance of each variable
+    importances = regressor.feature_importances_
+    feature_importance_dict = {
+        col: round(float(imp) * 100, 2)
+        for col, imp in zip(feature_cols, importances)
+    }
+
+    # 3. Local SHAP Values - current influence for this prediction
+    explainer = shap.TreeExplainer(regressor)
+    shap_values = explainer.shap_values(input_scaled)[0]
+
+    shap_dict = {
+        col: round(float(val), 2)
+        for col, val in zip(feature_cols, shap_values)
+    }
+
+    return PredictionExplanationResponse(
+        prognosed_consumption_mw=float(round(prediction, 2)),
+        feature_importance=feature_importance_dict,
+        shap_contributions=shap_dict
+    )
+
 
 
 # solar forecast
