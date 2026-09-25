@@ -62,7 +62,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
     const fetchScheduledTasks = useCallback(() => {
         if (!userId) return;
-        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled?date=${selectedDate}`, {
+        fetch(`/users/${userId}/appliances/scheduled?date=${selectedDate}`, {
             headers: getAuthHeaders()
         })
             .then(async res => {
@@ -85,7 +85,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
     const fetchAppliances = useCallback(() => {
         if (!userId) return;
-        fetch(`http://localhost:8080/users/${userId}/appliances`, {
+        fetch(`/users/${userId}/appliances`, {
             headers: getAuthHeaders()
         })
             .then(res => {
@@ -101,7 +101,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     }, [fetchScheduledTasks]);
 
     useEffect(() => {
-        fetch('http://localhost:8080/api/messages/random')
+        fetch('/api/messages/random')
             .then(res => res.ok ? res.json() : null)
             .then(data => setEcoMessage(data))
             .catch(err => console.error("Error fetching message:", err));
@@ -122,7 +122,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
         e.preventDefault();
         if (!newName || !newPower) return;
 
-        fetch(`http://localhost:8080/users/${userId}/appliances`, {
+        fetch(`/users/${userId}/appliances`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ name: newName, powerConsumptionKw: parseFloat(newPower) })
@@ -140,7 +140,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     };
 
     const handleDeleteAppliance = (applianceId) => {
-        fetch(`http://localhost:8080/users/${userId}/appliances/${applianceId}`, {
+        fetch(`/users/${userId}/appliances/${applianceId}`, {
             method: "DELETE"
         })
             .then(res => {
@@ -152,7 +152,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
     const handleSaveEdit = (e, applianceId) => {
         e.preventDefault();
-        fetch(`http://localhost:8080/users/${userId}/appliances/${applianceId}`, {
+        fetch(`/users/${userId}/appliances/${applianceId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: editName, powerConsumptionKw: parseFloat(editPower) })
@@ -170,7 +170,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
         const selectedDuration = applianceDuration[applianceId] || 2;
 
-        fetch(`http://localhost:8080/users/${userId}/appliances/${applianceId}/recommendation?durationHours=${selectedDuration}`, {
+        fetch(`/users/${userId}/appliances/${applianceId}/recommendation?durationHours=${selectedDuration}`, {
             method: 'POST'
         })
             .then(res => {
@@ -200,7 +200,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             durationMinutes: rec.durationMinutes || 120
         };
 
-        fetch(`http://localhost:8080/users/${userId}/appliances/schedule`, {
+        fetch(`/users/${userId}/appliances/schedule`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify(payload)
@@ -217,7 +217,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     };
 
     const handleCancelTask = (logId, applianceId) => {
-        fetch(`http://localhost:8080/users/${userId}/appliances/scheduled/${logId}`, {
+        fetch(`/users/${userId}/appliances/scheduled/${logId}`, {
             method: 'DELETE'
         })
             .then(res => {

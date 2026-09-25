@@ -68,7 +68,7 @@ function Register({ switchToLogin }) {
 
         try {
             // create user
-            const res = await fetch('http://localhost:8080/users', {
+            const res = await fetch('/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -84,13 +84,15 @@ function Register({ switchToLogin }) {
 
             //energy profile - prosumers
             if (userType === 'PROSUMER' && pvSystemKw) {
-                const profileRes = await fetch(`http://localhost:8080/users/${targetUserId}/energy`, {
+                const profileRes = await fetch(`/users/${targetUserId}/energy`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         pvSystemKw: parseFloat(pvSystemKw),
                         latitude: coords.latitude,
                         longitude: coords.longitude,
+                        tilt: parseFloat(tilt),
+                        azimuth: parseFloat(azimuth),
                     })
                 });
 
@@ -99,7 +101,7 @@ function Register({ switchToLogin }) {
 
             // save appliances
             for (const app of appliances) {
-                await fetch(`http://localhost:8080/users/${targetUserId}/appliances`, {
+                await fetch(`/users/${targetUserId}/appliances`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(app)

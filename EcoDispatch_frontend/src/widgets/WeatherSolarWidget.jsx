@@ -6,7 +6,7 @@ function WeatherSolarWidget({userId}) {
 
     const fetchSolarForecast = useCallback(() => {
         if (!userId) return;
-        fetch(`http://localhost:8080/users/${userId}/solar-forecast`)
+        fetch(`/users/${userId}/solar-forecast`)
             .then(res => res.ok? res.json() : [])
             .then(data => setForecast(data))
             .catch(err => console.error("Forecast fetch error: ", err))

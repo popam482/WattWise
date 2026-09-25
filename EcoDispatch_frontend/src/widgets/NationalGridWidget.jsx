@@ -6,7 +6,7 @@ function NationalGridWidget({userId}) {
 
     const fetchNationalGrid = useCallback(() => {
         if (!userId) return;
-        fetch(`http://localhost:8080/api/national-grid/current`)
+        fetch('/api/national-grid/current')
             .then(res => {
                 if (!res.ok) throw new Error('Failed to fetch national grid data');
                 return res.json();

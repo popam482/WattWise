@@ -9,6 +9,8 @@ from pydantic import BaseModel
 import pandas as pd
 from pathlib import Path
 
+
+
 from energy_model.sen_realtime import get_current_hourly_sen_data
 
 app = FastAPI(title="EcoDispatch ML API")
@@ -56,6 +58,11 @@ class ScheduleRecommendation(BaseModel):
     best_end_time: str
     total_green_energy_score: float
     reason: str
+
+class PredictionExplanationResponse(BaseModel):
+    prognosed_consumption_mw: float
+    feature_importance: dict[str, float]
+    shap_contributions: dict[str, float]
 
 
 @app.get("/")
