@@ -58,6 +58,7 @@ class ScheduleRecommendation(BaseModel):
     best_end_time: str
     total_green_energy_score: float
     reason: str
+    decision_factors: dict[str, float]
 
 class PredictionExplanationResponse(BaseModel):
     prognosed_consumption_mw: float
@@ -222,15 +223,26 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
 
     if req.user_type == "PROSUMER":
-        reason = f"During this interval, the photovoltaics cover {avg_coverage}% of the appliance's {req.power_kw} kW consumption."
+        reason = f"During this period, the panels cover {avg_coverage}% of the consumption of the {req.power_kw} kW appliance."
+        decision_factors = {
+            "Direct Solar Coverage": avg_coverage,
+            "Azimuth/Tilt Efficiency": round(max(0, 100 - abs((req.tilt or 35.0) - 35.0) * 2), 1),
+            "External Grid Impact": round(100 - avg_coverage, 1)
+        }
     else:
-        reason = f"Optimal interval! The national grid is using a high percentage of green energy."
+        reason = f"Optimal time slot! The national grid has a high share of green energy."
+        decision_factors = {
+            "National Grid Green Energy Share": avg_coverage,
+            "Avoidance of Fossil-Fuel Peak Hours": round(min(avg_coverage * 0.8, 100.0), 1)
+        }
+
 
     return ScheduleRecommendation(
         best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
         best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
         total_green_energy_score=round(max_window_score, 2),
-        reason=reason
+        reason=reason,
+        decision_factors=decision_factors
     )
 
 @app.get("/api/grid/status")
@@ -243,71 +255,13 @@ def get_grid_status():
             detail=f"SEN data is temporarily unavailable: {error}"
         ) from error
 
-    prediction_explanation = None
-
-    try:
-        raw_ts = str(realtime_data["timestamp"]).replace("Z", "").strip()
-        if "T" in raw_ts:
-            timestamp = datetime.datetime.fromisoformat(raw_ts)
-        else:
-            timestamp = datetime.datetime.strptime(raw_ts, "%Y-%m-%d %H:%M:%S")
-
-        feature_cols = [
-            'Total Green', 'Nuclear', 'Total Fossil',
-            'Hour', 'Day', 'Month',
-            'Consumption_Lag_1h', 'Consumption_Lag_24h', 'Consumption_Rolling_24h'
-        ]
-        current_consumption = float(realtime_data["consumption_mw"])
-
-        input_data = pd.DataFrame([{
-            'Total Green': float(realtime_data["total_green_mw"]),
-            'Nuclear': float(realtime_data["nuclear_mw"]),
-            'Total Fossil': float(realtime_data["total_fossil_mw"]),
-            'Hour': timestamp.hour,
-            'Day': timestamp.weekday(),
-            'Month': timestamp.month,
-            'Consumption_Lag_1h': current_consumption,
-            'Consumption_Lag_24h': current_consumption,
-            'Consumption_Rolling_24h': current_consumption
-        }])[feature_cols]
-
-        scaler = model.named_steps['scaler']
-        regressor = model.named_steps['regressor']
-
-        input_scaled = scaler.transform(input_data)
-        prediction = float(regressor.predict(input_scaled)[0])
-
-        explainer = shap.TreeExplainer(regressor)
-        raw_shap_values = explainer.shap_values(input_scaled)
-
-        if isinstance(raw_shap_values, list):
-            vals = raw_shap_values[0][0]
-        elif len(raw_shap_values.shape) == 2:
-            vals = raw_shap_values[0]
-        else:
-            vals = raw_shap_values
-
-        shap_contributions = {
-            col: float(round(float(val), 2))
-            for col, val in zip(feature_cols, vals)
-        }
-
-        prediction_explanation = {
-            "Predicted_Consumption_MW": float(round(prediction, 2)),
-            "Shap_Contributions": shap_contributions
-        }
-    except Exception as error:
-        print(f"SHAP / Prediction error handled: {error}")
-        prediction_explanation = None
-
     return {
-        "Total_Green_MW": float(realtime_data["total_green_mw"]),
-        "Total_Fossil": float(realtime_data["total_fossil_mw"]),
-        "Nuclear_MW": float(realtime_data["nuclear_mw"]),
-        "Green_Share_Percent": float(realtime_data["green_share_percent"]),
-        "Predicted_Consumption_MW": float(realtime_data["consumption_mw"]),
-        "Production_MW": float(realtime_data["production_mw"]),
-        "Balance_MW": float(realtime_data["balance_mw"]),
-        "Timestamp": str(realtime_data["timestamp"]),
-        "Prediction_Explanation": prediction_explanation
+        "Total_Green_MW": realtime_data["total_green_mw"],
+        "Total_Fossil": realtime_data["total_fossil_mw"],
+        "Nuclear_MW": realtime_data["nuclear_mw"],
+        "Green_Share_Percent": realtime_data["green_share_percent"],
+        "Predicted_Consumption_MW": realtime_data["consumption_mw"],
+        "Production_MW": realtime_data["production_mw"],
+        "Balance_MW": realtime_data["balance_mw"],
+        "Timestamp": realtime_data["timestamp"]
     }

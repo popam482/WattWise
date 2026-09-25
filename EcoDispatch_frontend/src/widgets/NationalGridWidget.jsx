@@ -86,24 +86,6 @@ function NationalGridWidget({userId}) {
                     <h4>{formatValue(nuclear)} MW</h4>
                 </div>
             </div>
-            {contributingFactors.length > 0 && (
-                <div className="prediction-explanation">
-                    <h3>What influenced the consumption prediction?</h3>
-                    <p>
-                        The bars show how each current factor moved the estimate from the model baseline.
-                    </p>
-                    <div>
-                        {contributingFactors.map(([feature, contribution]) => (
-                            <div key={feature}>
-                                <span>{formatFeatureName(feature)}</span>
-                                <strong>
-                                    {contribution >= 0 ? '+' : ''}{formatValue(contribution)} MW
-                                </strong>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
