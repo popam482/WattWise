@@ -237,6 +237,36 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 def get_grid_status():
     realtime_data = get_current_hourly_sen_data()
 
+    timestamp = datetime.datetime.fromisoformat(realtime_data["timestamp"])
+    feature_cols = [
+        'Total Green', 'Nuclear', 'Total Fossil',
+        'Hour', 'Day', 'Month',
+        'Consumption_Lag_1h', 'Consumption_Lag_24h', 'Consumption_Rolling_24h'
+    ]
+    current_consumption = realtime_data["consumption_mw"]
+    input_data = pd.DataFrame([{
+        'Total Green': realtime_data["total_green_mw"],
+        'Nuclear': realtime_data["nuclear_mw"],
+        'Total Fossil': realtime_data["total_fossil_mw"],
+        'Hour': timestamp.hour,
+        'Day': timestamp.weekday(),
+        'Month': timestamp.month,
+        'Consumption_Lag_1h': current_consumption,
+        'Consumption_Lag_24h': current_consumption,
+        'Consumption_Rolling_24h': current_consumption
+    }])[feature_cols]
+
+    scaler = model.named_steps['scaler']
+    regressor = model.named_steps['regressor']
+    input_scaled = scaler.transform(input_data)
+    prediction = regressor.predict(input_scaled)[0]
+    explainer = shap.TreeExplainer(regressor)
+    shap_values = explainer.shap_values(input_scaled)[0]
+    shap_contributions = {
+        col: round(float(value), 2)
+        for col, value in zip(feature_cols, shap_values)
+    }
+
     return {
         "Total_Green_MW": realtime_data["total_green_mw"],
         "Total_Fossil": realtime_data["total_fossil_mw"],
@@ -245,5 +275,9 @@ def get_grid_status():
         "Predicted_Consumption_MW": realtime_data["consumption_mw"],
         "Production_MW": realtime_data["production_mw"],
         "Balance_MW": realtime_data["balance_mw"],
-        "Timestamp": realtime_data["timestamp"]
+        "Timestamp": realtime_data["timestamp"],
+        "Prediction_Explanation": {
+            "Predicted_Consumption_MW": round(float(prediction), 2),
+            "Shap_Contributions": shap_contributions
+        }
     }

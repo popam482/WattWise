@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Map;
+
 @Getter
 @Setter
 public class NationalGridResponseDTO {
@@ -30,6 +32,9 @@ public class NationalGridResponseDTO {
 
     @JsonProperty("Timestamp")
     private String timestamp;
+
+    @JsonProperty("Prediction_Explanation")
+    private PredictionExplanationDTO predictionExplanation;
 
     public NationalGridResponseDTO() {}
 }
