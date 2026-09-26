@@ -19,4 +19,6 @@ public class ApplianceUsageLogResponseDTO {
     private LocalDateTime startTime;
     private Integer durationMinutes;
     private String status;
+    private Double savedCo2Grams;
+    private Double savedMoneyRon;
 }

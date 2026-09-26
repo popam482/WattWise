@@ -150,9 +150,34 @@ public class ApplianceService {
         log.setDurationMinutes(dto.getDurationMinutes());
         log.setStatus("SCHEDULED");
 
+        try {
+            double powerKw = appliance.getPowerConsumptionKw() != null ? appliance.getPowerConsumptionKw() : 1.0;
+            double durationHours = dto.getDurationMinutes() / 60.0;
+            double totalKwh = powerKw * durationHours;
+
+            double recommendedCarbon = appliance.getUser().getUserType().name().equals("PROSUMER") ? 20.0 : 90.0;
+
+            // baseline carbon at peak hour
+            double baselineCarbon = 450.0;
+
+            log.setRecommendedCarbonIntensity(recommendedCarbon);
+            log.setBaselineCarbonIntensity(baselineCarbon);
+
+            // emissions recommended/baseline
+            double emissionsRecommended = totalKwh * recommendedCarbon;
+            double emissionsBaseline = totalKwh * baselineCarbon;
+
+            // saved co2
+            double savedCo2 = emissionsBaseline - emissionsRecommended;
+            log.setSavedCo2Grams(Math.max(0.0, savedCo2));
+
+        } catch (Exception e) {
+            // Fallback
+            log.setSavedCo2Grams(0.0);
+        }
+
         applianceUsageLogRepository.save(log);
     }
-
     public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId, String dateStr) {
         LocalDate targetDate;
         if (dateStr != null && !dateStr.isBlank()) {
@@ -173,7 +198,9 @@ public class ApplianceService {
                         log.getAppliance().getName(),
                         log.getStartTime(),
                         log.getDurationMinutes(),
-                        log.getStatus()
+                        log.getStatus(),
+                        log.getSavedCo2Grams(),
+                        log.getSavedMoneyRon()
                 ))
                 .collect(Collectors.toList());
     }
