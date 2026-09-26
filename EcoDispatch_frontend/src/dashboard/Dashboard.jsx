@@ -74,11 +74,6 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             })
             .then(data => {
                 setScheduledTasks(data);
-                const statusMap = {};
-                data.forEach(task => {
-                    statusMap[task.applianceId] = true;
-                });
-                setScheduledStatus(statusMap);
             })
             .catch(err => setError(err.message));
     }, [userId, selectedDate]);
@@ -168,6 +163,8 @@ function Dashboard({ userId, userName, userType, onLogout }) {
     const handleGetRecommendation = (applianceId) => {
         setLoadingApplianceId(applianceId);
 
+        setScheduledStatus(prev => ({...prev, [applianceId]: false}));
+
         const selectedDuration = applianceDuration[applianceId] || 2;
 
         fetch(`/users/${userId}/appliances/${applianceId}/recommendation?durationHours=${selectedDuration}`, {
@@ -211,7 +208,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                     throw new Error(detail || `Failed to schedule appliance run (${res.status})`);
                 }
                 setScheduledStatus(prev => ({ ...prev, [applianceId]: true }));
-                setSelectedDate(payload.startTime.slice(0, 10));
+                fetchScheduledTasks();
             })
             .catch(err => setError(err.message));
     };
