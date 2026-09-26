@@ -79,7 +79,14 @@ def get_current_hourly_sen_data():
         "total_green_mw": round(total_green, 2),
         "total_fossil_mw": round(total_fossil, 2),
         "nuclear_mw": round(nuclear, 2),
-        "green_share_percent": round(green_share, 2)
+        "green_share_percent": round(green_share, 2),
+
+        "coal_mw": coal,
+        "gas_mw": gas,
+        "hydro_mw": hydro,
+        "wind_mw": wind,
+        "solar_mw": solar,
+        "biomass_mw": biomass
     }
 
 def calculate_grid_carbon_intensity(sen_data):
