@@ -3,6 +3,18 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import re
 
+# IPCC WG III AR5 (2014), Annex III: Technology-specific Cost and Performance Parameters
+EMISSION_FACTORS = {
+    'coal': 820.0,
+    'gas': 490.0,
+    'nuclear': 12.0,
+    'hydro': 24.0,
+    'wind': 11.0,
+    'solar': 48.0,  # solar pv utility
+    'biomass': 230.0
+}
+
+
 def _parse_number(value):
     cleaned = value.replace("\u202f", "").replace("\xa0", "").replace(" ", "")
     cleaned = re.sub(r"[^0-9,.-]", "", cleaned)
@@ -13,6 +25,7 @@ def _parse_number(value):
     elif "," in cleaned:
         cleaned = cleaned.replace(",", ".")
     return float(cleaned)
+
 
 def _find_latest_table_row(soup):
     for row in soup.select("tr"):
@@ -30,6 +43,7 @@ def _find_latest_table_row(soup):
             continue
 
     raise RuntimeError("No vaid data row found in the SEN table.")
+
 
 def get_current_hourly_sen_data():
     url = "https://www.sistemulenergetic.ro/"
@@ -67,3 +81,22 @@ def get_current_hourly_sen_data():
         "nuclear_mw": round(nuclear, 2),
         "green_share_percent": round(green_share, 2)
     }
+
+def calculate_grid_carbon_intensity(sen_data):
+    total_prod = sen_data['production_mw']
+    if total_prod <= 0:
+        return 300.0
+
+    total_emissions = (
+            (sen_data.get('coal_mw', 0) * EMISSION_FACTORS['coal']) +
+            (sen_data.get('gas_mw', 0) * EMISSION_FACTORS['gas']) +
+            (sen_data.get('nuclear_mw', 0) * EMISSION_FACTORS['nuclear']) +
+            (sen_data.get('hydro_mw', 0) * EMISSION_FACTORS['hydro']) +
+            (sen_data.get('wind_mw', 0) * EMISSION_FACTORS['wind']) +
+            (sen_data.get('solar_mw', 0) * EMISSION_FACTORS['solar']) +
+            (sen_data.get('biomass_mw', 0) * EMISSION_FACTORS['biomass'])
+    )
+
+    intensity_g_per_kwh = total_emissions / total_prod
+
+    return round(intensity_g_per_kwh, 2)
