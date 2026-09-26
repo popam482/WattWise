@@ -355,6 +355,16 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                                                 {recommendations[app.id].reason}
                                             </small>
                                         )}
+                                        {recommendations[app.id].decision_factors && (
+                                            <div className="decision-factors">
+                                                <strong>Why this interval was selected:</strong>
+                                                {Object.entries(recommendations[app.id].decision_factors).map(([factor, value]) => (
+                                                    <span key={factor}>
+                                                        {factor}: {Number(value).toFixed(1)}%
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
 
                                         {scheduledStatus[app.id] ? (
                                             <span>Scheduled!</span>

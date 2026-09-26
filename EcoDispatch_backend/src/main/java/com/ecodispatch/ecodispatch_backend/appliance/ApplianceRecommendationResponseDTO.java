@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Map;
+
 @Getter
 @Setter
 public class ApplianceRecommendationResponseDTO {
@@ -18,6 +20,9 @@ public class ApplianceRecommendationResponseDTO {
     private Double totalGreenEnergyScore;
 
     private String reason;
+
+    @JsonProperty("decision_factors")
+    private Map<String, Double> decisionFactors;
 
     public ApplianceRecommendationResponseDTO() {}
 }
