@@ -25,5 +25,14 @@ public class ApplianceUsageLog {
 
     private String status = "COMPLETED";
 
+    private Double recommendedCarbonIntensity;
+    private Double baselineCarbonIntensity;
+
+    private Double recommendedEnergyPrice;
+    private Double baselineEnergyPrice;
+
+    private Double savedCo2Grams;
+    private Double savedMoneyRon;
+
     public ApplianceUsageLog() {}
 }
