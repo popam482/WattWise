@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 
-function Dashboard({ userId, userName, userType, onLogout }) {
+function Dashboard({userId, userName, userType, onLogout}) {
     const [userAppliances, setUserAppliances] = useState([]);
     const [recommendations, setRecommendations] = useState({});
     const [loadingApplianceId, setLoadingApplianceId] = useState(null);
@@ -25,7 +25,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
         const token = localStorage.getItem('token');
         return {
             'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            ...(token ? {'Authorization': `Bearer ${token}`} : {})
         };
     };
 
@@ -40,11 +40,11 @@ function Dashboard({ userId, userName, userType, onLogout }) {
         const end = new Date(start.getTime() + durationMinutes * 60000);
 
         if (now < start) {
-            return { label: 'PENDING', color: 'yellow', desc: 'Waiting for green window' };
+            return {label: 'PENDING', color: 'yellow', desc: 'Waiting for green window'};
         } else if (now >= start && now <= end) {
-            return { label: 'RUNNING', color: 'green', desc: 'Device currently running on green energy' };
+            return {label: 'RUNNING', color: 'green', desc: 'Device currently running on green energy'};
         } else {
-            return { label: 'COMPLETED', color: 'blue', desc: 'Optimized run finished' };
+            return {label: 'COMPLETED', color: 'blue', desc: 'Optimized run finished'};
         }
     }
 
@@ -120,7 +120,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
         fetch(`/users/${userId}/appliances`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ name: newName, powerConsumptionKw: parseFloat(newPower) })
+            body: JSON.stringify({name: newName, powerConsumptionKw: parseFloat(newPower)})
         })
             .then(res => {
                 if (!res.ok) throw new Error('Failed to create appliance');
@@ -149,8 +149,8 @@ function Dashboard({ userId, userName, userType, onLogout }) {
         e.preventDefault();
         fetch(`/users/${userId}/appliances/${applianceId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: editName, powerConsumptionKw: parseFloat(editPower) })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: editName, powerConsumptionKw: parseFloat(editPower)})
         })
             .then(res => {
                 if (!res.ok) throw new Error('Failed to update appliance');
@@ -207,7 +207,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                     const detail = await res.text();
                     throw new Error(detail || `Failed to schedule appliance run (${res.status})`);
                 }
-                setScheduledStatus(prev => ({ ...prev, [applianceId]: true }));
+                setScheduledStatus(prev => ({...prev, [applianceId]: true}));
                 fetchScheduledTasks();
             })
             .catch(err => setError(err.message));
@@ -220,7 +220,7 @@ function Dashboard({ userId, userName, userType, onLogout }) {
             .then(res => {
                 if (!res.ok) throw new Error('Failed to cancel task');
                 if (applianceId) {
-                    setScheduledStatus(prev => ({ ...prev, [applianceId]: false }));
+                    setScheduledStatus(prev => ({...prev, [applianceId]: false}));
                 }
                 fetchScheduledTasks();
             })
@@ -245,12 +245,12 @@ function Dashboard({ userId, userName, userType, onLogout }) {
 
             {userType === 'PROSUMER' && (
                 <section className="weather-section">
-                    <WeatherSolarWidget userId={userId} />
+                    <WeatherSolarWidget userId={userId}/>
                 </section>
             )}
 
             <section className="grid-section">
-                <NationalGridWidget userId={userId} />
+                <NationalGridWidget userId={userId}/>
             </section>
 
             <section className="appliances-section">
@@ -430,6 +430,15 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                                     <p>
                                         <strong>Duration:</strong> {task.durationMinutes} mins
                                     </p>
+                                    {task.savedCo2Grams > 0 && (
+                                        <div className="impact-badge">
+                                            <small>
+                                                <strong>Eco-Impact:</strong> You
+                                                avoided {(task.savedCo2Grams >= 1000 ? (task.savedCo2Grams / 1000).toFixed(2) + ' kg' : task.savedCo2Grams.toFixed(0) + ' g')} CO₂
+                                                compared to peak hours
+                                            </small>
+                                        </div>
+                                    )}
                                     {taskStatus.label !== 'COMPLETED' && (
                                         <button
                                             type="button"
@@ -442,7 +451,8 @@ function Dashboard({ userId, userName, userType, onLogout }) {
                             );
                         })}
                     </div>
-                )}
+                )
+                }
             </section>
         </div>
     );
