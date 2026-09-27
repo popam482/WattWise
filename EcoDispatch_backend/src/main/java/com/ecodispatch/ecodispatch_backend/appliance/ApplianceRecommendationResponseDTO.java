@@ -16,6 +16,9 @@ public class ApplianceRecommendationResponseDTO {
     @JsonProperty("best_end_time")
     private String bestEndTime;
 
+    @JsonProperty("total_green_energy_score")
+    private Double totalGreenEnergyScore;
+
     @JsonProperty("recommended_carbon_intensity")
     private Double recommendedCarbonIntensity;
 
@@ -26,5 +29,5 @@ public class ApplianceRecommendationResponseDTO {
     private String reason;
 
     @JsonProperty("decision_factors")
-    private Map decisionFactors;
+    private Map<String, Double> decisionFactors;
 }

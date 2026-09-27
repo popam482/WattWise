@@ -51,7 +51,7 @@ class ApplianceScheduleRequest(BaseModel):
     system_kwp: Optional[float] = 0.0
     tilt: Optional[float] = 35.0
     azimuth: Optional[float] = 180.0
-
+    committed_power_per_hour: dict[int, float] = {}
 
 class ScheduleRecommendation(BaseModel):
     best_start_time: str
@@ -178,7 +178,10 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
                 tilt_penalty = abs((req.tilt or 35.0) - 35.0) * 0.005
 
                 estimated_pv_power = (req.system_kwp or 0.0) * max(0, (1.0 - (distance_from_peak * 0.15) - tilt_penalty))
-                score = min(estimated_pv_power / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
+                already_committed = req.committed_power_per_hour.get(hour_of_day, 0.0)
+                net_available_pv = max(0.0, estimated_pv_power - already_committed)
+
+                score = min(net_available_pv / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
             else:
                 score = 0.0
         else:

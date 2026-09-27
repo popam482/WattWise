@@ -85,8 +85,12 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 }
 
                 setScheduledStatus(activeStatusMap);
+                return data;
             })
-            .catch(err => setError(err.message));
+            .catch(err => {
+                setError(err.message);
+                return [];
+            });
     }, [userId, selectedDate]);
 
     const fetchAppliances = useCallback(() => {
@@ -218,8 +222,10 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     const detail = await res.text();
                     throw new Error(detail || `Failed to schedule appliance run (${res.status})`);
                 }
+                return fetchScheduledTasks();
+            })
+            .then(() => {
                 setScheduledStatus(prev => ({...prev, [applianceId]: true}));
-                fetchScheduledTasks();
             })
             .catch(err => setError(err.message));
     };

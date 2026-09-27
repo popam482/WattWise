@@ -91,18 +91,22 @@ public class ApplianceService {
         Appliance appliance = applianceRepository.findById(applianceId)
                 .orElseThrow(() -> new ApplianceNotFound("Appliance not found."));
 
+        if (!appliance.getUser().getUser_id().equals(userId)) {
+            throw new ApplianceNotFound("Appliance does not belong to user");
+        }
+
         ApplianceRecommendationRequestDTO request = new ApplianceRecommendationRequestDTO();
-        request.setUserType(user.getUserType().toString());
+        request.setUserType(user.getUserType().name());
         request.setDurationHours(durationHours);
         request.setPowerKw(appliance.getPowerConsumptionKw());
 
-        Map committedPower = new HashMap<>();
+        Map<Integer, Double> committedPower = new HashMap<>();
 
         if (user.getUserType() == UserType.PROSUMER) {
             LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Bucharest"));
             LocalDateTime tomorrow = now.plusHours(24);
 
-            List activeTasks = applianceUsageLogRepository
+                List<ApplianceUsageLog> activeTasks = applianceUsageLogRepository
                     .findByApplianceUserIdAndStatusAndStartTimeBetween(userId, "SCHEDULED", now, tomorrow);
 
             for (ApplianceUsageLog task : activeTasks) {
@@ -177,31 +181,17 @@ public class ApplianceService {
         log.setDurationMinutes(dto.getDurationMinutes());
         log.setStatus("SCHEDULED");
 
-        try {
-            double powerKw = appliance.getPowerConsumptionKw() != null ? appliance.getPowerConsumptionKw() : 1.0;
-            double durationHours = dto.getDurationMinutes() / 60.0;
-            double totalKwh = powerKw * durationHours;
+        double powerKw = appliance.getPowerConsumptionKw() != null ? appliance.getPowerConsumptionKw() : 1.0;
+        double durationHours = dto.getDurationMinutes() / 60.0;
+        double totalKwh = powerKw * durationHours;
+        double recommendedCarbon = appliance.getUser().getUserType() == UserType.PROSUMER ? 20.0 : 90.0;
+        double baselineCarbon = 450.0;
 
-            double recommendedCarbon = appliance.getUser().getUserType().name().equals("PROSUMER") ? 20.0 : 90.0;
-
-            // baseline carbon at peak hour
-            double baselineCarbon = 450.0;
-
-            log.setRecommendedCarbonIntensity(recommendedCarbon);
-            log.setBaselineCarbonIntensity(baselineCarbon);
-
-            // emissions recommended/baseline
-            double emissionsRecommended = totalKwh * recommendedCarbon;
-            double emissionsBaseline = totalKwh * baselineCarbon;
-
-            // saved co2
-            double savedCo2 = emissionsBaseline - emissionsRecommended;
-            log.setSavedCo2Grams(Math.max(0.0, savedCo2));
-
-        } catch (Exception e) {
-            // Fallback
-            log.setSavedCo2Grams(0.0);
-        }
+        log.setRecommendedCarbonIntensity(recommendedCarbon);
+        log.setBaselineCarbonIntensity(baselineCarbon);
+        double emissionsRecommended = totalKwh * recommendedCarbon;
+        double emissionsBaseline = totalKwh * baselineCarbon;
+        log.setSavedCo2Grams(Math.max(0.0, emissionsBaseline - emissionsRecommended));
 
         applianceUsageLogRepository.save(log);
     }
