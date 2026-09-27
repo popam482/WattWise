@@ -11,7 +11,7 @@ from pathlib import Path
 
 import shap
 
-from energy_model.sen_realtime import get_current_hourly_sen_data
+from energy_model.sen_realtime import get_current_hourly_sen_data, calculate_grid_carbon_intensity
 
 app = FastAPI(title="EcoDispatch ML API")
 
@@ -57,8 +57,11 @@ class ScheduleRecommendation(BaseModel):
     best_start_time: str
     best_end_time: str
     total_green_energy_score: float
+    recommended_carbon_intensity: float
+    baseline_carbon_intensity: float
     reason: str
     decision_factors: dict[str, float]
+
 
 class PredictionExplanationResponse(BaseModel):
     prognosed_consumption_mw: float
@@ -74,7 +77,6 @@ def home():
 # national consumption
 @app.post("/api/predict-consumption", response_model=PredictionExplanationResponse)
 def predict_consumption(scenario: EnergyScenario):
-    # entry data
     feature_cols = [
         'Total Green', 'Nuclear', 'Total Fossil',
         'Hour', 'Day', 'Month',
@@ -93,24 +95,18 @@ def predict_consumption(scenario: EnergyScenario):
         'Consumption_Rolling_24h': scenario.Consumption_Rolling_24h
     }])[feature_cols]
 
-    # model and scaler
     scaler = model.named_steps['scaler']
     regressor = model.named_steps['regressor']
 
-    # scale data
     input_scaled = scaler.transform(input_data)
-
-    # prediction
     prediction = regressor.predict(input_scaled)[0]
 
-    # 2. global feature importance - importance of each variable
     importances = regressor.feature_importances_
     feature_importance_dict = {
         col: round(float(imp) * 100, 2)
         for col, imp in zip(feature_cols, importances)
     }
 
-    # 3. Local SHAP Values - current influence for this prediction
     explainer = shap.TreeExplainer(regressor)
     shap_values = explainer.shap_values(input_scaled)[0]
 
@@ -124,7 +120,6 @@ def predict_consumption(scenario: EnergyScenario):
         feature_importance=feature_importance_dict,
         shap_contributions=shap_dict
     )
-
 
 
 # solar forecast
@@ -176,9 +171,6 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         score = 0.0
 
         if req.user_type == "PROSUMER":
-            # South (180 deg) - peak hour 13:00
-            # East (90 deg) - peak hour 10:00
-            # West (270 deg) -> peak hour 16:00
             peak_hour = 13.0 + ((req.azimuth or 180.0) - 180.0) / 30.0
 
             if 6 <= hour_of_day <= 20:
@@ -190,24 +182,23 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             else:
                 score = 0.0
         else:
-            # CONSUMER
             try:
                 realtime_grid = get_current_hourly_sen_data()
-                green_share = realtime_grid["green_share_percent"] / 100.0  # ex: 0.67
+                green_share = realtime_grid["green_share_percent"] / 100.0
                 if 10 <= hour_of_day <= 16:
                     score = green_share * 1.2
                 else:
                     score = green_share * 0.8
                 score = min(max(score, 0.0), 1.0)
             except Exception:
-                score = 0.5  # Fallback
+                score = 0.5
+
         hourly_energy_scores.append({
             "hour_offset": i,
             "actual_hour": hour_of_day,
             "score": score
         })
 
-        #sliding window
     best_window_start = 0
     max_window_score = -1.0
 
@@ -222,6 +213,12 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 
     avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
 
+    try:
+        realtime_sen = get_current_hourly_sen_data()
+        current_grid_intensity = calculate_grid_carbon_intensity(realtime_sen)
+    except Exception:
+        current_grid_intensity = 300.0
+
     if req.user_type == "PROSUMER":
         reason = f"During this period, the panels cover {avg_coverage}% of the consumption of the {req.power_kw} kW appliance."
         decision_factors = {
@@ -229,18 +226,25 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             "Azimuth/Tilt Efficiency": round(max(0, 100 - abs((req.tilt or 35.0) - 35.0) * 2), 1),
             "External Grid Impact": round(100 - avg_coverage, 1)
         }
+        # produmer ~48 gCO2/kWh (IPCC)
+        rec_carbon_intensity = round(48.0 * (avg_coverage / 100.0) + current_grid_intensity * ((100.0 - avg_coverage) / 100.0), 2)
     else:
         reason = f"Optimal time slot! The national grid has a high share of green energy."
         decision_factors = {
             "National Grid Green Energy Share": avg_coverage,
             "Avoidance of Fossil-Fuel Peak Hours": round(min(avg_coverage * 0.8, 100.0), 1)
         }
-
+        rec_carbon_intensity = round(current_grid_intensity * (1.0 - (avg_coverage / 100.0) * 0.4), 2)
+    # fossil
+    fossil_ratio = (realtime_sen.get("total_fossil_mw", 0) / max(realtime_sen.get("production_mw", 1), 1)) if 'realtime_sen' in locals() else 0.4
+    baseline_carbon_intensity = round(current_grid_intensity + (fossil_ratio * 180.0) + 100.0, 2)
 
     return ScheduleRecommendation(
         best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
         best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
         total_green_energy_score=round(max_window_score, 2),
+        recommended_carbon_intensity=rec_carbon_intensity,
+        baseline_carbon_intensity=baseline_carbon_intensity,
         reason=reason,
         decision_factors=decision_factors
     )

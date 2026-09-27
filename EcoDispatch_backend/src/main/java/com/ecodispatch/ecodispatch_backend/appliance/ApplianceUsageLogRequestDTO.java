@@ -12,4 +12,6 @@ public class ApplianceUsageLogRequestDTO {
     private Integer id;
     private LocalDateTime startTime;
     private Integer durationMinutes;
+    private Double recommendedCarbonIntensity;
+    private Double baselineCarbonIntensity;
 }
