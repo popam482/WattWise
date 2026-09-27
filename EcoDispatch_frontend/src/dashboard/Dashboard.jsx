@@ -73,7 +73,18 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 return res.json();
             })
             .then(data => {
-                setScheduledTasks(data);
+                setScheduledTasks(Array.isArray(data) ? data : []);
+
+                const activeStatusMap = {};
+                if (Array.isArray(data)) {
+                    data.forEach(task => {
+                        if (task.applianceId) {
+                            activeStatusMap[task.applianceId] = true;
+                        }
+                    });
+                }
+
+                setScheduledStatus(activeStatusMap);
             })
             .catch(err => setError(err.message));
     }, [userId, selectedDate]);
@@ -219,8 +230,12 @@ function Dashboard({userId, userName, userType, onLogout}) {
         })
             .then(res => {
                 if (!res.ok) throw new Error('Failed to cancel task');
-                if (applianceId) {
-                    setScheduledStatus(prev => ({...prev, [applianceId]: false}));
+
+                const taskToCancel = scheduledTasks.find(t => t.id === logId);
+                const targetApplianceId = applianceId || taskToCancel?.applianceId;
+
+                if (targetApplianceId) {
+                    setScheduledStatus(prev => ({ ...prev, [targetApplianceId]: false }));
                 }
                 fetchScheduledTasks();
             })
