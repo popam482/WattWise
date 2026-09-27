@@ -6,6 +6,7 @@ import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceUsageLogRepository;
 import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceRepository;
+import com.ecodispatch.ecodispatch_backend.appliance.ApplianceUsageLog;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.user.UserType;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,8 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -91,6 +95,29 @@ public class ApplianceService {
         request.setUserType(user.getUserType().toString());
         request.setDurationHours(durationHours);
         request.setPowerKw(appliance.getPowerConsumptionKw());
+
+        Map committedPower = new HashMap<>();
+
+        if (user.getUserType() == UserType.PROSUMER) {
+            LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Bucharest"));
+            LocalDateTime tomorrow = now.plusHours(24);
+
+            List activeTasks = applianceUsageLogRepository
+                    .findByApplianceUserIdAndStatusAndStartTimeBetween(userId, "SCHEDULED", now, tomorrow);
+
+            for (ApplianceUsageLog task : activeTasks) {
+                int startHour = task.getStartTime().getHour();
+                int taskDurationHours = (int) Math.ceil(task.getDurationMinutes() / 60.0);
+                double taskPower = task.getAppliance().getPowerConsumptionKw() != null ? task.getAppliance().getPowerConsumptionKw() : 1.0;
+
+                for (int i = 0; i < taskDurationHours; i++) {
+                    int hour = (startHour + i) % 24;
+                    committedPower.put(hour, committedPower.getOrDefault(hour, 0.0) + taskPower);
+                }
+            }
+        }
+
+        request.setCommittedPowerPerHour(committedPower);
 
         if(user.getUserType() == UserType.PROSUMER && user.getEnergyProfile() != null) {
             request.setLat(user.getEnergyProfile().getLatitude());

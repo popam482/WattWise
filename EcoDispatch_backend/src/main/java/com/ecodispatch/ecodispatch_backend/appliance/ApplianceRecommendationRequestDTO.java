@@ -3,6 +3,7 @@ package com.ecodispatch.ecodispatch_backend.appliance;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.Map; // Import necesar
 
 @Getter
 @Setter
@@ -25,6 +26,10 @@ public class ApplianceRecommendationRequestDTO {
 
     private Double tilt;
     private Double azimuth;
+
+
+    @JsonProperty("committed_power_per_hour")
+    private Map committedPowerPerHour;
 
     public ApplianceRecommendationRequestDTO() {}
 }
