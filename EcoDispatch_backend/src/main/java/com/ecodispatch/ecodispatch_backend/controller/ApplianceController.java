@@ -1,5 +1,6 @@
 package com.ecodispatch.ecodispatch_backend.controller;
 
+import com.ecodispatch.ecodispatch_backend.analytics.EcoAnalyticsDTO;
 import com.ecodispatch.ecodispatch_backend.appliance.*;
 import com.ecodispatch.ecodispatch_backend.service.ApplianceService;
 import org.springframework.web.bind.annotation.*;
@@ -69,5 +70,10 @@ public class ApplianceController {
     @DeleteMapping("/users/{userId}/appliances/scheduled/{logId}")
     public void cancelScheduledTask(@PathVariable Integer userId, @PathVariable Integer logId) {
         applianceService.cancelScheduledTask(userId, logId);
+    }
+
+    @GetMapping("/users/{userId}/eco-analytics")
+    public EcoAnalyticsDTO getEcoAnalytics(@PathVariable Integer userId) {
+        return applianceService.getUserEcoAnalytics(userId);
     }
 }

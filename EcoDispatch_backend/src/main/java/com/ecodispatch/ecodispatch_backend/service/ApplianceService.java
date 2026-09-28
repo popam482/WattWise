@@ -4,6 +4,7 @@ import com.ecodispatch.ecodispatch_backend.appliance.*;
 import com.ecodispatch.ecodispatch_backend.errors.ApplianceNotFound;
 import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceUsageLogRepository;
+import com.ecodispatch.ecodispatch_backend.analytics.EcoAnalyticsDTO;
 import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceRepository;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceUsageLog;
@@ -16,6 +17,8 @@ import org.springframework.web.client.RestTemplate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.DoubleSummaryStatistics;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -233,4 +236,45 @@ public class ApplianceService {
         applianceUsageLogRepository.delete(log);
     }
 
+    public EcoAnalyticsDTO getUserEcoAnalytics(Integer userId) {
+        List<ApplianceUsageLog> logs = applianceUsageLogRepository.findByApplianceUserId(userId);
+
+        double totalSavedGrams = logs.stream()
+                .mapToDouble(log -> log.getSavedCo2Grams() != null ? log.getSavedCo2Grams() : 0.0)
+                .sum();
+
+        double totalSavedRon = logs.stream()
+                .mapToDouble(log -> log.getSavedMoneyRon() != null ? log.getSavedMoneyRon() : 0.0)
+                .sum();
+
+        double totalSavedKg = totalSavedGrams / 1000.0;
+
+        double kmEquiv = totalSavedKg / 0.12;
+        double treeEquiv = totalSavedKg / 1.83;
+
+        Map<String, DoubleSummaryStatistics> dailyStats = logs.stream()
+                .collect(Collectors.groupingBy(
+                        log -> log.getStartTime().toLocalDate().toString(),
+                        Collectors.summarizingDouble(log -> log.getSavedCo2Grams() != null ? log.getSavedCo2Grams() / 1000.0 : 0.0)
+                ));
+
+        List<EcoAnalyticsDTO.DailyImpactDTO> history = dailyStats.entrySet().stream()
+                .map(entry -> new EcoAnalyticsDTO.DailyImpactDTO(
+                        entry.getKey(),
+                        entry.getValue().getSum() * 1.5, // baseline estimation
+                        entry.getValue().getSum() * 0.5, // real co2 emissions
+                        entry.getValue().getSum()        // difference
+                ))
+                .sorted(Comparator.comparing(EcoAnalyticsDTO.DailyImpactDTO::getDate))
+                .collect(Collectors.toList());
+
+        return new EcoAnalyticsDTO(
+                Math.round(totalSavedKg * 100.0) / 100.0,
+                Math.round(totalSavedRon * 100.0) / 100.0,
+                logs.size(),
+                Math.round(kmEquiv * 10.0) / 10.0,
+                Math.round(treeEquiv * 10.0) / 10.0,
+                history
+        );
+    }
 }

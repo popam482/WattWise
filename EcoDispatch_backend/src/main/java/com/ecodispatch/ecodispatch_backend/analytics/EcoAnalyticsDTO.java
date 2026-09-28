@@ -17,7 +17,7 @@ public class EcoAnalyticsDTO {
     private Integer totalCompletedTasks;
     private Double equivalentCarKm;
     private Double equivalentTreesPlanted;
-    private List dailyImpactHistory;
+    private List<DailyImpactDTO> dailyImpactHistory;
 
     @Getter
     @Setter
