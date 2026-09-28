@@ -22,5 +22,4 @@ public interface ApplianceUsageLogRepository extends JpaRepository<ApplianceUsag
             @Param("dayStart") LocalDateTime dayStart,
             @Param("dayEnd") LocalDateTime dayEnd);
 
-    List<ApplianceUsageLog> findByApplianceUserId(Integer userId);
 }

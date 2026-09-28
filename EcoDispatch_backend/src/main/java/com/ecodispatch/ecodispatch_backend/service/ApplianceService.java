@@ -237,7 +237,7 @@ public class ApplianceService {
     }
 
     public EcoAnalyticsDTO getUserEcoAnalytics(Integer userId) {
-        List<ApplianceUsageLog> logs = applianceUsageLogRepository.findByApplianceUserId(userId);
+        List<ApplianceUsageLog> logs = applianceUsageLogRepository.findAllByUserId(userId);
 
         double totalSavedGrams = logs.stream()
                 .mapToDouble(log -> log.getSavedCo2Grams() != null ? log.getSavedCo2Grams() : 0.0)

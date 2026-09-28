@@ -1,6 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
+import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 
 function Dashboard({userId, userName, userType, onLogout}) {
     const [userAppliances, setUserAppliances] = useState([]);
@@ -474,6 +475,10 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     </div>
                 )
                 }
+            </section>
+
+            <section className="eco-analytics-section">
+                <EcoAnalyticsWidget userId={userId}/>
             </section>
         </div>
     );
