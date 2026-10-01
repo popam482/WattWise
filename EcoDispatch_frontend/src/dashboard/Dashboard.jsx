@@ -63,7 +63,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const fetchScheduledTasks = useCallback(() => {
         if (!userId) return;
-        fetch(`/users/${userId}/appliances/scheduled?date=${selectedDate}`, {
+        return fetch(`/users/${userId}/appliances/scheduled?date=${selectedDate}`, {
             headers: getAuthHeaders()
         })
             .then(async res => {
@@ -386,7 +386,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                         )}
 
                                         {scheduledStatus[app.id] ? (
-                                            <span>Scheduled!</span>
+                                            <span>Schedule Confirmed</span>
                                         ) : (
                                             <button
                                                 type="button"
