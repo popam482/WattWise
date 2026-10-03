@@ -180,13 +180,6 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 
         final_score = (score * 0.7) + (price_score * 0.3)
 
-        hourly_energy_scores.append({
-            "hour_offset": i,
-            "actual_hour": hour_of_day,
-            "score": final_score,
-            "price": price_at_hour
-        })
-
         if req.user_type == "PROSUMER":
             peak_hour = 13.0 + ((req.azimuth or 180.0) - 180.0) / 30.0
 
@@ -216,7 +209,8 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         hourly_energy_scores.append({
             "hour_offset": i,
             "actual_hour": hour_of_day,
-            "score": score
+            "score": (score * 0.7) + (price_score * 0.3),
+            "price": price_at_hour
         })
 
     best_window_start = 0
@@ -246,7 +240,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             "Azimuth/Tilt Efficiency": round(max(0, 100 - abs((req.tilt or 35.0) - 35.0) * 2), 1),
             "External Grid Impact": round(100 - avg_coverage, 1)
         }
-        # produmer ~48 gCO2/kWh (IPCC)
+        # prosumer ~48 gCO2/kWh (IPCC)
         rec_carbon_intensity = round(48.0 * (avg_coverage / 100.0) + current_grid_intensity * ((100.0 - avg_coverage) / 100.0), 2)
     else:
         reason = f"Optimal time slot! The national grid has a high share of green energy."

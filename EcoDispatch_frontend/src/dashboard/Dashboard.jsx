@@ -184,10 +184,14 @@ function Dashboard({userId, userName, userType, onLogout}) {
         const selectedDuration = applianceDuration[applianceId] || 2;
 
         fetch(`/users/${userId}/appliances/${applianceId}/recommendation?durationHours=${selectedDuration}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: getAuthHeaders()
         })
-            .then(res => {
-                if (!res.ok) throw new Error('Could not get recommendation');
+            .then(async res => {
+                if (!res.ok) {
+                    const detail = await res.text();
+                    throw new Error(detail || `Could not get recommendation (${res.status})`);
+                }
                 return res.json();
             })
             .then(data => {
@@ -199,7 +203,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     }
                 }));
             })
-            .catch(err => console.error(err))
+            .catch(err => console.error('Could not get recommendation:', err))
             .finally(() => setLoadingApplianceId(null));
     };
 
