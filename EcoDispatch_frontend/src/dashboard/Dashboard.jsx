@@ -461,6 +461,14 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                             </small>
                                         </div>
                                     )}
+                                    {task.savedMoneyRon > 0 && (
+                                        <div className="money-badge">
+                                            <small>
+                                                <strong>Financial Impact:</strong>
+                                                You saved {(task.savedMoneyRon.toFixed(2))} RON
+                                            </small>
+                                        </div>
+                                    )}
                                     {taskStatus.label !== 'COMPLETED' && (
                                         <button
                                             type="button"
