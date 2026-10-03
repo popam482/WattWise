@@ -12,6 +12,7 @@ from pathlib import Path
 import shap
 
 from energy_model.sen_realtime import get_current_hourly_sen_data, calculate_grid_carbon_intensity
+from energy_model.opcom_realtime import get_day_ahead_prices
 
 app = FastAPI(title="EcoDispatch ML API")
 
@@ -59,6 +60,8 @@ class ScheduleRecommendation(BaseModel):
     total_green_energy_score: float
     recommended_carbon_intensity: float
     baseline_carbon_intensity: float
+    recommended_energy_price: float
+    baseline_energy_price: float
     reason: str
     decision_factors: dict[str, float]
 
@@ -166,9 +169,23 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     forecast_hours = 24
     hourly_energy_scores = []
 
+    opcom_prices = get_day_ahead_prices()
+
     for i in range(forecast_hours):
         hour_of_day = (current_hour + i) % 24
         score = 0.0
+
+        price_at_hour = opcom_prices.get(hour_of_day, 0.5)
+        price_score = max(0.0, 1.0 - (price_at_hour / 1.5))
+
+        final_score = (score * 0.7) + (price_score * 0.3)
+
+        hourly_energy_scores.append({
+            "hour_offset": i,
+            "actual_hour": hour_of_day,
+            "score": final_score,
+            "price": price_at_hour
+        })
 
         if req.user_type == "PROSUMER":
             peak_hour = 13.0 + ((req.azimuth or 180.0) - 180.0) / 30.0
@@ -242,12 +259,18 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     fossil_ratio = (realtime_sen.get("total_fossil_mw", 0) / max(realtime_sen.get("production_mw", 1), 1)) if 'realtime_sen' in locals() else 0.4
     baseline_carbon_intensity = round(current_grid_intensity + (fossil_ratio * 180.0) + 100.0, 2)
 
+    recommended_price = sum(item["price"] for item in hourly_energy_scores[best_window_start : best_window_start + req.duration_hours]) / req.duration_hours
+
+    baseline_price = (opcom_prices.get(18, 1.3) + opcom_prices.get(19, 1.5) + opcom_prices.get(20, 1.4) + opcom_prices.get(21, 1.1)) / 4.0
+
     return ScheduleRecommendation(
         best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
         best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
         total_green_energy_score=round(max_window_score, 2),
         recommended_carbon_intensity=rec_carbon_intensity,
         baseline_carbon_intensity=baseline_carbon_intensity,
+        recommended_energy_price=round(recommended_price, 3),
+        baseline_energy_price=round(baseline_price, 3),
         reason=reason,
         decision_factors=decision_factors
     )
