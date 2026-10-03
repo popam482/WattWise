@@ -30,4 +30,10 @@ public class ApplianceRecommendationResponseDTO {
 
     @JsonProperty("decision_factors")
     private Map<String, Double> decisionFactors;
+
+    @JsonProperty("recommended_energy_price")
+    private Double recommendedEnergyPrice;
+
+    @JsonProperty("baseline_energy_price")
+    private Double baselineEnergyPrice;
 }
