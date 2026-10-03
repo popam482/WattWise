@@ -196,6 +196,19 @@ public class ApplianceService {
         double emissionsBaseline = totalKwh * baselineCarbon;
         log.setSavedCo2Grams(Math.max(0.0, emissionsBaseline - emissionsRecommended));
 
+        double basePrice = dto.getBaselineEnergyPrice() != null ? dto.getBaselineEnergyPrice() : 1.30;
+        double recPrice = dto.getRecommendedEnergyPrice() != null ? dto.getRecommendedEnergyPrice() : 0.45;
+        if (appliance.getUser().getUserType() == UserType.PROSUMER) {
+            recPrice = 0.0;
+        }
+
+        log.setRecommendedEnergyPrice(recPrice);
+        log.setBaselineEnergyPrice(basePrice);
+
+        double costBaseline = totalKwh * basePrice;
+        double costRecommended = totalKwh * recPrice;
+        log.setSavedMoneyRon(Math.max(0.0, costBaseline - costRecommended));
+
         applianceUsageLogRepository.save(log);
     }
     public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId, String dateStr) {

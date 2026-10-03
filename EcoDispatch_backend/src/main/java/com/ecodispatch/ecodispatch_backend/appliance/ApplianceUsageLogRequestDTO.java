@@ -14,4 +14,6 @@ public class ApplianceUsageLogRequestDTO {
     private Integer durationMinutes;
     private Double recommendedCarbonIntensity;
     private Double baselineCarbonIntensity;
+    private Double baselineEnergyPrice;
+    private Double recommendedEnergyPrice;
 }
