@@ -8,6 +8,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
     const [recommendations, setRecommendations] = useState({});
     const [loadingApplianceId, setLoadingApplianceId] = useState(null);
     const [applianceDuration, setApplianceDuration] = useState({});
+    const [dispatchWindow, setDispatchWindow] = useState({});
 
     const [newName, setNewName] = useState("");
     const [newPower, setNewPower] = useState("");
@@ -129,6 +130,31 @@ function Dashboard({userId, userName, userType, onLogout}) {
         }));
     };
 
+    const getDispatchWindow = (applianceId) => {
+        const existing = dispatchWindow[applianceId];
+        if (existing) return existing;
+
+        const start = new Date();
+        start.setMinutes(0, 0, 0);
+        start.setHours(start.getHours() + 1);
+        const end = new Date(start);
+        end.setHours(end.getHours() + 24);
+        return {
+            earliestStart: start.toISOString().slice(0, 16),
+            latestEnd: end.toISOString().slice(0, 16)
+        };
+    };
+
+    const updateDispatchWindow = (applianceId, field, value) => {
+        setDispatchWindow(prev => ({
+            ...prev,
+            [applianceId]: {
+                ...getDispatchWindow(applianceId),
+                [field]: value
+            }
+        }));
+    };
+
     const handleAddAppliance = (e) => {
         e.preventDefault();
         if (!newName || !newPower) return;
@@ -183,7 +209,14 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
         const selectedDuration = applianceDuration[applianceId] || 2;
 
-        fetch(`/users/${userId}/appliances/${applianceId}/recommendation?durationHours=${selectedDuration}`, {
+        const window = getDispatchWindow(applianceId);
+        const query = new URLSearchParams({
+            durationHours: selectedDuration,
+            earliestStart: window.earliestStart,
+            latestEnd: window.latestEnd
+        });
+
+        fetch(`/users/${userId}/appliances/${applianceId}/recommendation?${query}`, {
             method: 'POST',
             headers: getAuthHeaders()
         })
@@ -273,6 +306,21 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
             {error && <div className="error-banner">{error}</div>}
 
+            <section className="dispatch-hero">
+                <div>
+                    <h2>Let your appliances follow the cleanest energy.</h2>
+                    <p>
+                        EcoDispatch searches the time window you allow and schedules
+                        flexible loads when carbon intensity is lowest.
+                    </p>
+                </div>
+                <div className="dispatch-hero-metrics">
+                    <div><strong>Carbon first</strong><span>Optimization objective</span></div>
+                    <div><strong>24h</strong><span>Forecast horizon</span></div>
+                    <div><strong>0 clicks</strong><span>After confirmation</span></div>
+                </div>
+            </section>
+
             {userType === 'PROSUMER' && (
                 <section className="weather-section">
                     <WeatherSolarWidget userId={userId}/>
@@ -284,7 +332,13 @@ function Dashboard({userId, userName, userType, onLogout}) {
             </section>
 
             <section className="appliances-section">
-                <h2>Your Appliances & Optimal Dispatch</h2>
+                <div className="section-heading">
+                    <div>
+                        <span className="eyebrow">FLEXIBLE LOADS</span>
+                        <h2>Autonomous dispatch</h2>
+                    </div>
+                    <span className="section-description">Define the rules. We find the greenest run.</span>
+                </div>
 
                 <form onSubmit={handleAddAppliance} className="add-appliance-form">
                     <input
@@ -312,6 +366,13 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     <div className="appliances-grid">
                         {userAppliances.map(app => (
                             <div key={app.id} className="appliance-card">
+                                <div className="appliance-card-header">
+                                    <div>
+                                        <h3>{app.name}</h3>
+                                        <span className="appliance-power">{app.powerConsumptionKw} kW flexible load</span>
+                                    </div>
+                                    <span className="flexible-pill">FLEXIBLE</span>
+                                </div>
                                 {editingId === app.id ? (
                                     <form onSubmit={e => handleSaveEdit(e, app.id)}>
                                         <input
@@ -333,9 +394,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                     </form>
                                 ) : (
                                     <>
-                                        <h3>{app.name}</h3>
-                                        <p><strong>Consumption:</strong> {app.powerConsumptionKw} kW</p>
-                                        <button
+                                        <div className="appliance-actions">
+                                        <button className="text-button"
                                             type="button"
                                             onClick={() => {
                                                 setEditingId(app.id);
@@ -345,38 +405,68 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                         >
                                             Edit
                                         </button>
-                                        <button type="button" onClick={() => handleDeleteAppliance(app.id)}>
+                                        <button className="text-button danger-button" type="button" onClick={() => handleDeleteAppliance(app.id)}>
                                             Delete
                                         </button>
+                                        </div>
                                     </>
                                 )}
 
                                 <div className="recommendation-controls">
-                                    <label htmlFor={`duration-${app.id}`}>Run duration: </label>
-                                    <select
-                                        id={`duration-${app.id}`}
-                                        value={applianceDuration[app.id] || 2}
-                                        onChange={(e) => handleDurationChange(app.id, e.target.value)}
-                                    >
-                                        <option value={1}>1 hour</option>
-                                        <option value={2}>2 hours</option>
-                                        <option value={3}>3 hours</option>
-                                        <option value={4}>4 hours</option>
-                                    </select>
+                                    <div className="control-group">
+                                        <label htmlFor={`duration-${app.id}`}>Runtime</label>
+                                        <select
+                                            id={`duration-${app.id}`}
+                                            value={applianceDuration[app.id] || 2}
+                                            onChange={(e) => handleDurationChange(app.id, e.target.value)}
+                                        >
+                                            <option value={1}>1 hour</option>
+                                            <option value={2}>2 hours</option>
+                                            <option value={3}>3 hours</option>
+                                            <option value={4}>4 hours</option>
+                                        </select>
+                                    </div>
+                                    <div className="control-group">
+                                        <label htmlFor={`earliest-${app.id}`}>Earliest start</label>
+                                        <input
+                                            id={`earliest-${app.id}`}
+                                            type="datetime-local"
+                                            value={getDispatchWindow(app.id).earliestStart}
+                                            onChange={(e) => updateDispatchWindow(app.id, 'earliestStart', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="control-group">
+                                        <label htmlFor={`latest-${app.id}`}>Must finish by</label>
+                                        <input
+                                            id={`latest-${app.id}`}
+                                            type="datetime-local"
+                                            value={getDispatchWindow(app.id).latestEnd}
+                                            onChange={(e) => updateDispatchWindow(app.id, 'latestEnd', e.target.value)}
+                                        />
+                                    </div>
 
                                     <button
+                                        className="dispatch-button"
                                         type="button"
                                         onClick={() => handleGetRecommendation(app.id)}
                                         disabled={loadingApplianceId === app.id}
                                     >
-                                        {loadingApplianceId === app.id ? 'Calculating...' : 'Find lowest-carbon window'}
+                                        {loadingApplianceId === app.id ? 'Scanning energy windows...' : 'Find cleanest window'}
                                     </button>
                                 </div>
 
                                 {recommendations[app.id] && (
                                     <div className="recommendation-box">
-                                        <p><strong>Recommended Interval:</strong></p>
-                                        <p>{recommendations[app.id].best_start_time} - {recommendations[app.id].best_end_time}</p>
+                                        <div className="recommendation-heading">
+                                            <div>
+                                                <span className="eyebrow">AUTONOMOUS PLAN READY</span>
+                                                <h4>Best clean-energy window</h4>
+                                            </div>
+                                            <span className="confidence-pill">OPTIMIZED</span>
+                                        </div>
+                                        <p className="recommended-time">
+                                            {recommendations[app.id].best_start_time} → {recommendations[app.id].best_end_time}
+                                        </p>
                                         <p>
                                             <strong>Carbon intensity:</strong>{' '}
                                             {Number(recommendations[app.id].recommended_carbon_intensity || 0).toFixed(0)} gCO₂/kWh
@@ -408,13 +498,13 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                         )}
 
                                         {scheduledStatus[app.id] ? (
-                                            <span>Schedule Confirmed</span>
+                                            <span className="confirmed-pill">Schedule confirmed</span>
                                         ) : (
-                                            <button
+                                            <button className="confirm-button"
                                                 type="button"
                                                 onClick={() => handleConfirmSchedule(app.id)}
                                             >
-                                                Confirm Schedule
+                                                Approve & schedule automatically
                                             </button>
                                         )}
                                     </div>
