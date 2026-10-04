@@ -76,7 +76,12 @@ function Register({ switchToLogin }) {
 
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.message || 'User creation failed');
+                throw new Error(
+                    errorData.message ||
+                    errorData.detail ||
+                    errorData.error ||
+                    `User creation failed (${res.status})`
+                );
             }
 
             const user = await res.json();

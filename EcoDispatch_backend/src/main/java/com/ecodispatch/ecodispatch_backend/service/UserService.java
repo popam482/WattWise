@@ -11,6 +11,8 @@ import com.ecodispatch.ecodispatch_backend.user.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.utils.JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class UserService {
@@ -49,7 +51,7 @@ public class UserService {
 
     public UserResponseDTO createUser(UserRequestDTO dto) {
         if (userRepository.existsByEmail(dto.getEmail())) {
-            throw new RuntimeException("Email already in use!");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use!");
         }
 
         User user = toEntity(dto);

@@ -37,25 +37,25 @@ function EcoAnalyticsWidget({userId}) {
 
             <div className="analytics-grid">
                 <div className="analytics-card">
-                    <span className="analytics-icon">CO2</span>
+                    <span className="analytics-icon">CO2: </span>
                     <strong>{analytics.totalSavedCo2Kg} kg</strong>
                     <span>Total CO₂ Avoided</span>
                 </div>
 
                 <div className="analytics-card">
-                    <span className="analytics-icon">Runs</span>
+                    <span className="analytics-icon">Runs: </span>
                     <strong>{analytics.totalCompletedTasks}</strong>
                     <span>Optimized Runs</span>
                 </div>
 
                 <div className="analytics-card">
-                    <span className="analytics-icon">Car</span>
+                    <span className="analytics-icon">Car: </span>
                     <strong>{analytics.equivalentCarKm} km</strong>
                     <span>Car Driving Equivalence</span>
                 </div>
 
                 <div className="analytics-card">
-                    <span className="analytics-icon">Trees</span>
+                    <span className="analytics-icon">Trees: </span>
                     <strong>{analytics.equivalentTreesPlanted}</strong>
                     <span>Trees Absorbing CO₂ / Month</span>
                 </div>
