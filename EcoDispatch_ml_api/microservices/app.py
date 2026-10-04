@@ -53,6 +53,8 @@ class ApplianceScheduleRequest(BaseModel):
     tilt: Optional[float] = 35.0
     azimuth: Optional[float] = 180.0
     committed_power_per_hour: dict[int, float] = {}
+    earliest_start: Optional[str] = None
+    latest_end: Optional[str] = None
 
 class ScheduleRecommendation(BaseModel):
     best_start_time: str
@@ -70,6 +72,24 @@ class PredictionExplanationResponse(BaseModel):
     prognosed_consumption_mw: float
     feature_importance: dict[str, float]
     shap_contributions: dict[str, float]
+
+
+def _parse_schedule_time(value: Optional[str], fallback: datetime.datetime) -> datetime.datetime:
+    if not value:
+        return fallback
+
+    try:
+        parsed = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=ZoneInfo("Europe/Bucharest"))
+        return parsed.astimezone(ZoneInfo("Europe/Bucharest")).replace(
+            minute=0, second=0, microsecond=0
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid schedule time: {value}"
+        ) from error
 
 
 @app.get("/")
@@ -165,20 +185,41 @@ def get_solar_forecast(request: SolarRequest):
 @app.post("/api/recommendations/best-time", response_model=ScheduleRecommendation)
 def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     current_time = datetime.datetime.now(ZoneInfo("Europe/Bucharest"))
-    current_hour = current_time.hour
-    forecast_hours = 24
+    current_time = current_time.replace(minute=0, second=0, microsecond=0)
+    earliest = _parse_schedule_time(req.earliest_start, current_time)
+    latest_end = _parse_schedule_time(
+        req.latest_end, current_time + datetime.timedelta(hours=24)
+    )
+    if earliest < current_time:
+        earliest = current_time
+    if latest_end <= earliest:
+        raise HTTPException(status_code=400, detail="latest_end must be after earliest_start")
+
+    forecast_hours = int((latest_end - earliest).total_seconds() // 3600)
+    if forecast_hours < req.duration_hours:
+        raise HTTPException(
+            status_code=400,
+            detail="The selected time window is shorter than the appliance duration"
+        )
+
     hourly_energy_scores = []
 
     opcom_prices = get_day_ahead_prices()
+    try:
+        realtime_sen = get_current_hourly_sen_data()
+        current_grid_intensity = calculate_grid_carbon_intensity(realtime_sen)
+        green_share = realtime_sen["green_share_percent"] / 100.0
+    except Exception:
+        realtime_sen = {}
+        current_grid_intensity = 300.0
+        green_share = 0.5
 
     for i in range(forecast_hours):
-        hour_of_day = (current_hour + i) % 24
-        score = 0.0
+        hour_of_day = (earliest.hour + i) % 24
 
         price_at_hour = opcom_prices.get(hour_of_day, 0.5)
         price_score = max(0.0, 1.0 - (price_at_hour / 1.5))
-
-        final_score = (score * 0.7) + (price_score * 0.3)
+        solar_score = 0.0
 
         if req.user_type == "PROSUMER":
             peak_hour = 13.0 + ((req.azimuth or 180.0) - 180.0) / 30.0
@@ -191,26 +232,22 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
                 already_committed = req.committed_power_per_hour.get(hour_of_day, 0.0)
                 net_available_pv = max(0.0, estimated_pv_power - already_committed)
 
-                score = min(net_available_pv / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
-            else:
-                score = 0.0
-        else:
-            try:
-                realtime_grid = get_current_hourly_sen_data()
-                green_share = realtime_grid["green_share_percent"] / 100.0
-                if 10 <= hour_of_day <= 16:
-                    score = green_share * 1.2
-                else:
-                    score = green_share * 0.8
-                score = min(max(score, 0.0), 1.0)
-            except Exception:
-                score = 0.5
+                solar_score = min(net_available_pv / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
+        elif 10 <= hour_of_day <= 16:
+            solar_score = min(green_share * 1.2, 1.0)
+
+        daylight_bonus = 0.15 if 10 <= hour_of_day <= 16 else 0.0
+        estimated_carbon = current_grid_intensity * (1.0 - 0.35 * solar_score - daylight_bonus)
+        carbon_score = max(0.0, 1.0 - estimated_carbon / 600.0)
+        final_score = (carbon_score * 0.55) + (solar_score * 0.25) + (price_score * 0.20)
 
         hourly_energy_scores.append({
             "hour_offset": i,
             "actual_hour": hour_of_day,
-            "score": (score * 0.7) + (price_score * 0.3),
-            "price": price_at_hour
+            "score": final_score,
+            "price": price_at_hour,
+            "carbon_intensity": estimated_carbon,
+            "solar_score": solar_score
         })
 
     best_window_start = 0
@@ -222,16 +259,16 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             max_window_score = window_score
             best_window_start = i
 
-    start_time = current_time.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=best_window_start)
+    start_time = earliest + datetime.timedelta(hours=best_window_start)
     end_time = start_time + datetime.timedelta(hours=req.duration_hours)
 
     avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
-
-    try:
-        realtime_sen = get_current_hourly_sen_data()
-        current_grid_intensity = calculate_grid_carbon_intensity(realtime_sen)
-    except Exception:
-        current_grid_intensity = 300.0
+    selected_hours = hourly_energy_scores[
+        best_window_start:best_window_start + req.duration_hours
+    ]
+    rec_carbon_intensity = sum(
+        item["carbon_intensity"] for item in selected_hours
+    ) / req.duration_hours
 
     if req.user_type == "PROSUMER":
         reason = f"During this period, the panels cover {avg_coverage}% of the consumption of the {req.power_kw} kW appliance."
@@ -241,14 +278,12 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             "External Grid Impact": round(100 - avg_coverage, 1)
         }
         # prosumer ~48 gCO2/kWh (IPCC)
-        rec_carbon_intensity = round(48.0 * (avg_coverage / 100.0) + current_grid_intensity * ((100.0 - avg_coverage) / 100.0), 2)
     else:
-        reason = f"Optimal time slot! The national grid has a high share of green energy."
+        reason = f"Selected the lowest-carbon {req.duration_hours}-hour window in the allowed interval."
         decision_factors = {
             "National Grid Green Energy Share": avg_coverage,
             "Avoidance of Fossil-Fuel Peak Hours": round(min(avg_coverage * 0.8, 100.0), 1)
         }
-        rec_carbon_intensity = round(current_grid_intensity * (1.0 - (avg_coverage / 100.0) * 0.4), 2)
     # fossil
     fossil_ratio = (realtime_sen.get("total_fossil_mw", 0) / max(realtime_sen.get("production_mw", 1), 1)) if 'realtime_sen' in locals() else 0.4
     baseline_carbon_intensity = round(current_grid_intensity + (fossil_ratio * 180.0) + 100.0, 2)
@@ -261,7 +296,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
         best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
         total_green_energy_score=round(max_window_score, 2),
-        recommended_carbon_intensity=rec_carbon_intensity,
+        recommended_carbon_intensity=round(rec_carbon_intensity, 2),
         baseline_carbon_intensity=baseline_carbon_intensity,
         recommended_energy_price=round(recommended_price, 3),
         baseline_energy_price=round(baseline_price, 3),

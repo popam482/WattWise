@@ -31,5 +31,11 @@ public class ApplianceRecommendationRequestDTO {
     @JsonProperty("committed_power_per_hour")
     private Map<Integer, Double> committedPowerPerHour;
 
+    @JsonProperty("earliest_start")
+    private String earliestStart;
+
+    @JsonProperty("latest_end")
+    private String latestEnd;
+
     public ApplianceRecommendationRequestDTO() {}
 }

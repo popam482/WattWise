@@ -88,6 +88,16 @@ public class ApplianceService {
     }
 
     public ApplianceRecommendationResponseDTO getBestTimeForAppliance(Integer userId, Integer applianceId, Integer durationHours) {
+        return getBestTimeForAppliance(userId, applianceId, durationHours, null, null);
+    }
+
+    public ApplianceRecommendationResponseDTO getBestTimeForAppliance(
+            Integer userId, Integer applianceId, Integer durationHours,
+            String earliestStart, String latestEnd) {
+        if (durationHours == null || durationHours < 1 || durationHours > 24) {
+            throw new IllegalArgumentException("Duration must be between 1 and 24 hours");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFound("User not found " + userId));
 
@@ -102,6 +112,8 @@ public class ApplianceService {
         request.setUserType(user.getUserType().name());
         request.setDurationHours(durationHours);
         request.setPowerKw(appliance.getPowerConsumptionKw());
+        request.setEarliestStart(earliestStart);
+        request.setLatestEnd(latestEnd);
 
         Map<Integer, Double> committedPower = new HashMap<>();
 
@@ -187,8 +199,10 @@ public class ApplianceService {
         double powerKw = appliance.getPowerConsumptionKw() != null ? appliance.getPowerConsumptionKw() : 1.0;
         double durationHours = dto.getDurationMinutes() / 60.0;
         double totalKwh = powerKw * durationHours;
-        double recommendedCarbon = appliance.getUser().getUserType() == UserType.PROSUMER ? 20.0 : 90.0;
-        double baselineCarbon = 450.0;
+        double recommendedCarbon = dto.getRecommendedCarbonIntensity() != null
+                ? dto.getRecommendedCarbonIntensity() : 90.0;
+        double baselineCarbon = dto.getBaselineCarbonIntensity() != null
+                ? dto.getBaselineCarbonIntensity() : 450.0;
 
         log.setRecommendedCarbonIntensity(recommendedCarbon);
         log.setBaselineCarbonIntensity(baselineCarbon);
@@ -198,9 +212,6 @@ public class ApplianceService {
 
         double basePrice = dto.getBaselineEnergyPrice() != null ? dto.getBaselineEnergyPrice() : 1.30;
         double recPrice = dto.getRecommendedEnergyPrice() != null ? dto.getRecommendedEnergyPrice() : 0.45;
-        if (appliance.getUser().getUserType() == UserType.PROSUMER) {
-            recPrice = 0.0;
-        }
 
         log.setRecommendedEnergyPrice(recPrice);
         log.setBaselineEnergyPrice(basePrice);

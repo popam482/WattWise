@@ -214,7 +214,11 @@ function Dashboard({userId, userName, userType, onLogout}) {
         const payload = {
             id: applianceId,
             startTime: rec.best_start_time.replace(" ", "T"),
-            durationMinutes: rec.durationMinutes || 120
+            durationMinutes: rec.durationMinutes || 120,
+            recommendedCarbonIntensity: rec.recommended_carbon_intensity,
+            baselineCarbonIntensity: rec.baseline_carbon_intensity,
+            recommendedEnergyPrice: rec.recommended_energy_price,
+            baselineEnergyPrice: rec.baseline_energy_price
         };
 
         fetch(`/users/${userId}/appliances/schedule`, {
@@ -365,7 +369,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                         onClick={() => handleGetRecommendation(app.id)}
                                         disabled={loadingApplianceId === app.id}
                                     >
-                                        {loadingApplianceId === app.id ? 'Calculating...' : 'Find optimal start'}
+                                        {loadingApplianceId === app.id ? 'Calculating...' : 'Find lowest-carbon window'}
                                     </button>
                                 </div>
 
@@ -373,6 +377,20 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                     <div className="recommendation-box">
                                         <p><strong>Recommended Interval:</strong></p>
                                         <p>{recommendations[app.id].best_start_time} - {recommendations[app.id].best_end_time}</p>
+                                        <p>
+                                            <strong>Carbon intensity:</strong>{' '}
+                                            {Number(recommendations[app.id].recommended_carbon_intensity || 0).toFixed(0)} gCO₂/kWh
+                                            {' '}vs{' '}
+                                            {Number(recommendations[app.id].baseline_carbon_intensity || 0).toFixed(0)} gCO₂/kWh baseline
+                                        </p>
+                                        <p>
+                                            <strong>Estimated CO₂ avoided:</strong>{' '}
+                                            {Math.max(
+                                                0,
+                                                Number(recommendations[app.id].baseline_carbon_intensity || 0) -
+                                                Number(recommendations[app.id].recommended_carbon_intensity || 0)
+                                            ).toFixed(0)} g/kWh
+                                        </p>
                                         {recommendations[app.id].reason && (
                                             <small>
                                                 {recommendations[app.id].reason}

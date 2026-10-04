@@ -36,9 +36,12 @@ public class ApplianceController {
     public ApplianceRecommendationResponseDTO getRecommendation(
             @PathVariable Integer userId,
             @PathVariable Integer applianceId,
-            @RequestParam(defaultValue = "1") Integer durationHours) {
+            @RequestParam(defaultValue = "1") Integer durationHours,
+            @RequestParam(required = false) String earliestStart,
+            @RequestParam(required = false) String latestEnd) {
 
-        return applianceService.getBestTimeForAppliance(userId, applianceId, durationHours);
+        return applianceService.getBestTimeForAppliance(
+                userId, applianceId, durationHours, earliestStart, latestEnd);
 
     }
 
