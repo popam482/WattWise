@@ -18,6 +18,15 @@ public class Appliance {
 
     private Double powerConsumptionKw;
 
+    private Boolean isRecurring;
+
+    private String recurringDays;
+
+    private Integer preferredDuration;
+
+    private String timeWindowStart;
+    private String timeWindowEnd;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
