@@ -355,11 +355,6 @@ function Dashboard({userId, userName, userType, onLogout}) {
                         flexible loads when carbon intensity is lowest.
                     </p>
                 </div>
-                <div className="dispatch-hero-metrics">
-                    <div><strong>Carbon first</strong><span>Optimization objective</span></div>
-                    <div><strong>24h</strong><span>Forecast horizon</span></div>
-                    <div><strong>0 clicks</strong><span>With Smart Rules</span></div>
-                </div>
             </section>
 
             {userType === 'PROSUMER' && (
@@ -443,15 +438,20 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     <p>You don't have any appliance added yet</p>
                 ) : (
                     <div className="appliances-grid">
-                        {userAppliances.map(app => (
+                        {userAppliances.map(app => {
+                            const smartRecurringActive = editingId === app.id
+                                ? editIsRecurring
+                                : Boolean(app.isRecurring);
+
+                            return (
                             <div key={app.id} className="appliance-card">
                                 <div className="appliance-card-header">
                                     <div>
                                         <h3>{app.name}</h3>
                                         <span className="appliance-power">{app.powerConsumptionKw} kW flexible load</span>
                                     </div>
-                                    <span className={app.isRecurring ? "confidence-pill" : "flexible-pill"}>
-                                        {app.isRecurring ? "AUTONOMOUS" : "FLEXIBLE"}
+                                    <span className={smartRecurringActive ? "confidence-pill" : "flexible-pill"}>
+                                        {smartRecurringActive ? "AUTONOMOUS" : "FLEXIBLE"}
                                     </span>
                                 </div>
 
@@ -524,14 +524,19 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                     </>
                                 )}
 
-                                {app.isRecurring ? (
+                                {smartRecurringActive ? (
                                     <div>
                                         <p>
-                                            Smart Rule Active ({app.recurringDays})
+                                            Smart Rule Active ({editingId === app.id ? editRecurringDays : app.recurringDays})
                                         </p>
                                         <small>
-                                            Auto-dispatches for {app.preferredDuration || 2}h between {app.timeWindowStart || "22:00"} – {app.timeWindowEnd || "07:00"}.
+                                            Auto-dispatches for {editingId === app.id ? editPreferredDuration : (app.preferredDuration || 2)}h between{' '}
+                                            {editingId === app.id ? editWindowStart : (app.timeWindowStart || "22:00")} –{' '}
+                                            {editingId === app.id ? editWindowEnd : (app.timeWindowEnd || "07:00")}.
                                         </small>
+                                        <p className="recurring-dispatch-note">
+                                            The smart rule controls the dispatch window. No manual start or deadline is needed.
+                                        </p>
                                     </div>
                                 ) : (
                                     <div className="recommendation-controls">
@@ -578,7 +583,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                     </div>
                                 )}
 
-                                {recommendations[app.id] && !app.isRecurring && (
+                                {recommendations[app.id] && !smartRecurringActive && (
                                     <div className="recommendation-box">
                                         <div className="recommendation-heading">
                                             <div>
@@ -631,7 +636,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </section>
