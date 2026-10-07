@@ -76,7 +76,7 @@ public class ApplianceService {
         appliance.setPowerConsumptionKw(dto.getPowerConsumptionKw());
         appliance.setIsRecurring(dto.getIsRecurring() != null ? dto.getIsRecurring() : false);
         appliance.setRecurringDays(dto.getRecurringDays());
-        appliance.setPreferredDuration(Integer.valueOf(dto.getPreferredDuration()));
+        appliance.setPreferredDuration(dto.getPreferredDuration() != null ? Integer.valueOf(dto.getPreferredDuration()) : null);
         appliance.setTimeWindowStart(dto.getTimeWindowStart());
         appliance.setTimeWindowEnd(dto.getTimeWindowEnd());
         appliance.setUser(user);
@@ -193,7 +193,7 @@ public class ApplianceService {
         appliance.setPowerConsumptionKw(dto.getPowerConsumptionKw());
         appliance.setIsRecurring(dto.getIsRecurring() != null ? dto.getIsRecurring() : false);
         appliance.setRecurringDays(dto.getRecurringDays());
-        appliance.setPreferredDuration(Integer.valueOf(dto.getPreferredDuration()));
+        appliance.setPreferredDuration(dto.getPreferredDuration() != null ? Integer.parseInt(dto.getPreferredDuration()) : null);
         appliance.setTimeWindowStart(dto.getTimeWindowStart());
         appliance.setTimeWindowEnd(dto.getTimeWindowEnd());
 
