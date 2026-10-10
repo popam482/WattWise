@@ -144,14 +144,22 @@ function Dashboard({userId, userName, userType, onLogout}) {
         const existing = dispatchWindow[applianceId];
         if (existing) return existing;
 
-        const start = new Date();
-        start.setMinutes(0, 0, 0);
-        start.setHours(start.getHours() + 1);
+        const now = new Date();
+
+        const start = new Date(now);
+
         const end = new Date(start);
-        end.setHours(end.getHours() + 24);
+        end.setDate(end.getDate() + 2);
+        end.setHours(0, 0, 0, 0);
+
+        const formatLocalDatetime = (d) => {
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+
         return {
-            earliestStart: start.toISOString().slice(0, 16),
-            latestEnd: end.toISOString().slice(0, 16)
+            earliestStart: formatLocalDatetime(start),
+            latestEnd: formatLocalDatetime(end)
         };
     };
 
