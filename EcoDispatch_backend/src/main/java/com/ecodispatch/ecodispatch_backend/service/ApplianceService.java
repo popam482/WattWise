@@ -14,9 +14,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.DoubleSummaryStatistics;
 import java.util.HashMap;
@@ -241,6 +240,22 @@ public class ApplianceService {
 
         applianceUsageLogRepository.save(log);
     }
+
+    private boolean matchesRecurrence(String recurringDays, LocalDate targetDate) {
+        if (recurringDays == null) return false;
+        DayOfWeek day = targetDate.getDayOfWeek();
+        switch (recurringDays.toUpperCase()) {
+            case "DAILY":
+                return true;
+            case "WEEKDAYS":
+                return day.getValue() >= 1 && day.getValue() <= 5;
+            case "WEEKENDS":
+                return day.getValue() >= 6 && day.getValue() <= 7;
+            default:
+                return false;
+        }
+    }
+
     public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId, String dateStr) {
         LocalDate targetDate;
         if (dateStr != null && !dateStr.isBlank()) {
@@ -249,12 +264,89 @@ public class ApplianceService {
             targetDate = LocalDate.now(ZoneId.of("Europe/Bucharest"));
         }
 
-        return applianceUsageLogRepository.findByApplianceUserIdAndStatusAndStartTimeBetween(
+        List<ApplianceUsageLog> recentLogs = applianceUsageLogRepository
+                .findByApplianceUserIdAndStatusAndStartTimeBetween(
                         userId,
                         "SCHEDULED",
-                        targetDate.atStartOfDay(),
-                        targetDate.plusDays(1).atStartOfDay())
-                .stream()
+                        targetDate.minusDays(1).atStartOfDay(),
+                        targetDate.plusDays(2).atStartOfDay()
+                );
+
+        List<Appliance> recurringAppliances = applianceRepository.findByUserId(userId).stream()
+                .filter(a -> a.getIsRecurring() != null && a.getIsRecurring())
+                .collect(Collectors.toList());
+
+        for (Appliance app : recurringAppliances) {
+            if (!matchesRecurrence(app.getRecurringDays(), targetDate)) {
+                continue;
+            }
+
+            String startStr = app.getTimeWindowStart() != null ? app.getTimeWindowStart() : "00:00";
+            String endStr = app.getTimeWindowEnd() != null ? app.getTimeWindowEnd() : "23:59";
+            LocalTime startTime = LocalTime.parse(startStr);
+            LocalTime endTime = LocalTime.parse(endStr);
+
+            LocalDateTime earliestStart = targetDate.atTime(startTime);
+            LocalDateTime latestEnd = targetDate.atTime(endTime);
+
+            if (endTime.isBefore(startTime)) {
+                latestEnd = latestEnd.plusDays(1);
+            }
+
+            final LocalDateTime recurrenceWindowStart = earliestStart;
+            final LocalDateTime recurrenceWindowEnd = latestEnd;
+            boolean alreadyScheduled = recentLogs.stream()
+                    .anyMatch(log -> log.getAppliance().getId().equals(app.getId()) &&
+                            !log.getStartTime().isBefore(recurrenceWindowStart) &&
+                            !log.getStartTime().isAfter(recurrenceWindowEnd));
+
+
+            if (!alreadyScheduled) {
+                try {
+                    int durationHours = app.getPreferredDuration() != null ? app.getPreferredDuration() : 2;
+                    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+
+                    ApplianceRecommendationResponseDTO rec = getBestTimeForAppliance(
+                            userId, app.getId(), durationHours,
+                            earliestStart.format(fmt), latestEnd.format(fmt)
+                    );
+
+                    if (rec != null && rec.getBestStartTime() != null) {
+                        ApplianceUsageLog newLog = new ApplianceUsageLog();
+                        newLog.setAppliance(app);
+                        newLog.setStartTime(LocalDateTime.parse(rec.getBestStartTime().replace(" ", "T")));
+                        newLog.setDurationMinutes(durationHours * 60);
+                        newLog.setStatus("SCHEDULED");
+
+                        double powerKw = app.getPowerConsumptionKw() != null ? app.getPowerConsumptionKw() : 1.0;
+                        double totalKwh = powerKw * durationHours;
+
+                        double recCarbon = rec.getRecommendedCarbonIntensity() != null ? rec.getRecommendedCarbonIntensity() : 90.0;
+                        double baseCarbon = rec.getBaselineCarbonIntensity() != null ? rec.getBaselineCarbonIntensity() : 450.0;
+                        newLog.setRecommendedCarbonIntensity(recCarbon);
+                        newLog.setBaselineCarbonIntensity(baseCarbon);
+                        newLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
+
+                        double basePrice = rec.getBaselineEnergyPrice() != null ? rec.getBaselineEnergyPrice() : 1.30;
+                        double recPrice = rec.getRecommendedEnergyPrice() != null ? rec.getRecommendedEnergyPrice() : 0.45;
+                        newLog.setRecommendedEnergyPrice(recPrice);
+                        newLog.setBaselineEnergyPrice(basePrice);
+                        newLog.setSavedMoneyRon(Math.max(0.0, (totalKwh * basePrice) - (totalKwh * recPrice)));
+
+                        newLog = applianceUsageLogRepository.save(newLog);
+                        recentLogs.add(newLog);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Could not auto-schedule for appliance " + app.getId() + ": " + e.getMessage());
+                }
+            }
+        }
+
+        LocalDateTime dayStart = targetDate.atStartOfDay();
+        LocalDateTime dayEnd = targetDate.plusDays(1).atStartOfDay();
+
+        return recentLogs.stream()
+                .filter(log -> !log.getStartTime().isBefore(dayStart) && log.getStartTime().isBefore(dayEnd))
                 .map(log -> new ApplianceUsageLogResponseDTO(
                         log.getId(),
                         log.getAppliance().getId(),
@@ -264,7 +356,7 @@ public class ApplianceService {
                         log.getStatus(),
                         log.getSavedCo2Grams(),
                         log.getSavedMoneyRon(),
-                        Boolean.TRUE.equals(log.getAppliance().getIsRecurring())
+                        log.getAppliance().getIsRecurring()
                 ))
                 .collect(Collectors.toList());
     }

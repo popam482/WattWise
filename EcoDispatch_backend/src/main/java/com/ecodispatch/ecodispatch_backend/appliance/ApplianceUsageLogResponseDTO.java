@@ -22,4 +22,15 @@ public class ApplianceUsageLogResponseDTO {
     private Double savedCo2Grams;
     private Double savedMoneyRon;
     private Boolean recurring;
+
+    public ApplianceUsageLogResponseDTO(Integer id, Integer id1, String name, LocalDateTime startTime, Integer durationMinutes, String status, Double savedCo2Grams, Double savedMoneyRon) {
+        this.id = id;
+        this.applianceId = id1;
+        this.applianceName = name;
+        this.startTime = startTime;
+        this.durationMinutes = durationMinutes;
+        this.status = status;
+        this.savedCo2Grams = savedCo2Grams;
+        this.savedMoneyRon = savedMoneyRon;
+    }
 }
