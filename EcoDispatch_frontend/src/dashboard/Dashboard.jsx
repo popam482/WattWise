@@ -33,6 +33,19 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const [, setTicks] = useState(0);
 
+    const [energyProfile, setEnergyProfile] = useState(null);
+
+    useEffect(() => {
+        if (!userId || userType !== 'PROSUMER') return;
+
+        fetch(`/users/${userId}/energy`, {
+            headers: getAuthHeaders()
+        })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => setEnergyProfile(data))
+            .catch(err => console.error("Error fetching energy profile:", err));
+    }, [userId, userType]);
+
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
         return {
@@ -435,7 +448,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
             {userType === 'PROSUMER' && (
                 <section className="weather-section">
-                    <WeatherSolarWidget userId={userId}/>
+                    <WeatherSolarWidget userId={userId} energyProfile={energyProfile} />
                 </section>
             )}
 

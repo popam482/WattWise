@@ -1,14 +1,30 @@
 import {useState, useEffect, useCallback} from 'react'
 
-function WeatherSolarWidget({userId}) {
+function WeatherSolarWidget({userId, energyProfile}) {
     const [forecastData, setForecastData] = useState(null);
+    const [savedEnergyProfile, setSavedEnergyProfile] = useState(energyProfile || null);
     const [loading, setLoading] = useState(true);
 
     const fetchSolarForecast = useCallback(() => {
         if (!userId) return;
-        fetch(`/users/${userId}/solar-forecast`)
-            .then(res => res.ok ? res.json() : null)
-            .then(data => setForecastData(data))
+        Promise.all([
+            fetch(`/users/${userId}/solar-forecast`).then(async res => {
+                if (!res.ok) {
+                    throw new Error(`Solar forecast request failed (${res.status})`);
+                }
+                return res.json();
+            }),
+            fetch(`/users/${userId}/energy`).then(async res => {
+                if (!res.ok) {
+                    throw new Error(`Energy profile request failed (${res.status})`);
+                }
+                return res.json();
+            })
+        ])
+            .then(([forecast, profile]) => {
+                setForecastData(forecast);
+                setSavedEnergyProfile(profile);
+            })
             .catch(err => console.error("Forecast fetch error: ", err))
             .finally(() => setLoading(false));
     }, [userId]);
@@ -21,7 +37,7 @@ function WeatherSolarWidget({userId}) {
     if (!forecastData) return null;
 
     const forecast = Array.isArray(forecastData) ? forecastData : forecastData.forecast || [];
-    const systemProfile = forecastData.systemProfile || forecastData.energyProfile || null;
+    const systemProfile = energyProfile || savedEnergyProfile;
 
     if (forecast.length === 0) return null;
 
@@ -49,13 +65,21 @@ function WeatherSolarWidget({userId}) {
 
             {systemProfile && (
                 <div className="pv-system-specs">
-                    <h4> PV System Profile</h4>
+                    <h4>PV System Profile</h4>
                     <div>
-                        <div><strong>Capacity:</strong> {systemProfile.pvSystemKw ?? systemProfile.pv_system_kw} kWp</div>
-                        <div><strong>Tilt:</strong> {systemProfile.tilt}°</div>
-                        <div><strong>Azimuth:</strong> {getCardinalOrientation(systemProfile.azimuth ?? systemProfile.azimuth_deg)}</div>
+                        <div>
+                            <strong>Capacity:</strong> {systemProfile.pvSystemKw ?? systemProfile.pv_system_kw ?? 0} kWp
+                        </div>
+                        <div>
+                            <strong>Tilt:</strong> {systemProfile.tilt != null ? `${systemProfile.tilt}°` : 'N/A'}
+                        </div>
+                        <div>
+                            <strong>Azimuth:</strong> {getCardinalOrientation(systemProfile.azimuth ?? systemProfile.azimuth_deg)}
+                        </div>
                         {(systemProfile.latitude || systemProfile.lat) && (
-                            <div><strong>Location:</strong> {systemProfile.latitude ?? systemProfile.lat}°, {systemProfile.longitude ?? systemProfile.lon}°</div>
+                            <div>
+                                <strong>Location:</strong> {systemProfile.latitude ?? systemProfile.lat}°, {systemProfile.longitude ?? systemProfile.lon}°
+                            </div>
                         )}
                     </div>
                 </div>
