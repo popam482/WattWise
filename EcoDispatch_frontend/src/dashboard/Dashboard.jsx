@@ -331,6 +331,17 @@ function Dashboard({userId, userName, userType, onLogout}) {
             .catch(err => setError(err.message));
     };
 
+    const isSmartRecurring = (appliance) => {
+        const value = appliance?.isRecurring;
+        return value === true
+            || value === 1
+            || value === '1'
+            || (typeof value === 'string' && value.toLowerCase() === 'true');
+    };
+
+    const smartRecurringAppliances = userAppliances.filter(isSmartRecurring);
+    const manualAppliances = userAppliances.filter(appliance => !isSmartRecurring(appliance));
+
     const renderTaskCard = (task) => {
         const taskStatus = getTaskStatus(task.startTime, task.durationMinutes);
         return (
@@ -375,8 +386,18 @@ function Dashboard({userId, userName, userType, onLogout}) {
         );
     };
 
-    const smartTasks = scheduledTasks.filter(task => task.recurring);
-    const manualTasks = scheduledTasks.filter(task => !task.recurring);
+    const recurringApplianceIds = new Set(
+        (Array.isArray(userAppliances) ? userAppliances : [])
+            .filter(app => app.isRecurring)
+            .map(app => app.id)
+    );
+    const isSmartTask = (task) =>
+        typeof task.recurring === 'boolean'
+            ? task.recurring
+            : recurringApplianceIds.has(task.applianceId);
+
+    const smartTasks = scheduledTasks.filter(isSmartTask);
+    const manualTasks = scheduledTasks.filter(task => !isSmartTask(task));
 
     return (
         <div className="dashboard-container">
@@ -417,7 +438,6 @@ function Dashboard({userId, userName, userType, onLogout}) {
             <section className="appliances-section">
                 <div className="section-heading">
                     <div>
-                        <span className="eyebrow">FLEXIBLE LOADS</span>
                         <h2>Autonomous dispatch</h2>
                     </div>
                     <span className="section-description">Define the rules. We find the greenest run.</span>
@@ -484,11 +504,33 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 {userAppliances.length === 0 ? (
                     <p>You don't have any appliance added yet</p>
                 ) : (
-                    <div className="appliances-grid">
-                        {userAppliances.map(app => {
+                    [
+                        {
+                            key: 'smart-recurring',
+                            title: 'Automatic appliances',
+                            description: 'Runs automatically according to the saved recurring rule.',
+                            appliances: smartRecurringAppliances
+                        },
+                        {
+                            key: 'manual-dispatch',
+                            title: 'Manual appliances',
+                            description: 'Find a clean energy window whenever you want to run the appliance.',
+                            appliances: manualAppliances
+                        }
+                    ].map(group => group.appliances.length > 0 && (
+                        <section className="appliance-group" key={group.key}>
+                            <div className="appliance-group-heading">
+                                <div>
+                                    <span className="eyebrow">{group.label}</span>
+                                    <h3>{group.title}</h3>
+                                </div>
+                                <span className="section-description">{group.description}</span>
+                            </div>
+                            <div className="appliances-grid">
+                        {group.appliances.map(app => {
                             const smartRecurringActive = editingId === app.id
                                 ? editIsRecurring
-                                : Boolean(app.isRecurring);
+                                : isSmartRecurring(app);
 
                             return (
                                 <div key={app.id} className="appliance-card">
@@ -525,7 +567,6 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                     checked={editIsRecurring}
                                                     onChange={e => setEditIsRecurring(e.target.checked)}
                                                 />
-                                                Smart Recurring Rule
                                             </label>
 
                                             {editIsRecurring && (
@@ -571,21 +612,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                         </>
                                     )}
 
-                                    {smartRecurringActive ? (
-                                        <div>
-                                            <p>
-                                                Smart Rule Active ({editingId === app.id ? editRecurringDays : app.recurringDays})
-                                            </p>
-                                            <small>
-                                                Auto-dispatches for {editingId === app.id ? editPreferredDuration : (app.preferredDuration || 2)}h between{' '}
-                                                {editingId === app.id ? editWindowStart : (app.timeWindowStart || "22:00")} –{' '}
-                                                {editingId === app.id ? editWindowEnd : (app.timeWindowEnd || "07:00")}.
-                                            </small>
-                                            <p className="recurring-dispatch-note">
-                                                The smart rule controls the dispatch window. No manual start or deadline is needed.
-                                            </p>
-                                        </div>
-                                    ) : (
+                                    {!smartRecurringActive && (
                                         <div className="recommendation-controls">
                                             <div className="control-group">
                                                 <label htmlFor={`duration-${app.id}`}>Runtime</label>
@@ -685,7 +712,9 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                 </div>
                             );
                         })}
-                    </div>
+                            </div>
+                        </section>
+                    ))
                 )}
             </section>
 
