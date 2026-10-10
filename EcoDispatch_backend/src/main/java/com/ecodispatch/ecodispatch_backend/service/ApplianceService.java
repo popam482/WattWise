@@ -135,7 +135,7 @@ public class ApplianceService {
             LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Bucharest"));
             LocalDateTime tomorrow = now.plusHours(24);
 
-                List<ApplianceUsageLog> activeTasks = applianceUsageLogRepository
+            List<ApplianceUsageLog> activeTasks = applianceUsageLogRepository
                     .findByApplianceUserIdAndStatusAndStartTimeBetween(userId, "SCHEDULED", now, tomorrow);
 
             for (ApplianceUsageLog task : activeTasks) {
@@ -263,7 +263,8 @@ public class ApplianceService {
                         log.getDurationMinutes(),
                         log.getStatus(),
                         log.getSavedCo2Grams(),
-                        log.getSavedMoneyRon()
+                        log.getSavedMoneyRon(),
+                        Boolean.TRUE.equals(log.getAppliance().getIsRecurring())
                 ))
                 .collect(Collectors.toList());
     }

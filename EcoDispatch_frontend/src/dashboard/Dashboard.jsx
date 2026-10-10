@@ -331,6 +331,53 @@ function Dashboard({userId, userName, userType, onLogout}) {
             .catch(err => setError(err.message));
     };
 
+    const renderTaskCard = (task) => {
+        const taskStatus = getTaskStatus(task.startTime, task.durationMinutes);
+        return (
+            <div key={task.id} className="scheduled-card">
+                <p className={`schedule-status schedule-status-${taskStatus.color}`}>
+                    <strong>Status:</strong> {taskStatus.label}
+                    <small> - {taskStatus.desc}</small>
+                </p>
+                <h3>{task.applianceName}</h3>
+                <p>
+                    <strong>Start:</strong> {new Date(task.startTime).toLocaleString()}
+                </p>
+                <p>
+                    <strong>Duration:</strong> {task.durationMinutes} mins
+                </p>
+                {task.savedCo2Grams > 0 && (
+                    <div className="impact-badge">
+                        <small>
+                            <strong>Eco-Impact:</strong> You
+                            avoided {(task.savedCo2Grams >= 1000 ? (task.savedCo2Grams / 1000).toFixed(2) + ' kg' : task.savedCo2Grams.toFixed(0) + ' g')} CO₂
+                            compared to peak hours
+                        </small>
+                    </div>
+                )}
+                {task.savedMoneyRon > 0 && (
+                    <div className="money-badge">
+                        <small>
+                            <strong>Financial Impact:</strong>
+                            You saved {(task.savedMoneyRon.toFixed(2))} RON
+                        </small>
+                    </div>
+                )}
+                {taskStatus.label !== 'COMPLETED' && (
+                    <button
+                        type="button"
+                        onClick={() => handleCancelTask(task.id, task.applianceId)}
+                    >
+                        Cancel Schedule
+                    </button>
+                )}
+            </div>
+        );
+    };
+
+    const smartTasks = scheduledTasks.filter(task => task.recurring);
+    const manualTasks = scheduledTasks.filter(task => !task.recurring);
+
     return (
         <div className="dashboard-container">
             <header className="dashboard-header">
@@ -444,198 +491,198 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                 : Boolean(app.isRecurring);
 
                             return (
-                            <div key={app.id} className="appliance-card">
-                                <div className="appliance-card-header">
-                                    <div>
-                                        <h3>{app.name}</h3>
-                                        <span className="appliance-power">{app.powerConsumptionKw} kW flexible load</span>
-                                    </div>
-                                    <span className={smartRecurringActive ? "confidence-pill" : "flexible-pill"}>
+                                <div key={app.id} className="appliance-card">
+                                    <div className="appliance-card-header">
+                                        <div>
+                                            <h3>{app.name}</h3>
+                                            <span className="appliance-power">{app.powerConsumptionKw} kW flexible load</span>
+                                        </div>
+                                        <span className={smartRecurringActive ? "confidence-pill" : "flexible-pill"}>
                                         {smartRecurringActive ? "AUTONOMOUS" : "FLEXIBLE"}
                                     </span>
-                                </div>
+                                    </div>
 
-                                {editingId === app.id ? (
-                                    <form onSubmit={e => handleSaveEdit(e, app.id)}>
-                                        <input
-                                            type="text"
-                                            value={editName}
-                                            onChange={e => setEditName(e.target.value)}
-                                            required
-                                        />
-                                        <input
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            value={editPower}
-                                            onChange={e => setEditPower(e.target.value)}
-                                            required
-                                        />
-
-                                        <label>
+                                    {editingId === app.id ? (
+                                        <form onSubmit={e => handleSaveEdit(e, app.id)}>
                                             <input
-                                                type="checkbox"
-                                                checked={editIsRecurring}
-                                                onChange={e => setEditIsRecurring(e.target.checked)}
+                                                type="text"
+                                                value={editName}
+                                                onChange={e => setEditName(e.target.value)}
+                                                required
                                             />
-                                            Smart Recurring Rule
-                                        </label>
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                min="0"
+                                                value={editPower}
+                                                onChange={e => setEditPower(e.target.value)}
+                                                required
+                                            />
 
-                                        {editIsRecurring && (
-                                            <div>
-                                                <select value={editRecurringDays} onChange={e => setEditRecurringDays(e.target.value)}>
-                                                    <option value="DAILY">Every Day</option>
-                                                    <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
-                                                    <option value="WEEKENDS">Weekends (Sat-Sun)</option>
-                                                </select>
+                                            <label>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editIsRecurring}
+                                                    onChange={e => setEditIsRecurring(e.target.checked)}
+                                                />
+                                                Smart Recurring Rule
+                                            </label>
+
+                                            {editIsRecurring && (
                                                 <div>
-                                                    <span>Duration:</span>
-                                                    <select value={editPreferredDuration} onChange={e => setEditPreferredDuration(e.target.value)}>
-                                                        <option value="1">1 hour</option>
-                                                        <option value="2">2 hours</option>
-                                                        <option value="3">3 hours</option>
-                                                        <option value="4">4 hours</option>
+                                                    <select value={editRecurringDays} onChange={e => setEditRecurringDays(e.target.value)}>
+                                                        <option value="DAILY">Every Day</option>
+                                                        <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
+                                                        <option value="WEEKENDS">Weekends (Sat-Sun)</option>
                                                     </select>
+                                                    <div>
+                                                        <span>Duration:</span>
+                                                        <select value={editPreferredDuration} onChange={e => setEditPreferredDuration(e.target.value)}>
+                                                            <option value="1">1 hour</option>
+                                                            <option value="2">2 hours</option>
+                                                            <option value="3">3 hours</option>
+                                                            <option value="4">4 hours</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <span>Window:</span>
+                                                        <input type="time" value={editWindowStart} onChange={e => setEditWindowStart(e.target.value)} />
+                                                        <span>to</span>
+                                                        <input type="time" value={editWindowEnd} onChange={e => setEditWindowEnd(e.target.value)} />
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <span>Window:</span>
-                                                    <input type="time" value={editWindowStart} onChange={e => setEditWindowStart(e.target.value)} />
-                                                    <span>to</span>
-                                                    <input type="time" value={editWindowEnd} onChange={e => setEditWindowEnd(e.target.value)} />
-                                                </div>
-                                            </div>
-                                        )}
+                                            )}
 
-                                        <div>
-                                            <button type="submit">Save</button>
-                                            <button type="button" onClick={() => setEditingId(null)}>Cancel</button>
-                                        </div>
-                                    </form>
-                                ) : (
-                                    <>
-                                        <div className="appliance-actions">
-                                            <button className="text-button" type="button" onClick={() => startEditing(app)}>
-                                                Edit
-                                            </button>
-                                            <button className="text-button danger-button" type="button" onClick={() => handleDeleteAppliance(app.id)}>
-                                                Delete
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-
-                                {smartRecurringActive ? (
-                                    <div>
-                                        <p>
-                                            Smart Rule Active ({editingId === app.id ? editRecurringDays : app.recurringDays})
-                                        </p>
-                                        <small>
-                                            Auto-dispatches for {editingId === app.id ? editPreferredDuration : (app.preferredDuration || 2)}h between{' '}
-                                            {editingId === app.id ? editWindowStart : (app.timeWindowStart || "22:00")} –{' '}
-                                            {editingId === app.id ? editWindowEnd : (app.timeWindowEnd || "07:00")}.
-                                        </small>
-                                        <p className="recurring-dispatch-note">
-                                            The smart rule controls the dispatch window. No manual start or deadline is needed.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="recommendation-controls">
-                                        <div className="control-group">
-                                            <label htmlFor={`duration-${app.id}`}>Runtime</label>
-                                            <select
-                                                id={`duration-${app.id}`}
-                                                value={applianceDuration[app.id] || 2}
-                                                onChange={(e) => handleDurationChange(app.id, e.target.value)}
-                                            >
-                                                <option value={1}>1 hour</option>
-                                                <option value={2}>2 hours</option>
-                                                <option value={3}>3 hours</option>
-                                                <option value={4}>4 hours</option>
-                                            </select>
-                                        </div>
-                                        <div className="control-group">
-                                            <label htmlFor={`earliest-${app.id}`}>Earliest start</label>
-                                            <input
-                                                id={`earliest-${app.id}`}
-                                                type="datetime-local"
-                                                value={getDispatchWindow(app.id).earliestStart}
-                                                onChange={(e) => updateDispatchWindow(app.id, 'earliestStart', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="control-group">
-                                            <label htmlFor={`latest-${app.id}`}>Must finish by</label>
-                                            <input
-                                                id={`latest-${app.id}`}
-                                                type="datetime-local"
-                                                value={getDispatchWindow(app.id).latestEnd}
-                                                onChange={(e) => updateDispatchWindow(app.id, 'latestEnd', e.target.value)}
-                                            />
-                                        </div>
-
-                                        <button
-                                            className="dispatch-button"
-                                            type="button"
-                                            onClick={() => handleGetRecommendation(app.id)}
-                                            disabled={loadingApplianceId === app.id}
-                                        >
-                                            {loadingApplianceId === app.id ? 'Scanning energy windows...' : 'Find cleanest window'}
-                                        </button>
-                                    </div>
-                                )}
-
-                                {recommendations[app.id] && !smartRecurringActive && (
-                                    <div className="recommendation-box">
-                                        <div className="recommendation-heading">
                                             <div>
-                                                <span className="eyebrow">AUTONOMOUS PLAN READY</span>
-                                                <h4>Best clean-energy window</h4>
+                                                <button type="submit">Save</button>
+                                                <button type="button" onClick={() => setEditingId(null)}>Cancel</button>
                                             </div>
-                                            <span className="confidence-pill">OPTIMIZED</span>
+                                        </form>
+                                    ) : (
+                                        <>
+                                            <div className="appliance-actions">
+                                                <button className="text-button" type="button" onClick={() => startEditing(app)}>
+                                                    Edit
+                                                </button>
+                                                <button className="text-button danger-button" type="button" onClick={() => handleDeleteAppliance(app.id)}>
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {smartRecurringActive ? (
+                                        <div>
+                                            <p>
+                                                Smart Rule Active ({editingId === app.id ? editRecurringDays : app.recurringDays})
+                                            </p>
+                                            <small>
+                                                Auto-dispatches for {editingId === app.id ? editPreferredDuration : (app.preferredDuration || 2)}h between{' '}
+                                                {editingId === app.id ? editWindowStart : (app.timeWindowStart || "22:00")} –{' '}
+                                                {editingId === app.id ? editWindowEnd : (app.timeWindowEnd || "07:00")}.
+                                            </small>
+                                            <p className="recurring-dispatch-note">
+                                                The smart rule controls the dispatch window. No manual start or deadline is needed.
+                                            </p>
                                         </div>
-                                        <p className="recommended-time">
-                                            {recommendations[app.id].best_start_time} → {recommendations[app.id].best_end_time}
-                                        </p>
-                                        <p>
-                                            <strong>Carbon intensity:</strong>{' '}
-                                            {Number(recommendations[app.id].recommended_carbon_intensity || 0).toFixed(0)} gCO₂/kWh
-                                            {' '}vs{' '}
-                                            {Number(recommendations[app.id].baseline_carbon_intensity || 0).toFixed(0)} gCO₂/kWh baseline
-                                        </p>
-                                        <p>
-                                            <strong>Estimated CO₂ avoided:</strong>{' '}
-                                            {Math.max(
-                                                0,
-                                                Number(recommendations[app.id].baseline_carbon_intensity || 0) -
-                                                Number(recommendations[app.id].recommended_carbon_intensity || 0)
-                                            ).toFixed(0)} g/kWh
-                                        </p>
-                                        {recommendations[app.id].reason && (
-                                            <small>{recommendations[app.id].reason}</small>
-                                        )}
-                                        {recommendations[app.id].decision_factors && (
-                                            <div className="decision-factors">
-                                                <strong>Why this interval was selected:</strong>
-                                                {Object.entries(recommendations[app.id].decision_factors).map(([factor, value]) => (
-                                                    <span key={factor}>
+                                    ) : (
+                                        <div className="recommendation-controls">
+                                            <div className="control-group">
+                                                <label htmlFor={`duration-${app.id}`}>Runtime</label>
+                                                <select
+                                                    id={`duration-${app.id}`}
+                                                    value={applianceDuration[app.id] || 2}
+                                                    onChange={(e) => handleDurationChange(app.id, e.target.value)}
+                                                >
+                                                    <option value={1}>1 hour</option>
+                                                    <option value={2}>2 hours</option>
+                                                    <option value={3}>3 hours</option>
+                                                    <option value={4}>4 hours</option>
+                                                </select>
+                                            </div>
+                                            <div className="control-group">
+                                                <label htmlFor={`earliest-${app.id}`}>Earliest start</label>
+                                                <input
+                                                    id={`earliest-${app.id}`}
+                                                    type="datetime-local"
+                                                    value={getDispatchWindow(app.id).earliestStart}
+                                                    onChange={(e) => updateDispatchWindow(app.id, 'earliestStart', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="control-group">
+                                                <label htmlFor={`latest-${app.id}`}>Must finish by</label>
+                                                <input
+                                                    id={`latest-${app.id}`}
+                                                    type="datetime-local"
+                                                    value={getDispatchWindow(app.id).latestEnd}
+                                                    onChange={(e) => updateDispatchWindow(app.id, 'latestEnd', e.target.value)}
+                                                />
+                                            </div>
+
+                                            <button
+                                                className="dispatch-button"
+                                                type="button"
+                                                onClick={() => handleGetRecommendation(app.id)}
+                                                disabled={loadingApplianceId === app.id}
+                                            >
+                                                {loadingApplianceId === app.id ? 'Scanning energy windows...' : 'Find cleanest window'}
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {recommendations[app.id] && !smartRecurringActive && (
+                                        <div className="recommendation-box">
+                                            <div className="recommendation-heading">
+                                                <div>
+                                                    <span className="eyebrow">AUTONOMOUS PLAN READY</span>
+                                                    <h4>Best clean-energy window</h4>
+                                                </div>
+                                                <span className="confidence-pill">OPTIMIZED</span>
+                                            </div>
+                                            <p className="recommended-time">
+                                                {recommendations[app.id].best_start_time} → {recommendations[app.id].best_end_time}
+                                            </p>
+                                            <p>
+                                                <strong>Carbon intensity:</strong>{' '}
+                                                {Number(recommendations[app.id].recommended_carbon_intensity || 0).toFixed(0)} gCO₂/kWh
+                                                {' '}vs{' '}
+                                                {Number(recommendations[app.id].baseline_carbon_intensity || 0).toFixed(0)} gCO₂/kWh baseline
+                                            </p>
+                                            <p>
+                                                <strong>Estimated CO₂ avoided:</strong>{' '}
+                                                {Math.max(
+                                                    0,
+                                                    Number(recommendations[app.id].baseline_carbon_intensity || 0) -
+                                                    Number(recommendations[app.id].recommended_carbon_intensity || 0)
+                                                ).toFixed(0)} g/kWh
+                                            </p>
+                                            {recommendations[app.id].reason && (
+                                                <small>{recommendations[app.id].reason}</small>
+                                            )}
+                                            {recommendations[app.id].decision_factors && (
+                                                <div className="decision-factors">
+                                                    <strong>Why this interval was selected:</strong>
+                                                    {Object.entries(recommendations[app.id].decision_factors).map(([factor, value]) => (
+                                                        <span key={factor}>
                                                         {factor}: {Number(value).toFixed(1)}%
                                                     </span>
-                                                ))}
-                                            </div>
-                                        )}
+                                                    ))}
+                                                </div>
+                                            )}
 
-                                        {scheduledStatus[app.id] ? (
-                                            <span className="confirmed-pill">Schedule confirmed</span>
-                                        ) : (
-                                            <button className="confirm-button"
-                                                    type="button"
-                                                    onClick={() => handleConfirmSchedule(app.id)}
-                                            >
-                                                Approve & schedule automatically
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                                            {scheduledStatus[app.id] ? (
+                                                <span className="confirmed-pill">Schedule confirmed</span>
+                                            ) : (
+                                                <button className="confirm-button"
+                                                        type="button"
+                                                        onClick={() => handleConfirmSchedule(app.id)}
+                                                >
+                                                    Approve & schedule automatically
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             );
                         })}
                     </div>
@@ -675,51 +722,29 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 {scheduledTasks.length === 0 ? (
                     <p>No active eco-schedules for {selectedDate}.</p>
                 ) : (
-                    <div className="scheduled-grid">
-                        {scheduledTasks.map(task => {
-                            const taskStatus = getTaskStatus(task.startTime, task.durationMinutes);
-                            return (
-                                <div key={task.id} className="scheduled-card">
-                                    <p className={`schedule-status schedule-status-${taskStatus.color}`}>
-                                        <strong>Status:</strong> {taskStatus.label}
-                                        <small> - {taskStatus.desc}</small>
-                                    </p>
-                                    <h3>{task.applianceName}</h3>
-                                    <p>
-                                        <strong>Start:</strong> {new Date(task.startTime).toLocaleString()}
-                                    </p>
-                                    <p>
-                                        <strong>Duration:</strong> {task.durationMinutes} mins
-                                    </p>
-                                    {task.savedCo2Grams > 0 && (
-                                        <div className="impact-badge">
-                                            <small>
-                                                <strong>Eco-Impact:</strong> You
-                                                avoided {(task.savedCo2Grams >= 1000 ? (task.savedCo2Grams / 1000).toFixed(2) + ' kg' : task.savedCo2Grams.toFixed(0) + ' g')} CO₂
-                                                compared to peak hours
-                                            </small>
-                                        </div>
-                                    )}
-                                    {task.savedMoneyRon > 0 && (
-                                        <div className="money-badge">
-                                            <small>
-                                                <strong>Financial Impact:</strong>
-                                                You saved {(task.savedMoneyRon.toFixed(2))} RON
-                                            </small>
-                                        </div>
-                                    )}
-                                    {taskStatus.label !== 'COMPLETED' && (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleCancelTask(task.id, task.applianceId)}
-                                        >
-                                            Cancel Schedule
-                                        </button>
-                                    )}
+                    <>
+                        <div className="scheduled-group">
+                            <h3 className="scheduled-group-title">Smart Recurring Rules (automatic)</h3>
+                            {smartTasks.length === 0 ? (
+                                <p>No automatic dispatches for {selectedDate}.</p>
+                            ) : (
+                                <div className="scheduled-grid">
+                                    {smartTasks.map(renderTaskCard)}
                                 </div>
-                            );
-                        })}
-                    </div>
+                            )}
+                        </div>
+
+                        <div className="scheduled-group">
+                            <h3 className="scheduled-group-title">Manual schedules</h3>
+                            {manualTasks.length === 0 ? (
+                                <p>No manual schedules for {selectedDate}.</p>
+                            ) : (
+                                <div className="scheduled-grid">
+                                    {manualTasks.map(renderTaskCard)}
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </section>
 

@@ -21,4 +21,5 @@ public class ApplianceUsageLogResponseDTO {
     private String status;
     private Double savedCo2Grams;
     private Double savedMoneyRon;
+    private Boolean recurring;
 }
