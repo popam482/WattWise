@@ -420,6 +420,12 @@ function Dashboard({userId, userName, userType, onLogout}) {
     const smartTasks = scheduledTasks.filter(isSmartTask);
     const manualTasks = scheduledTasks.filter(task => !isSmartTask(task));
 
+    const scheduledStats = scheduledTasks.reduce((acc, task) => {
+        const status = getTaskStatus(task.startTime, task.durationMinutes).label;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+    }, { PENDING: 0, RUNNING: 0, COMPLETED: 0 });
+
     return (
         <div className="dashboard-container">
             <header className="dashboard-header">
@@ -743,6 +749,18 @@ function Dashboard({userId, userName, userType, onLogout}) {
             <section className="scheduled-section">
                 <div>
                     <h2>My Active Eco-Schedules</h2>
+
+                    <div className="schedule-summary-bar">
+                        <span className="summary-pill-pending">
+                            {scheduledStats.PENDING} Pending
+                        </span>
+                        <span className="summary-pill-running">
+                            {scheduledStats.RUNNING} Running
+                        </span>
+                        <span className="summary-pill-completed">
+                            {scheduledStats.COMPLETED} Completed
+                        </span>
+                    </div>
 
                     <div className="date-picker-buttons">
                         <button
