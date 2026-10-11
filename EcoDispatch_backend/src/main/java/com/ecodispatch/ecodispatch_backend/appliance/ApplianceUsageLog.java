@@ -34,5 +34,10 @@ public class ApplianceUsageLog {
     private Double savedCo2Grams;
     private Double savedMoneyRon;
 
+    @Column(length = 1000)
+    private String decisionReason;
+
+    private Boolean isRecurringExecution = true;
+
     public ApplianceUsageLog() {}
 }

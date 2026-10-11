@@ -276,6 +276,8 @@ public class ApplianceService {
                 .filter(a -> a.getIsRecurring() != null && a.getIsRecurring())
                 .collect(Collectors.toList());
 
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+
         for (Appliance app : recurringAppliances) {
             if (!matchesRecurrence(app.getRecurringDays(), targetDate)) {
                 continue;
@@ -295,49 +297,69 @@ public class ApplianceService {
 
             final LocalDateTime recurrenceWindowStart = earliestStart;
             final LocalDateTime recurrenceWindowEnd = latestEnd;
-            boolean alreadyScheduled = recentLogs.stream()
-                    .anyMatch(log -> log.getAppliance().getId().equals(app.getId()) &&
+
+            ApplianceUsageLog existingLog = recentLogs.stream()
+                    .filter(log -> log.getAppliance().getId().equals(app.getId()) &&
                             !log.getStartTime().isBefore(recurrenceWindowStart) &&
-                            !log.getStartTime().isAfter(recurrenceWindowEnd));
+                            !log.getStartTime().isAfter(recurrenceWindowEnd))
+                    .findFirst()
+                    .orElse(null);
 
+            int durationHours = app.getPreferredDuration() != null ? app.getPreferredDuration() : 2;
 
-            if (!alreadyScheduled) {
-                try {
-                    int durationHours = app.getPreferredDuration() != null ? app.getPreferredDuration() : 2;
-                    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+            ApplianceRecommendationResponseDTO rec = null;
+            try {
+                rec = getBestTimeForAppliance(
+                        userId, app.getId(), durationHours,
+                        earliestStart.format(fmt), latestEnd.format(fmt)
+                );
+            } catch (Exception e) {
+                System.err.println("Failed to fetch recommendation for " + app.getName() + ": " + e.getMessage());
+            }
 
-                    ApplianceRecommendationResponseDTO rec = getBestTimeForAppliance(
-                            userId, app.getId(), durationHours,
-                            earliestStart.format(fmt), latestEnd.format(fmt)
-                    );
+            if (rec != null && rec.getBestStartTime() != null) {
+                LocalDateTime newBestStart = LocalDateTime.parse(rec.getBestStartTime().replace(" ", "T"));
 
-                    if (rec != null && rec.getBestStartTime() != null) {
-                        ApplianceUsageLog newLog = new ApplianceUsageLog();
-                        newLog.setAppliance(app);
-                        newLog.setStartTime(LocalDateTime.parse(rec.getBestStartTime().replace(" ", "T")));
-                        newLog.setDurationMinutes(durationHours * 60);
-                        newLog.setStatus("SCHEDULED");
+                if (existingLog == null) {
+                    ApplianceUsageLog newLog = new ApplianceUsageLog();
+                    newLog.setAppliance(app);
+                    newLog.setStartTime(newBestStart);
+                    newLog.setDurationMinutes(durationHours * 60);
+                    newLog.setStatus("SCHEDULED");
+                    newLog.setDecisionReason(rec.getReason());
+
+                    double powerKw = app.getPowerConsumptionKw() != null ? app.getPowerConsumptionKw() : 1.0;
+                    double totalKwh = powerKw * durationHours;
+
+                    double recCarbon = rec.getRecommendedCarbonIntensity() != null ? rec.getRecommendedCarbonIntensity() : 90.0;
+                    double baseCarbon = rec.getBaselineCarbonIntensity() != null ? rec.getBaselineCarbonIntensity() : 450.0;
+                    newLog.setRecommendedCarbonIntensity(recCarbon);
+                    newLog.setBaselineCarbonIntensity(baseCarbon);
+                    newLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
+
+                    double basePrice = rec.getBaselineEnergyPrice() != null ? rec.getBaselineEnergyPrice() : 1.30;
+                    double recPrice = rec.getRecommendedEnergyPrice() != null ? rec.getRecommendedEnergyPrice() : 0.45;
+                    newLog.setRecommendedEnergyPrice(recPrice);
+                    newLog.setBaselineEnergyPrice(basePrice);
+                    newLog.setSavedMoneyRon(Math.max(0.0, (totalKwh * basePrice) - (totalKwh * recPrice)));
+
+                    newLog = applianceUsageLogRepository.save(newLog);
+                    recentLogs.add(newLog);
+                } else {
+                    long minuteDiff = Math.abs(Duration.between(existingLog.getStartTime(), newBestStart).toMinutes());
+                    if (minuteDiff > 30) {
+                        existingLog.setStartTime(newBestStart);
+                        existingLog.setDecisionReason("Re-optimized due to forecast shift: " + rec.getReason());
 
                         double powerKw = app.getPowerConsumptionKw() != null ? app.getPowerConsumptionKw() : 1.0;
                         double totalKwh = powerKw * durationHours;
-
                         double recCarbon = rec.getRecommendedCarbonIntensity() != null ? rec.getRecommendedCarbonIntensity() : 90.0;
                         double baseCarbon = rec.getBaselineCarbonIntensity() != null ? rec.getBaselineCarbonIntensity() : 450.0;
-                        newLog.setRecommendedCarbonIntensity(recCarbon);
-                        newLog.setBaselineCarbonIntensity(baseCarbon);
-                        newLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
+                        existingLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
 
-                        double basePrice = rec.getBaselineEnergyPrice() != null ? rec.getBaselineEnergyPrice() : 1.30;
-                        double recPrice = rec.getRecommendedEnergyPrice() != null ? rec.getRecommendedEnergyPrice() : 0.45;
-                        newLog.setRecommendedEnergyPrice(recPrice);
-                        newLog.setBaselineEnergyPrice(basePrice);
-                        newLog.setSavedMoneyRon(Math.max(0.0, (totalKwh * basePrice) - (totalKwh * recPrice)));
-
-                        newLog = applianceUsageLogRepository.save(newLog);
-                        recentLogs.add(newLog);
+                        applianceUsageLogRepository.save(existingLog);
+                        System.out.println("Re-optimized schedule for " + app.getName() + " to " + newBestStart);
                     }
-                } catch (Exception e) {
-                    System.err.println("Could not auto-schedule for appliance " + app.getId() + ": " + e.getMessage());
                 }
             }
         }
@@ -356,7 +378,8 @@ public class ApplianceService {
                         log.getStatus(),
                         log.getSavedCo2Grams(),
                         log.getSavedMoneyRon(),
-                        log.getAppliance().getIsRecurring()
+                        log.getAppliance().getIsRecurring(),
+                        log.getDecisionReason()
                 ))
                 .collect(Collectors.toList());
     }
