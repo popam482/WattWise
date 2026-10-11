@@ -50,12 +50,6 @@ function NationalGridWidget({userId}) {
     const totalFossil = gridData.Total_Fossil ?? gridData.totalFossil ?? gridData.total_fossil_mw ?? 0;
     const nuclear = gridData.Nuclear_MW ?? gridData.nuclearMW ?? gridData.nuclear_mw ?? 0;
     const timestamp = gridData.Timestamp ?? gridData.timestamp ?? "";
-    const explanation = gridData.Prediction_Explanation ?? gridData.predictionExplanation;
-    const shapContributions = explanation?.Shap_Contributions ?? explanation?.shapContributions ?? {};
-    const formatFeatureName = (name) => name.replaceAll('_', ' ');
-    const contributingFactors = Object.entries(shapContributions)
-        .sort(([, first], [, second]) => Math.abs(second) - Math.abs(first));
-
     return (
         <div>
             <h2>National Energy Grid Overview</h2>

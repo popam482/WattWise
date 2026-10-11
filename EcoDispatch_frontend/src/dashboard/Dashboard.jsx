@@ -35,6 +35,14 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const [energyProfile, setEnergyProfile] = useState(null);
 
+    const getAuthHeaders = () => {
+        const token = localStorage.getItem('token');
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? {'Authorization': `Bearer ${token}`} : {})
+        };
+    };
+
     useEffect(() => {
         if (!userId || userType !== 'PROSUMER') return;
 
@@ -45,14 +53,6 @@ function Dashboard({userId, userName, userType, onLogout}) {
             .then(data => setEnergyProfile(data))
             .catch(err => console.error("Error fetching energy profile:", err));
     }, [userId, userType]);
-
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem('token');
-        return {
-            'Content-Type': 'application/json',
-            ...(token ? {'Authorization': `Bearer ${token}`} : {})
-        };
-    };
 
     useEffect(() => {
         const timer = setInterval(() => setTicks(t => t + 1), 60000);
