@@ -11,6 +11,7 @@ import com.ecodispatch.ecodispatch_backend.appliance.ApplianceUsageLog;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.user.UserType;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -42,6 +43,17 @@ public class ApplianceService {
         this.restTemplate = restTemplate;
     }
 
+    private void validateUserOwnership(Integer pathUserId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof Integer authenticatedUserId)) {
+            throw new SecurityException("User is not authenticated");
+        }
+
+        if (!authenticatedUserId.equals(pathUserId)) {
+            throw new SecurityException("Access denied: You are not authorized to access or modify resources for another user");
+        }
+    }
+
     private ApplianceResponseDTO toResponseDTO(Appliance appliance) {
         ApplianceResponseDTO dto = new ApplianceResponseDTO();
         dto.setId(appliance.getId());
@@ -60,6 +72,9 @@ public class ApplianceService {
     }
 
     public List<ApplianceResponseDTO> getUserAppliance(Integer userId) {
+
+        validateUserOwnership(userId);
+
         return applianceRepository.findByUserId(userId)
                 .stream()
                 .map(this::toResponseDTO)
@@ -67,6 +82,9 @@ public class ApplianceService {
     }
 
     public ApplianceResponseDTO addAppliance(Integer userId, ApplianceRequestDTO dto) {
+
+        validateUserOwnership(userId);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFound("User not found " + userId));
 
@@ -85,10 +103,13 @@ public class ApplianceService {
     }
 
     public void logApplianceUsage(Integer userId, ApplianceUsageLogRequestDTO dto) {
+
+        validateUserOwnership(userId);
+
         Appliance appliance = applianceRepository.findById(dto.getId())
                 .orElseThrow(() -> new ApplianceNotFound("Appliance not found."));
 
-        if(!appliance.getUser().getUser_id().equals(userId)) {
+        if (!appliance.getUser().getUser_id().equals(userId)) {
             throw new ApplianceNotFound("The appliance does not belong to the user");
         }
 
@@ -101,12 +122,18 @@ public class ApplianceService {
     }
 
     public ApplianceRecommendationResponseDTO getBestTimeForAppliance(Integer userId, Integer applianceId, Integer durationHours) {
+
+        validateUserOwnership(userId);
+
         return getBestTimeForAppliance(userId, applianceId, durationHours, null, null);
     }
 
     public ApplianceRecommendationResponseDTO getBestTimeForAppliance(
             Integer userId, Integer applianceId, Integer durationHours,
             String earliestStart, String latestEnd) {
+
+        validateUserOwnership(userId);
+
         if (durationHours == null || durationHours < 1 || durationHours > 24) {
             throw new IllegalArgumentException("Duration must be between 1 and 24 hours");
         }
@@ -151,7 +178,7 @@ public class ApplianceService {
 
         request.setCommittedPowerPerHour(committedPower);
 
-        if(user.getUserType() == UserType.PROSUMER && user.getEnergyProfile() != null) {
+        if (user.getUserType() == UserType.PROSUMER && user.getEnergyProfile() != null) {
             request.setLat(user.getEnergyProfile().getLatitude());
             request.setLon(user.getEnergyProfile().getLongitude());
             request.setSystemKwp(user.getEnergyProfile().getPvSystemKw());
@@ -170,6 +197,9 @@ public class ApplianceService {
     }
 
     public void deleteAppliance(Integer userId, Integer applianceId) {
+
+        validateUserOwnership(userId);
+
         Appliance appliance = applianceRepository.findById(applianceId)
                 .orElseThrow(() -> new ApplianceNotFound("Appliance not found"));
 
@@ -181,6 +211,9 @@ public class ApplianceService {
     }
 
     public ApplianceResponseDTO updateAppliance(Integer userId, Integer applianceId, ApplianceRequestDTO dto) {
+
+        validateUserOwnership(userId);
+
         Appliance appliance = applianceRepository.findById(applianceId)
                 .orElseThrow(() -> new ApplianceNotFound("Appliance not found"));
 
@@ -201,6 +234,9 @@ public class ApplianceService {
     }
 
     public void scheduleApplianceUsage(Integer userId, ApplianceUsageLogRequestDTO dto) {
+
+        validateUserOwnership(userId);
+
         Appliance appliance = applianceRepository.findById(dto.getId())
                 .orElseThrow(() -> new ApplianceNotFound("Appliance not found."));
 
@@ -257,6 +293,9 @@ public class ApplianceService {
     }
 
     public List<ApplianceUsageLogResponseDTO> getUserScheduledTasks(Integer userId, String dateStr) {
+
+        validateUserOwnership(userId);
+
         LocalDate targetDate;
         if (dateStr != null && !dateStr.isBlank()) {
             targetDate = LocalDate.parse(dateStr);
@@ -385,6 +424,9 @@ public class ApplianceService {
     }
 
     public void cancelScheduledTask(Integer userId, Integer logId) {
+
+        validateUserOwnership(userId);
+
         ApplianceUsageLog log = applianceUsageLogRepository.findById(logId)
                 .orElseThrow(() -> new ApplianceNotFound("Scheduled task not found"));
 
@@ -396,6 +438,9 @@ public class ApplianceService {
     }
 
     public EcoAnalyticsDTO getUserEcoAnalytics(Integer userId) {
+
+        validateUserOwnership(userId);
+
         List<ApplianceUsageLog> logs = applianceUsageLogRepository.findAllByUserId(userId);
 
         double totalSavedGrams = logs.stream()
