@@ -5,6 +5,7 @@ import com.ecodispatch.ecodispatch_backend.auth.AuthResponseDTO;
 import com.ecodispatch.ecodispatch_backend.security.JwtTokenProvider;
 import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -28,9 +29,9 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody AuthRequestDTO request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword()) &&
-                !request.getPassword().equals(user.getPassword())) {
-            return ResponseEntity.status(401).body("Invalid credentials");
+
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
 
         String token = tokenProvider.generateToken(user.getUser_id(), user.getEmail());
