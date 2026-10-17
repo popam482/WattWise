@@ -8,7 +8,7 @@ import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.user.UserRequestDTO;
 import com.ecodispatch.ecodispatch_backend.user.UserResponseDTO;
-import com.ecodispatch.ecodispatch_backend.utils.JwtUtil;
+import com.ecodispatch.ecodispatch_backend.security.JwtTokenProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
@@ -18,12 +18,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+    private final JwtTokenProvider tokenProvider;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.jwtUtil = jwtUtil;
+        this.tokenProvider = tokenProvider;
     }
 
     private UserResponseDTO toResponseDTO(User user) {
@@ -67,7 +67,7 @@ public class UserService {
             throw new RuntimeException("Invalid email or password");
         }
 
-        String token = jwtUtil.generateToken(user.getEmail());
+        String token = tokenProvider.generateToken(user.getUser_id(), user.getEmail());
 
         UserResponseDTO userResponse = new UserResponseDTO();
         userResponse.setId(user.getUser_id());

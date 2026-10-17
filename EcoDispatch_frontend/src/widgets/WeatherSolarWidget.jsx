@@ -7,14 +7,17 @@ function WeatherSolarWidget({userId, energyProfile}) {
 
     const fetchSolarForecast = useCallback(() => {
         if (!userId) return;
+        const token = localStorage.getItem('token');
+        const headers = token ? {Authorization: `Bearer ${token}`} : {};
+
         Promise.all([
-            fetch(`/users/${userId}/solar-forecast`).then(async res => {
+            fetch(`/users/${userId}/solar-forecast`, {headers}).then(async res => {
                 if (!res.ok) {
                     throw new Error(`Solar forecast request failed (${res.status})`);
                 }
                 return res.json();
             }),
-            fetch(`/users/${userId}/energy`).then(async res => {
+            fetch(`/users/${userId}/energy`, {headers}).then(async res => {
                 if (!res.ok) {
                     throw new Error(`Energy profile request failed (${res.status})`);
                 }
