@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/messages")
-@CrossOrigin(origins = "*")
 public class PersonalisedMessageController {
 
     private final WelcomeMessageRepository welcomeMessageRepository;

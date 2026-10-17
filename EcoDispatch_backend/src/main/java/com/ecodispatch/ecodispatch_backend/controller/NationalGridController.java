@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/national-grid")
-@CrossOrigin(origins = "*")
 public class NationalGridController {
 
     private final NationalGridCacheService gridCacheService;

@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@CrossOrigin(origins="*")
 public class UserController {
     private final UserService userService;
 
