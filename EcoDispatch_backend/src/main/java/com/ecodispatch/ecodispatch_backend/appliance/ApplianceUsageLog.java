@@ -39,5 +39,8 @@ public class ApplianceUsageLog {
 
     private Boolean isRecurringExecution = true;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean habitLearningData = false;
+
     public ApplianceUsageLog() {}
 }
