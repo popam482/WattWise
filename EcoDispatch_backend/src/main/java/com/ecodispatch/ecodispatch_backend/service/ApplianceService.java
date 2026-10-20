@@ -31,16 +31,19 @@ public class ApplianceService {
     private final UserRepository userRepository;
     private final ApplianceUsageLogRepository applianceUsageLogRepository;
     private final RestTemplate restTemplate;
+    private final HabitLearningService habitLearningService;
 
     @Value("${PYTHON_API_URL:http://localhost:8000}")
     private String pythonApiBaseUrl;
 
     public ApplianceService(ApplianceRepository applianceRepository, UserRepository userRepository,
-                            ApplianceUsageLogRepository applianceUsageLogRepository, RestTemplate restTemplate) {
+                            ApplianceUsageLogRepository applianceUsageLogRepository, RestTemplate restTemplate,
+                            HabitLearningService habitLearningService) {
         this.applianceRepository = applianceRepository;
         this.userRepository = userRepository;
         this.applianceUsageLogRepository = applianceUsageLogRepository;
         this.restTemplate = restTemplate;
+        this.habitLearningService = habitLearningService;
     }
 
     private void validateUserOwnership(Integer pathUserId) {
@@ -117,6 +120,7 @@ public class ApplianceService {
         log.setAppliance(appliance);
         log.setStartTime(dto.getStartTime());
         log.setDurationMinutes(dto.getDurationMinutes());
+        log.setHabitLearningData(habitLearningService.isEnabled(userId));
 
         applianceUsageLogRepository.save(log);
     }
