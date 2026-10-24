@@ -91,7 +91,7 @@ public class HabitLearningService {
     }
 
     public boolean isEnabled(Integer userId) {
-        return settingsRepository.findByUserUser_id(userId)
+        return settingsRepository.findByUserId(userId)
                 .map(HabitLearningSettings::isEnabled)
                 .orElse(false);
     }
@@ -106,7 +106,7 @@ public class HabitLearningService {
     }
 
     private HabitLearningSettings getOrCreateSettings(Integer userId) {
-        return settingsRepository.findByUserUser_id(userId).orElseGet(() -> {
+        return settingsRepository.findByUserId(userId).orElseGet(() -> {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new UserNotFound("User not found " + userId));
             HabitLearningSettings settings = new HabitLearningSettings();
