@@ -4,8 +4,26 @@ import Login from '../account/Login.jsx';
 import Register from '../account/Register.jsx';
 import Dashboard from '../dashboard/Dashboard.jsx';
 
+function hasExpiredToken(token) {
+    if (!token) return true;
+
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now();
+    } catch {
+        return true;
+    }
+}
+
 function App() {
     const [user, setUser] = useState(() => {
+        const token = localStorage.getItem('token');
+        if (hasExpiredToken(token)) {
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            return null;
+        }
+
         const savedUser = localStorage.getItem('user');
         if (!savedUser) return null;
 
