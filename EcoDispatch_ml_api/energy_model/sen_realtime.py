@@ -106,4 +106,4 @@ def calculate_grid_carbon_intensity(sen_data):
 
     intensity_g_per_kwh = total_emissions / total_prod
 
-    return round(intensity_g_per_kwh, 2)
+    return round(intensity_g_per_kwh, 2)a

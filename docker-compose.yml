@@ -5,9 +5,9 @@ services:
     image: postgres:15
     container_name: ecodispatch-db
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: ${POSTGRES_DB:-ecodispatch}
     ports:
       - "5432:5432"
     volumes:
@@ -25,12 +25,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/${POSTGRES_DB:-ecodispatch}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-root}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-root}
       - PYTHON_API_URL=http://ml-api:8000/
-      - APP_JWT_SECRET=${JWT_SECRET}
-      - APP_JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS}
+      - APP_JWT_SECRET=${JWT_SECRET:-EcoDispatchSuperSecretKeyForJWTAuth2026SecureMinimum32Chars!}
+      - APP_JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS:-86400000}
     depends_on:
       - postgres-db
       - ml-api
