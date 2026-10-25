@@ -109,6 +109,9 @@ public class EnergyProfileService {
                 SolarForecastResponseDTO[].class
         );
 
+        if (response == null) {
+            throw new IllegalStateException("Solar forecast service returned an empty response");
+        }
         return Arrays.asList(response);
     }
 
