@@ -3,6 +3,7 @@ import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 import HabitLearningSettings from '../privacy/HabitLearningSettings';
+import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
 
 function Dashboard({userId, userName, userType, onLogout}) {
     const [userAppliances, setUserAppliances] = useState([]);
@@ -36,6 +37,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const [energyProfile, setEnergyProfile] = useState(null);
 
+    const [aiBriefing, setAiBriefing] = useState("");
+
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
         return {
@@ -59,6 +62,34 @@ function Dashboard({userId, userName, userType, onLogout}) {
         const timer = setInterval(() => setTicks(t => t + 1), 60000);
         return () => clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        if (!userId) return;
+
+        fetch('/api/ai/briefing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_name: userName || "User",
+                user_type: userType || "PROSUMER",
+                saved_co2_kg: 20.8,
+                saved_money_ron: 185.0,
+                active_schedules_count: scheduledTasks.length
+            })
+        })
+            .then(async res => {
+                if (!res.ok) {
+                    throw new Error(`AI briefing request failed (${res.status})`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (typeof data?.briefing === 'string' && data.briefing.trim()) {
+                    setAiBriefing(data.briefing.trim());
+                }
+            })
+            .catch(err => console.error("AI Briefing fetch error:", err));
+    }, [userId, userName, userType, scheduledTasks.length]);
 
     const getTaskStatus = (startTimeStr, durationMinutes) => {
         const now = new Date();
@@ -465,6 +496,19 @@ function Dashboard({userId, userName, userType, onLogout}) {
                         </p>
                     )}
                 </div>
+                {aiBriefing && (
+                    <div className="ai-executive-briefing">
+                        <span>Eco Assistant</span>
+                        <div>
+                            <strong>
+                                AI Executive Briefing
+                            </strong>
+                            <p>
+                                {aiBriefing}
+                            </p>
+                        </div>
+                    </div>
+                )}
                 <button onClick={onLogout} className="btn-secondary">Logout</button>
             </header>
 
@@ -819,6 +863,14 @@ function Dashboard({userId, userName, userType, onLogout}) {
             </section>
 
             <HabitLearningSettings userId={userId}/>
+            <EcoChatWidget
+                userId={userId}
+                userName={userName}
+                userType={userType}
+                ecoAnalytics={{ totalSavedCo2Kg: 20.8, totalSavedMoneyRon: 185.0 }}
+                userAppliances={userAppliances}
+                scheduledTasks={scheduledTasks}
+            />
         </div>
     );
 }
