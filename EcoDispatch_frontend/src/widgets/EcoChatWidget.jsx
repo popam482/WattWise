@@ -22,6 +22,7 @@ function EcoChatWidget({ userId, userName, userType, ecoAnalytics, userAppliance
             saved_co2_kg: ecoAnalytics?.totalSavedCo2Kg || 20.8,
             saved_money_ron: ecoAnalytics?.totalSavedMoneyRon || 185.0,
             appliances: userAppliances.map(a => `${a.name} (${a.powerConsumptionKw}kW)`).join(', '),
+            appliances_raw: userAppliances,
             scheduled_tasks: scheduledTasks.map(t => `${t.applianceName} at ${t.startTime}`).join(', ')
         };
 
@@ -31,13 +32,16 @@ function EcoChatWidget({ userId, userName, userType, ecoAnalytics, userAppliance
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ user_id: userId, message: query, context })
             });
+            if (!res.ok) {
+                throw new Error(`AI chat request failed (${res.status})`);
+            }
             const data = await res.json();
 
             setMessages(prev => [
                 ...prev,
                 { sender: 'ai', text: data.reply, action: data.action }
             ]);
-        } catch (err) {
+        } catch {
             setMessages(prev => [
                 ...prev,
                 { sender: 'ai', text: "Sorry, I couldn't reach the AI service right now." }
