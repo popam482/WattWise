@@ -16,6 +16,8 @@ services:
   ml-api:
     build: ./EcoDispatch_ml_api
     container_name: ecodispatch-ml
+    env_file:
+      - ../.env
     ports:
       - "8000:8000"
 
