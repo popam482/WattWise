@@ -13,8 +13,10 @@ import shap
 
 from energy_model.sen_realtime import get_current_hourly_sen_data, calculate_grid_carbon_intensity
 from energy_model.opcom_realtime import get_day_ahead_prices
+from ai_chatbot.ai_router import router as ai_router
 
 app = FastAPI(title="EcoDispatch ML API")
+app.include_router(ai_router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "exports" / "energy_model.joblib"
@@ -157,14 +159,24 @@ def get_solar_forecast(request: SolarRequest):
         'forecast_days': 2
     }
 
+    if not (-90 <= request.lat <= 90 and -180 <= request.lon <= 180):
+        raise HTTPException(status_code=400, detail="Invalid latitude or longitude")
+    if request.system_kwp < 0 or request.performance_factor < 0:
+        raise HTTPException(status_code=400, detail="PV capacity and performance factor must be non-negative")
+
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         weather_data = response.json()
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except (requests.exceptions.RequestException, ValueError) as e:
+        raise HTTPException(status_code=502, detail=f"Weather provider unavailable: {e}") from e
 
-    hourly_data = weather_data['hourly']
+    hourly_data = weather_data.get("hourly")
+    if not hourly_data or not all(
+        key in hourly_data
+        for key in ("time", "shortwave_radiation", "temperature_2m", "cloud_cover")
+    ):
+        raise HTTPException(status_code=502, detail="Weather provider returned an incomplete forecast")
 
     df = pd.DataFrame({
         'Time': hourly_data['time'],
