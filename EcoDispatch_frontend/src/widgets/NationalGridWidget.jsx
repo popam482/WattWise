@@ -10,11 +10,18 @@ function NationalGridWidget({userId}) {
         setError('');
         fetch('/api/national-grid/current')
             .then(async res => {
+                const body = await res.text();
                 if (!res.ok) {
-                    const detail = await res.text();
-                    throw new Error(`Failed to fetch national grid data (${res.status}): ${detail}`);
+                    throw new Error(`Failed to fetch national grid data (${res.status}): ${body}`);
                 }
-                return res.json();
+                if (!body.trim()) {
+                    throw new Error('National grid service returned an empty response');
+                }
+                try {
+                    return JSON.parse(body);
+                } catch (parseError) {
+                    throw new Error('National grid service returned invalid JSON', {cause: parseError});
+                }
             })
             .then(data => setGridData(data))
             .catch(err => {

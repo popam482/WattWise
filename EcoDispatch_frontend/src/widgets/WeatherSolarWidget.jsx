@@ -4,9 +4,11 @@ function WeatherSolarWidget({userId, energyProfile}) {
     const [forecastData, setForecastData] = useState(null);
     const [savedEnergyProfile, setSavedEnergyProfile] = useState(energyProfile || null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const fetchSolarForecast = useCallback(() => {
         if (!userId) return;
+        setError('');
         const token = localStorage.getItem('token');
         const headers = token ? {Authorization: `Bearer ${token}`} : {};
 
@@ -28,15 +30,20 @@ function WeatherSolarWidget({userId, energyProfile}) {
                 setForecastData(forecast);
                 setSavedEnergyProfile(profile);
             })
-            .catch(err => console.error("Forecast fetch error: ", err))
+            .catch(err => {
+                console.error("Forecast fetch error: ", err);
+                setError('Solar forecast is temporarily unavailable.');
+            })
             .finally(() => setLoading(false));
     }, [userId]);
 
     useEffect(() => {
-        fetchSolarForecast();
+        const initialFetch = setTimeout(fetchSolarForecast, 0);
+        return () => clearTimeout(initialFetch);
     }, [fetchSolarForecast]);
 
     if (loading) return <div>Loading weather & solar forecast...</div>;
+    if (error) return <div className="error-banner">{error}</div>;
     if (!forecastData) return null;
 
     const forecast = Array.isArray(forecastData) ? forecastData : forecastData.forecast || [];
