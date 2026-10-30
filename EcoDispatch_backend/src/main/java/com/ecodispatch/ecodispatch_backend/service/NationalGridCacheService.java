@@ -1,6 +1,5 @@
 package com.ecodispatch.ecodispatch_backend.service;
 
-import com.ecodispatch.ecodispatch_backend.EcoDispatchBackendApplication;
 import com.ecodispatch.ecodispatch_backend.national_grid.NationalGridResponseDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -30,8 +29,8 @@ public class NationalGridCacheService {
         return baseUrl + endpoint;
     }
 
-    // runs at start, then every 5 minutes
-    @Scheduled(fixedRate = 300000, initialDelay = 0)
+    // Give the ML API a short warmup window, then refresh every 5 minutes
+    @Scheduled(fixedRate = 300000, initialDelay = 15000)
     public void refreshNationalGridCache() {
         try {
             String url = pythonApiUrl("api/grid/status");

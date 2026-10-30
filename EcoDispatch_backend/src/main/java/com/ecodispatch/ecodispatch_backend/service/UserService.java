@@ -9,6 +9,7 @@ import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
 import com.ecodispatch.ecodispatch_backend.user.UserRequestDTO;
 import com.ecodispatch.ecodispatch_backend.user.UserResponseDTO;
 import com.ecodispatch.ecodispatch_backend.security.JwtTokenProvider;
+import com.ecodispatch.ecodispatch_backend.security.OwnershipGuard;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
@@ -19,11 +20,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
+    private final OwnershipGuard ownershipGuard;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider tokenProvider) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       JwtTokenProvider tokenProvider, OwnershipGuard ownershipGuard) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenProvider = tokenProvider;
+        this.ownershipGuard = ownershipGuard;
     }
 
     private UserResponseDTO toResponseDTO(User user) {
@@ -44,6 +48,7 @@ public class UserService {
     }
 
     public UserResponseDTO getUserById(Integer id) {
+        ownershipGuard.requireOwnership(id);
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFound(id));
         return toResponseDTO(user);
@@ -61,10 +66,10 @@ public class UserService {
 
     public LoginResponseDTO login(LoginRequestDTO loginRequest) {
         User user = userRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+                .orElseThrow(InvalidCredentials::new);
 
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid email or password");
+            throw new InvalidCredentials();
         }
 
         String token = tokenProvider.generateToken(user.getUser_id(), user.getEmail());

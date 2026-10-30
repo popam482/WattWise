@@ -26,6 +26,10 @@ public interface ApplianceUsageLogRepository extends JpaRepository<ApplianceUsag
     void deleteExpiredHabitLearningData(@Param("userId") Integer userId,
                                         @Param("cutoff") LocalDateTime cutoff);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM ApplianceUsageLog l WHERE l.appliance.id = :applianceId")
+    void deleteByApplianceId(@Param("applianceId") Integer applianceId);
+
     @Query("SELECT l FROM ApplianceUsageLog l WHERE l.appliance.user.user_id = :userId")
     List<ApplianceUsageLog> findAllByUserId(@Param("userId") Integer userId);
 

@@ -12,14 +12,28 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-root} -d ${POSTGRES_DB:-ecodispatch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   ml-api:
     build: ./EcoDispatch_ml_api
     container_name: ecodispatch-ml
     env_file:
-      - ../.env
+      - .env
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.1-8b-instant}
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   backend:
     build: ./EcoDispatch_backend
@@ -34,8 +48,11 @@ services:
       - APP_JWT_SECRET=${JWT_SECRET:-EcoDispatchSuperSecretKeyForJWTAuth2026SecureMinimum32Chars!}
       - APP_JWT_EXPIRATION_MS=${JWT_EXPIRATION_MS:-86400000}
     depends_on:
-      - postgres-db
-      - ml-api
+      postgres-db:
+        condition: service_healthy
+      ml-api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:

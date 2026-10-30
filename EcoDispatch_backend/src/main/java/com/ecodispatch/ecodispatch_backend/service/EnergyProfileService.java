@@ -14,9 +14,12 @@ import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileRequestDTO;
 import com.ecodispatch.ecodispatch_backend.profile.EnergyProfileResponseDTO;
 import com.ecodispatch.ecodispatch_backend.solar_forecast.SolarForecastResponseDTO;
 import com.ecodispatch.ecodispatch_backend.repositories.EnergyProfileRepository;
+import com.ecodispatch.ecodispatch_backend.security.OwnershipGuard;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,16 +32,19 @@ public class EnergyProfileService {
     private final UserRepository userRepository;
     private final EnergyProfileRepository energyRepository;
     private final RestTemplate restTemplate;
+    private final OwnershipGuard ownershipGuard;
 
     @Value("${PYTHON_API_URL:http://localhost:8000}")
     private String pythonApiBaseUrl;
 
     public EnergyProfileService(UserRepository userRepository,
                                 EnergyProfileRepository energyRepository,
-                                RestTemplate restTemplate) {
+                                RestTemplate restTemplate,
+                                OwnershipGuard ownershipGuard) {
         this.userRepository = userRepository;
         this.energyRepository = energyRepository;
         this.restTemplate = restTemplate;
+        this.ownershipGuard = ownershipGuard;
     }
 
     private EnergyProfileResponseDTO toResponseDTO(EnergyProfile energyProfile) {
@@ -67,17 +73,22 @@ public class EnergyProfileService {
     }
 
     public EnergyProfileResponseDTO getProfileByUserId(Integer userId) {
+        ownershipGuard.requireOwnership(userId);
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user id: " + userId));
         return toResponseDTO(profile);
     }
 
     public EnergyProfileResponseDTO createEnergyProfile(Integer userId, EnergyProfileRequestDTO dto) {
+        ownershipGuard.requireOwnership(userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFound("User not found with id: " + userId));
 
-        if(user.getUserType() == UserType.CONSUMER){
+        if (user.getUserType() == UserType.CONSUMER) {
             throw new ConsumerPhotovoltaics("Consumers don't have photovoltaics");
+        }
+        if (energyRepository.findByUserId(userId).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Energy profile already exists for this user");
         }
         EnergyProfile profile = new EnergyProfile();
         profile.setLatitude(dto.getLatitude());
@@ -92,6 +103,7 @@ public class EnergyProfileService {
     }
 
     public List<SolarForecastResponseDTO> getSolarForecastForUser(Integer userId) {
+        ownershipGuard.requireOwnership(userId);
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user: " + userId));
 

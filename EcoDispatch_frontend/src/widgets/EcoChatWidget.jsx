@@ -17,13 +17,15 @@ function EcoChatWidget({ userId, userName, userType, ecoAnalytics, userAppliance
         if (!textToSend) setInput('');
         setLoading(true);
 
+        const appliances = Array.isArray(userAppliances) ? userAppliances : [];
+        const tasks = Array.isArray(scheduledTasks) ? scheduledTasks : [];
         const context = {
             user_info: `${userName} (${userType})`,
-            saved_co2_kg: ecoAnalytics?.totalSavedCo2Kg || 20.8,
-            saved_money_ron: ecoAnalytics?.totalSavedMoneyRon || 185.0,
-            appliances: userAppliances.map(a => `${a.name} (${a.powerConsumptionKw}kW)`).join(', '),
-            appliances_raw: userAppliances,
-            scheduled_tasks: scheduledTasks.map(t => `${t.applianceName} at ${t.startTime}`).join(', ')
+            saved_co2_kg: ecoAnalytics?.totalSavedCo2Kg || 0,
+            saved_money_ron: ecoAnalytics?.totalSavedMoneyRon || 0,
+            appliances: appliances.map(a => `${a.name} (${a.powerConsumptionKw}kW)`).join(', '),
+            appliances_raw: appliances,
+            scheduled_tasks: tasks.map(t => `${t.applianceName} at ${t.startTime}`).join(', ')
         };
 
         try {

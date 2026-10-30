@@ -38,6 +38,10 @@ function Dashboard({userId, userName, userType, onLogout}) {
     const [energyProfile, setEnergyProfile] = useState(null);
 
     const [aiBriefing, setAiBriefing] = useState("");
+    const [ecoAnalytics, setEcoAnalytics] = useState({
+        totalSavedCo2Kg: 0,
+        totalSavedMoneyRon: 0
+    });
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
@@ -72,8 +76,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
             body: JSON.stringify({
                 user_name: userName || "User",
                 user_type: userType || "PROSUMER",
-                saved_co2_kg: 20.8,
-                saved_money_ron: 185.0,
+                saved_co2_kg: ecoAnalytics.totalSavedCo2Kg || 0,
+                saved_money_ron: ecoAnalytics.totalSavedMoneyRon || 0,
                 active_schedules_count: scheduledTasks.length
             })
         })
@@ -89,7 +93,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 }
             })
             .catch(err => console.error("AI Briefing fetch error:", err));
-    }, [userId, userName, userType, scheduledTasks.length]);
+    }, [userId, userName, userType, scheduledTasks.length, ecoAnalytics.totalSavedCo2Kg, ecoAnalytics.totalSavedMoneyRon]);
 
     const getTaskStatus = (startTimeStr, durationMinutes) => {
         const now = new Date();
@@ -279,7 +283,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const handleDeleteAppliance = (applianceId) => {
         fetch(`/users/${userId}/appliances/${applianceId}`, {
-            method: "DELETE"
+            method: "DELETE",
+            headers: getAuthHeaders()
         })
             .then(res => {
                 if (!res.ok) throw new Error("Failed to delete appliance");
@@ -356,17 +361,20 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     }
                 }));
             })
-            .catch(err => console.error('Could not get recommendation:', err))
+            .catch(err => setError(err.message || 'Could not get recommendation'))
             .finally(() => setLoadingApplianceId(null));
     };
 
     const handleConfirmSchedule = (applianceId) => {
         const rec = recommendations[applianceId];
-        if (!rec) return;
+        if (!rec?.best_start_time) {
+            setError('No recommendation available to schedule. Find a clean window first.');
+            return;
+        }
 
         const payload = {
             id: applianceId,
-            startTime: rec.best_start_time.replace(" ", "T"),
+            startTime: String(rec.best_start_time).replace(" ", "T"),
             durationMinutes: rec.durationMinutes || 120,
             recommendedCarbonIntensity: rec.recommended_carbon_intensity,
             baselineCarbonIntensity: rec.baseline_carbon_intensity,
@@ -489,7 +497,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
         <div className="dashboard-container">
             <header className="dashboard-header">
                 <div className="welcome-banner">
-                    <h1>{ecoMessage?.welcomeMessage || "Welcome"}{userName || "User"}!</h1>
+                    <h1>{ecoMessage?.welcomeMessage || "Welcome"}, {userName || "User"}!</h1>
                     {ecoMessage?.content && (
                         <p className="sustainable-tip">
                             <strong>Tip of the day:</strong> {ecoMessage.content}
@@ -757,24 +765,44 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                     )}
 
                                     {recommendations[app.id] && !smartRecurringActive && (() => {
-                                        const scores = getTransparentScorecard(recommendations[app.id]);
+                                        const rec = recommendations[app.id];
+                                        const scores = getTransparentScorecard(rec) || {};
+                                        const alreadyScheduled = scheduledStatus[app.id];
                                         return (
                                             <div className="transparent-scorecard">
                                                 <h5>
                                                     Transparent Decision Scorecard
                                                 </h5>
 
-                                                <div>
-                                                    <div><strong>Carbon score:</strong> {scores.carbonScore}/100</div>
-                                                    <div><strong>Renewable availability:</strong> {scores.renewableAvailability}%</div>
-                                                    <div><strong>Price score:</strong> {scores.priceScore}/100</div>
-                                                    <div><strong>Grid stress:</strong> <span>{scores.gridStress}</span></div>
+                                                <div className="recommendation-summary">
+                                                    <div>
+                                                        <strong>Best window:</strong>{' '}
+                                                        {rec.best_start_time || '—'}
+                                                        {rec.best_end_time ? ` → ${rec.best_end_time}` : ''}
+                                                    </div>
+                                                    {rec.reason && <p>{rec.reason}</p>}
                                                 </div>
 
                                                 <div>
-                                                    <span><strong>AI Confidence:</strong> {scores.confidence}%</span>
+                                                    <div><strong>Carbon score:</strong> {scores.carbonScore ?? '—'}/100</div>
+                                                    <div><strong>Renewable availability:</strong> {scores.renewableAvailability ?? '—'}%</div>
+                                                    <div><strong>Price score:</strong> {scores.priceScore ?? '—'}/100</div>
+                                                    <div><strong>Grid stress:</strong> <span>{scores.gridStress ?? '—'}</span></div>
+                                                </div>
+
+                                                <div>
+                                                    <span><strong>AI Confidence:</strong> {scores.confidence ?? '—'}%</span>
                                                     <span><strong>Optimization Basis:</strong> Multi-factor solar & grid model</span>
                                                 </div>
+
+                                                <button
+                                                    className="dispatch-button"
+                                                    type="button"
+                                                    onClick={() => handleConfirmSchedule(app.id)}
+                                                    disabled={alreadyScheduled}
+                                                >
+                                                    {alreadyScheduled ? 'Scheduled ✓' : 'Confirm Schedule'}
+                                                </button>
                                             </div>
                                         );
                                     })()}
@@ -859,7 +887,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
             </section>
 
             <section className="eco-analytics-section">
-                <EcoAnalyticsWidget userId={userId}/>
+                <EcoAnalyticsWidget userId={userId} onAnalyticsLoaded={setEcoAnalytics}/>
             </section>
 
             <HabitLearningSettings userId={userId}/>
@@ -867,7 +895,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 userId={userId}
                 userName={userName}
                 userType={userType}
-                ecoAnalytics={{ totalSavedCo2Kg: 20.8, totalSavedMoneyRon: 185.0 }}
+                ecoAnalytics={ecoAnalytics}
                 userAppliances={userAppliances}
                 scheduledTasks={scheduledTasks}
             />

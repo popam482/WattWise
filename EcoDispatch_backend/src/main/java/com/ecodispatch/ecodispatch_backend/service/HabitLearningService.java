@@ -5,10 +5,10 @@ import com.ecodispatch.ecodispatch_backend.privacy.*;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceUsageLogRepository;
 import com.ecodispatch.ecodispatch_backend.repositories.HabitLearningSettingsRepository;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
+import com.ecodispatch.ecodispatch_backend.security.OwnershipGuard;
 import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,13 +26,16 @@ public class HabitLearningService {
     private final HabitLearningSettingsRepository settingsRepository;
     private final ApplianceUsageLogRepository usageLogRepository;
     private final UserRepository userRepository;
+    private final OwnershipGuard ownershipGuard;
 
     public HabitLearningService(HabitLearningSettingsRepository settingsRepository,
                                 ApplianceUsageLogRepository usageLogRepository,
-                                UserRepository userRepository) {
+                                UserRepository userRepository,
+                                OwnershipGuard ownershipGuard) {
         this.settingsRepository = settingsRepository;
         this.usageLogRepository = usageLogRepository;
         this.userRepository = userRepository;
+        this.ownershipGuard = ownershipGuard;
     }
 
     public HabitLearningSettingsResponseDTO getSettings(Integer userId) {
@@ -124,11 +127,7 @@ public class HabitLearningService {
     }
 
     private void validateOwnership(Integer userId) {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof Integer authenticatedUserId)
-                || !authenticatedUserId.equals(userId)) {
-            throw new SecurityException("Access denied");
-        }
+        ownershipGuard.requireOwnership(userId);
     }
 
     private record AggregateKey(String applianceType, int dayOfWeek, int hourOfDay) {

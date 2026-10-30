@@ -9,10 +9,11 @@ import com.ecodispatch.ecodispatch_backend.user.User;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceRepository;
 import com.ecodispatch.ecodispatch_backend.appliance.ApplianceUsageLog;
 import com.ecodispatch.ecodispatch_backend.repositories.UserRepository;
+import com.ecodispatch.ecodispatch_backend.security.OwnershipGuard;
 import com.ecodispatch.ecodispatch_backend.user.UserType;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.*;
@@ -32,29 +33,24 @@ public class ApplianceService {
     private final ApplianceUsageLogRepository applianceUsageLogRepository;
     private final RestTemplate restTemplate;
     private final HabitLearningService habitLearningService;
+    private final OwnershipGuard ownershipGuard;
 
     @Value("${PYTHON_API_URL:http://localhost:8000}")
     private String pythonApiBaseUrl;
 
     public ApplianceService(ApplianceRepository applianceRepository, UserRepository userRepository,
                             ApplianceUsageLogRepository applianceUsageLogRepository, RestTemplate restTemplate,
-                            HabitLearningService habitLearningService) {
+                            HabitLearningService habitLearningService, OwnershipGuard ownershipGuard) {
         this.applianceRepository = applianceRepository;
         this.userRepository = userRepository;
         this.applianceUsageLogRepository = applianceUsageLogRepository;
         this.restTemplate = restTemplate;
         this.habitLearningService = habitLearningService;
+        this.ownershipGuard = ownershipGuard;
     }
 
     private void validateUserOwnership(Integer pathUserId) {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof Integer authenticatedUserId)) {
-            throw new SecurityException("User is not authenticated");
-        }
-
-        if (!authenticatedUserId.equals(pathUserId)) {
-            throw new SecurityException("Access denied: You are not authorized to access or modify resources for another user");
-        }
+        ownershipGuard.requireOwnership(pathUserId);
     }
 
     private ApplianceResponseDTO toResponseDTO(Appliance appliance) {
@@ -96,7 +92,7 @@ public class ApplianceService {
         appliance.setPowerConsumptionKw(dto.getPowerConsumptionKw());
         appliance.setIsRecurring(dto.getIsRecurring() != null ? dto.getIsRecurring() : false);
         appliance.setRecurringDays(dto.getRecurringDays());
-        appliance.setPreferredDuration(dto.getPreferredDuration() != null ? Integer.valueOf(dto.getPreferredDuration()) : null);
+        appliance.setPreferredDuration(parsePreferredDuration(dto.getPreferredDuration()));
         appliance.setTimeWindowStart(dto.getTimeWindowStart());
         appliance.setTimeWindowEnd(dto.getTimeWindowEnd());
         appliance.setUser(user);
@@ -193,13 +189,18 @@ public class ApplianceService {
         String baseUrl = pythonApiBaseUrl.endsWith("/") ? pythonApiBaseUrl : pythonApiBaseUrl + "/";
         String pythonApiUrl = baseUrl + "api/recommendations/best-time";
 
-        return restTemplate.postForObject(
+        ApplianceRecommendationResponseDTO response = restTemplate.postForObject(
                 pythonApiUrl,
                 request,
                 ApplianceRecommendationResponseDTO.class
         );
+        if (response == null) {
+            throw new IllegalStateException("Optimization service returned an empty response");
+        }
+        return response;
     }
 
+    @Transactional
     public void deleteAppliance(Integer userId, Integer applianceId) {
 
         validateUserOwnership(userId);
@@ -211,6 +212,7 @@ public class ApplianceService {
             throw new ApplianceNotFound("Appliance does not belong to user");
         }
 
+        applianceUsageLogRepository.deleteByApplianceId(applianceId);
         applianceRepository.delete(appliance);
     }
 
@@ -229,7 +231,7 @@ public class ApplianceService {
         appliance.setPowerConsumptionKw(dto.getPowerConsumptionKw());
         appliance.setIsRecurring(dto.getIsRecurring() != null ? dto.getIsRecurring() : false);
         appliance.setRecurringDays(dto.getRecurringDays());
-        appliance.setPreferredDuration(dto.getPreferredDuration() != null ? Integer.parseInt(dto.getPreferredDuration()) : null);
+        appliance.setPreferredDuration(parsePreferredDuration(dto.getPreferredDuration()));
         appliance.setTimeWindowStart(dto.getTimeWindowStart());
         appliance.setTimeWindowEnd(dto.getTimeWindowEnd());
 
@@ -246,6 +248,13 @@ public class ApplianceService {
 
         if (!appliance.getUser().getUser_id().equals(userId)) {
             throw new ApplianceNotFound("The appliance does not belong to the user");
+        }
+
+        if (dto.getStartTime() == null) {
+            throw new IllegalArgumentException("startTime is required");
+        }
+        if (dto.getDurationMinutes() == null || dto.getDurationMinutes() < 1) {
+            throw new IllegalArgumentException("durationMinutes must be at least 1");
         }
 
         ApplianceUsageLog log = new ApplianceUsageLog();
@@ -461,6 +470,7 @@ public class ApplianceService {
         double treeEquiv = totalSavedKg / 1.83;
 
         Map<String, DoubleSummaryStatistics> dailyStats = logs.stream()
+                .filter(log -> log.getStartTime() != null)
                 .collect(Collectors.groupingBy(
                         log -> log.getStartTime().toLocalDate().toString(),
                         Collectors.summarizingDouble(log -> log.getSavedCo2Grams() != null ? log.getSavedCo2Grams() / 1000.0 : 0.0)
@@ -484,5 +494,20 @@ public class ApplianceService {
                 Math.round(treeEquiv * 10.0) / 10.0,
                 history
         );
+    }
+
+    private Integer parsePreferredDuration(String preferredDuration) {
+        if (preferredDuration == null || preferredDuration.isBlank()) {
+            return null;
+        }
+        try {
+            int parsed = Integer.parseInt(preferredDuration.trim());
+            if (parsed < 1 || parsed > 24) {
+                throw new IllegalArgumentException("preferredDuration must be between 1 and 24 hours");
+            }
+            return parsed;
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("preferredDuration must be a whole number of hours");
+        }
     }
 }

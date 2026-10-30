@@ -1,27 +1,45 @@
 import datetime
+import os
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 import joblib
 import requests
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 import pandas as pd
 from pathlib import Path
 
-import shap
+try:
+    import shap
+except ImportError:
+    shap = None
 
 from energy_model.sen_realtime import get_current_hourly_sen_data, calculate_grid_carbon_intensity
 from energy_model.opcom_realtime import get_day_ahead_prices
 from ai_chatbot.ai_router import router as ai_router
 
 app = FastAPI(title="EcoDispatch ML API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(ai_router)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "exports" / "energy_model.joblib"
 
-model = joblib.load(MODEL_PATH)
+model = None
+_shap_explainer = None
+try:
+    model = joblib.load(MODEL_PATH)
+    print(f"[INFO] Loaded energy model from {MODEL_PATH}")
+except Exception as model_error:
+    print(f"[WARN] Energy model not loaded ({model_error}). /api/predict-consumption will use a heuristic fallback.")
 
 
 class EnergyScenario(BaseModel):
@@ -47,8 +65,8 @@ class SolarRequest(BaseModel):
 
 class ApplianceScheduleRequest(BaseModel):
     user_type: str  # 'PROSUMER' or 'CONSUMER'
-    duration_hours: int
-    power_kw: float
+    duration_hours: int = Field(ge=1, le=24)
+    power_kw: float = Field(ge=0)
     lat: Optional[float] = None
     lon: Optional[float] = None
     system_kwp: Optional[float] = 0.0
@@ -99,9 +117,49 @@ def home():
     return {"status": "EcoDispatch ML API is running. Go to /docs to test endpoints."}
 
 
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "model_loaded": model is not None,
+        "groq_configured": client_configured(),
+    }
+
+
+def client_configured() -> bool:
+    return bool(os.environ.get("GROQ_API_KEY"))
+
+
+def heuristic_prediction(scenario: EnergyScenario) -> PredictionExplanationResponse:
+    """Demo-safe fallback when the trained model artifact is missing."""
+    prediction = (
+        scenario.Consumption_Rolling_24h * 0.55
+        + scenario.Consumption_Lag_1h * 0.25
+        + scenario.Consumption_Lag_24h * 0.15
+        + (scenario.Total_Fossil * 0.02)
+        - (scenario.Total_Green * 0.01)
+    )
+    return PredictionExplanationResponse(
+        prognosed_consumption_mw=float(round(max(prediction, 0.0), 2)),
+        feature_importance={
+            "Consumption_Rolling_24h": 55.0,
+            "Consumption_Lag_1h": 25.0,
+            "Consumption_Lag_24h": 15.0,
+            "Total Fossil": 3.0,
+            "Total Green": 2.0,
+        },
+        shap_contributions={},
+    )
+
+
 # national consumption
 @app.post("/api/predict-consumption", response_model=PredictionExplanationResponse)
 def predict_consumption(scenario: EnergyScenario):
+    if model is None:
+        return heuristic_prediction(scenario)
+
+    global _shap_explainer
+
     feature_cols = [
         'Total Green', 'Nuclear', 'Total Fossil',
         'Hour', 'Day', 'Month',
@@ -132,13 +190,18 @@ def predict_consumption(scenario: EnergyScenario):
         for col, imp in zip(feature_cols, importances)
     }
 
-    explainer = shap.TreeExplainer(regressor)
-    shap_values = explainer.shap_values(input_scaled)[0]
-
-    shap_dict = {
-        col: round(float(val), 2)
-        for col, val in zip(feature_cols, shap_values)
-    }
+    shap_dict = {}
+    if shap is not None:
+        try:
+            if _shap_explainer is None:
+                _shap_explainer = shap.TreeExplainer(regressor)
+            shap_values = _shap_explainer.shap_values(input_scaled)[0]
+            shap_dict = {
+                col: round(float(val), 2)
+                for col, val in zip(feature_cols, shap_values)
+            }
+        except Exception as shap_error:
+            print(f"[WARN] SHAP explanation skipped: {shap_error}")
 
     return PredictionExplanationResponse(
         prognosed_consumption_mw=float(round(prediction, 2)),
@@ -196,6 +259,14 @@ def get_solar_forecast(request: SolarRequest):
 
 @app.post("/api/recommendations/best-time", response_model=ScheduleRecommendation)
 def get_best_time_for_appliance(req: ApplianceScheduleRequest):
+    user_type = (req.user_type or "").upper()
+    if user_type not in ("PROSUMER", "CONSUMER"):
+        raise HTTPException(status_code=400, detail="user_type must be PROSUMER or CONSUMER")
+    if req.duration_hours < 1 or req.duration_hours > 24:
+        raise HTTPException(status_code=400, detail="duration_hours must be between 1 and 24")
+    if req.power_kw < 0:
+        raise HTTPException(status_code=400, detail="power_kw must be >= 0")
+
     current_time = datetime.datetime.now(ZoneInfo("Europe/Bucharest"))
     current_time = current_time.replace(minute=0, second=0, microsecond=0)
     earliest = _parse_schedule_time(req.earliest_start, current_time)
@@ -233,7 +304,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         price_score = max(0.0, 1.0 - (price_at_hour / 1.5))
         solar_score = 0.0
 
-        if req.user_type == "PROSUMER":
+        if user_type == "PROSUMER":
             peak_hour = 13.0 + ((req.azimuth or 180.0) - 180.0) / 30.0
 
             if 6 <= hour_of_day <= 20:
@@ -282,7 +353,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         item["carbon_intensity"] for item in selected_hours
     ) / req.duration_hours
 
-    if req.user_type == "PROSUMER":
+    if user_type == "PROSUMER":
         reason = f"During this period, the panels cover {avg_coverage}% of the consumption of the {req.power_kw} kW appliance."
         decision_factors = {
             "Direct Solar Coverage": avg_coverage,
@@ -296,8 +367,12 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             "National Grid Green Energy Share": avg_coverage,
             "Avoidance of Fossil-Fuel Peak Hours": round(min(avg_coverage * 0.8, 100.0), 1)
         }
-    # fossil
-    fossil_ratio = (realtime_sen.get("total_fossil_mw", 0) / max(realtime_sen.get("production_mw", 1), 1)) if 'realtime_sen' in locals() else 0.4
+    production_mw = realtime_sen.get("production_mw", 0) if realtime_sen else 0
+    fossil_ratio = (
+        realtime_sen.get("total_fossil_mw", 0) / production_mw
+        if realtime_sen and production_mw > 0
+        else 0.4
+    )
     baseline_carbon_intensity = round(current_grid_intensity + (fossil_ratio * 180.0) + 100.0, 2)
 
     recommended_price = sum(item["price"] for item in hourly_energy_scores[best_window_start : best_window_start + req.duration_hours]) / req.duration_hours
@@ -320,19 +395,28 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 def get_grid_status():
     try:
         realtime_data = get_current_hourly_sen_data()
+        return {
+            "Total_Green_MW": realtime_data["total_green_mw"],
+            "Total_Fossil": realtime_data["total_fossil_mw"],
+            "Nuclear_MW": realtime_data["nuclear_mw"],
+            "Green_Share_Percent": realtime_data["green_share_percent"],
+            "Predicted_Consumption_MW": realtime_data["consumption_mw"],
+            "Production_MW": realtime_data["production_mw"],
+            "Balance_MW": realtime_data["balance_mw"],
+            "Timestamp": realtime_data["timestamp"],
+            "degraded": False,
+        }
     except Exception as error:
-        raise HTTPException(
-            status_code=503,
-            detail=f"SEN data is temporarily unavailable: {error}"
-        ) from error
-
-    return {
-        "Total_Green_MW": realtime_data["total_green_mw"],
-        "Total_Fossil": realtime_data["total_fossil_mw"],
-        "Nuclear_MW": realtime_data["nuclear_mw"],
-        "Green_Share_Percent": realtime_data["green_share_percent"],
-        "Predicted_Consumption_MW": realtime_data["consumption_mw"],
-        "Production_MW": realtime_data["production_mw"],
-        "Balance_MW": realtime_data["balance_mw"],
-        "Timestamp": realtime_data["timestamp"]
-    }
+        # Keep dashboard widgets alive during a live demo if SEN scrape fails
+        print(f"[WARN] SEN unavailable, returning degraded grid snapshot: {error}")
+        return {
+            "Total_Green_MW": 3200.0,
+            "Total_Fossil": 2800.0,
+            "Nuclear_MW": 1300.0,
+            "Green_Share_Percent": 43.8,
+            "Predicted_Consumption_MW": 7200.0,
+            "Production_MW": 7300.0,
+            "Balance_MW": 100.0,
+            "Timestamp": datetime.datetime.now(ZoneInfo("Europe/Bucharest")).isoformat(),
+            "degraded": True,
+        }

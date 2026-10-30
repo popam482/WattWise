@@ -25,6 +25,7 @@ public class User {
 
     @NotBlank
     @Email
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Enumerated(EnumType.STRING)

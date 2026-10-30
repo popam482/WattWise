@@ -55,7 +55,14 @@ function HabitLearningSettings({userId}) {
         }).catch(err => setError(err.message));
     };
 
-    if (!settings) return null;
+    if (!settings) {
+        return (
+            <section className="privacy-section">
+                <h2>Habit Privacy</h2>
+                {error ? <p className="error-banner">{error}</p> : <p>Loading privacy settings...</p>}
+            </section>
+        );
+    }
 
     return (
         <section className="privacy-section">

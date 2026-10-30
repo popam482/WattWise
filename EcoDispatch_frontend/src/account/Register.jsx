@@ -19,6 +19,7 @@ function Register({ switchToLogin }) {
     const [powerKw, setPowerKw] = useState('');
 
     const [error, setError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
     function handleNextStep(e) {
         e.preventDefault();
@@ -62,7 +63,9 @@ function Register({ switchToLogin }) {
 
     async function handleFinalRegister(e) {
         e.preventDefault();
+        if (submitting) return;
         setError('');
+        setSubmitting(true);
 
         const payload = { name, email, password, userType };
 
@@ -87,11 +90,31 @@ function Register({ switchToLogin }) {
             const user = await res.json();
             const targetUserId = user.id || user.userId || user.user_id;
 
+            // Authenticated follow-up calls require a JWT
+            const loginRes = await fetch('/users/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            if (!loginRes.ok) {
+                throw new Error('Account created, but automatic sign-in failed. Please sign in manually.');
+            }
+            const loginData = await loginRes.json();
+            const token = loginData.token;
+            if (!token) {
+                throw new Error('Account created, but no auth token was returned. Please sign in manually.');
+            }
+
+            const authHeaders = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            };
+
             //energy profile - prosumers
             if (userType === 'PROSUMER' && pvSystemKw) {
                 const profileRes = await fetch(`/users/${targetUserId}/energy`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders,
                     body: JSON.stringify({
                         pvSystemKw: parseFloat(pvSystemKw),
                         latitude: coords.latitude,
@@ -106,11 +129,14 @@ function Register({ switchToLogin }) {
 
             // save appliances
             for (const app of appliances) {
-                await fetch(`/users/${targetUserId}/appliances`, {
+                const applianceRes = await fetch(`/users/${targetUserId}/appliances`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: authHeaders,
                     body: JSON.stringify(app)
                 });
+                if (!applianceRes.ok) {
+                    throw new Error(`Failed to save appliance "${app.name}"`);
+                }
             }
 
             // redirect to login
@@ -119,6 +145,8 @@ function Register({ switchToLogin }) {
         } catch (err) {
             console.error("Detailed backend error:", err);
             setError(err.message);
+        } finally {
+            setSubmitting(false);
         }
     }
 
@@ -279,8 +307,13 @@ function Register({ switchToLogin }) {
                             <button type="button" onClick={() => setStep(userType === 'PROSUMER' ? 3 : 2)}>
                                 Back
                             </button>
-                            <button className="authenticationButton" type="button" onClick={handleFinalRegister}>
-                                Finish Registration
+                            <button
+                                className="authenticationButton"
+                                type="button"
+                                onClick={handleFinalRegister}
+                                disabled={submitting}
+                            >
+                                {submitting ? 'Creating account...' : 'Finish Registration'}
                             </button>
                         </div>
                     </div>

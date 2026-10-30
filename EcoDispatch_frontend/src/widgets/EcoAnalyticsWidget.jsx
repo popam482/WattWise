@@ -1,6 +1,6 @@
 import {useState, useEffect} from 'react';
 
-function EcoAnalyticsWidget({userId}) {
+function EcoAnalyticsWidget({userId, onAnalyticsLoaded}) {
     const [analytics, setAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -16,11 +16,21 @@ function EcoAnalyticsWidget({userId}) {
             }
         })
             .then((res) => (res.ok ? res.json() : null))
-            .then((data) => setAnalytics(data))
+            .then((data) => {
+                setAnalytics(data);
+                if (data && typeof onAnalyticsLoaded === 'function') {
+                    onAnalyticsLoaded({
+                        totalSavedCo2Kg: data.totalSavedCo2Kg ?? 0,
+                        totalSavedMoneyRon: data.totalSavedMoneyRon ?? 0
+                    });
+                }
+            })
             .catch((err) =>
                 console.error('Error fetching eco-analytics:', err)
             )
             .finally(() => setLoading(false));
+        // Intentionally depend only on userId; parent callback is a stable setState
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
 
     if (loading) {
