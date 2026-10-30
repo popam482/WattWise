@@ -3,7 +3,7 @@ import { useState } from 'react';
 function EcoChatWidget({ userId, userName, userType, ecoAnalytics, userAppliances, scheduledTasks }) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
-        { sender: 'ai', text: `Hi ${userName || 'there'}! I'm your EcoAssistant. How can I help you optimize your clean energy consumption today?` }
+        { sender: 'ai', text: `Hi ${userName || 'there'}! I'm your WattAssistant. How can I help you optimize your clean energy consumption today?` }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);

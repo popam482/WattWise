@@ -15,7 +15,12 @@ public class EnergyProfileRequestDTO {
     private Double tilt;
     private Double azimuth;
 
+    private Boolean hasBattery;
+    private Double batteryCapacityKwh;
+    private Double batteryMaxChargeKw;
+    private Double batteryMaxDischargeKw;
+    private BatteryType batteryType;
+
     public EnergyProfileRequestDTO() {
     }
-
 }

@@ -27,6 +27,20 @@ public class ApplianceRecommendationRequestDTO {
     private Double tilt;
     private Double azimuth;
 
+    @JsonProperty("has_battery")
+    private Boolean hasBattery;
+
+    @JsonProperty("battery_capacity_kwh")
+    private Double batteryCapacityKwh;
+
+    @JsonProperty("battery_max_charge_kw")
+    private Double batteryMaxChargeKw;
+
+    @JsonProperty("battery_max_discharge_kw")
+    private Double batteryMaxDischargeKw;
+
+    @JsonProperty("battery_type")
+    private String batteryType;
 
     @JsonProperty("committed_power_per_hour")
     private Map<Integer, Double> committedPowerPerHour;

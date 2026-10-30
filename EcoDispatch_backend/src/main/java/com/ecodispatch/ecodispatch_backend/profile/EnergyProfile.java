@@ -17,11 +17,26 @@ public class EnergyProfile {
     private Double pvSystemKw;
 
     private Double latitude;
-    @Getter
     private Double longitude;
 
     private Double tilt;
     private Double azimuth;
+
+    /** Whether the site has behind-the-meter battery storage. */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean hasBattery = false;
+
+    /** Usable battery capacity in kWh. */
+    private Double batteryCapacityKwh;
+
+    /** Maximum continuous charge rate in kW. */
+    private Double batteryMaxChargeKw;
+
+    /** Maximum continuous discharge rate in kW. */
+    private Double batteryMaxDischargeKw;
+
+    @Enumerated(EnumType.STRING)
+    private BatteryType batteryType;
 
     @OneToOne
     @JoinColumn(name = "user_id")
@@ -30,12 +45,11 @@ public class EnergyProfile {
     public EnergyProfile() {
     }
 
-    public EnergyProfile(Double latitude, Double pvSystemKw, Double longitude,  Double tilt, Double azimuth) {
+    public EnergyProfile(Double latitude, Double pvSystemKw, Double longitude, Double tilt, Double azimuth) {
         this.latitude = latitude;
         this.pvSystemKw = pvSystemKw;
         this.longitude = longitude;
         this.tilt = tilt;
         this.azimuth = azimuth;
     }
-
 }

@@ -54,7 +54,7 @@ class BriefingRequest(BaseModel):
 @router.post("/briefing")
 def generate_executive_briefing(req: BriefingRequest):
     prompt = f"""
-   You are EcoAssistant, the intelligent copilot for the EcoDispatch application.
+   You are WattAssistant, the intelligent copilot for the WattWise application.
        Generate a short (maximum 2–3 sentences), sustainable, and professional executive summary in English for the user.
 
        USER DATA:
@@ -96,7 +96,7 @@ def chat_with_assistant(req: ChatRequest):
         appliances_list = []
 
     system_context = f"""
-     You are EcoAssistant, the autonomous assistant for EcoDispatch.
+     You are WattAssistant, the autonomous assistant for WattWise.
      Provide brief, clear, and friendly responses in English.
 
      USER'S AVAILABLE APPLIANCES:

@@ -18,7 +18,7 @@ function HabitLearningSettings({userId}) {
         fetch(`/users/${userId}/privacy/habit-learning`, {
             headers: getAuthHeaders()
         }).then(async response => {
-            if (!response.ok) throw new Error('Nu am putut încărca setările de confidențialitate.');
+            if (!response.ok) throw new Error('Could not load privacy settings.');
             return response.json();
         }).then(data => {
             setSettings(data);

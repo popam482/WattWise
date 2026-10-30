@@ -13,9 +13,13 @@ public class EnergyProfileResponseDTO {
     private Double longitude;
     private Double tilt;
     private Double azimuth;
+    private boolean hasBattery;
+    private Double batteryCapacityKwh;
+    private Double batteryMaxChargeKw;
+    private Double batteryMaxDischargeKw;
+    private BatteryType batteryType;
     private UserResponseDTO user;
 
     public EnergyProfileResponseDTO() {
     }
-
 }

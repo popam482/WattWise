@@ -13,6 +13,11 @@ function Register({ switchToLogin }) {
     const [coords, setCoords] = useState({ latitude: 45.7925, longitude: 24.1520 });
     const [tilt, setTilt] = useState(35);
     const [azimuth, setAzimuth] = useState(180);
+    const [hasBattery, setHasBattery] = useState(false);
+    const [batteryCapacityKwh, setBatteryCapacityKwh] = useState('10');
+    const [batteryMaxChargeKw, setBatteryMaxChargeKw] = useState('3.5');
+    const [batteryMaxDischargeKw, setBatteryMaxDischargeKw] = useState('3.5');
+    const [batteryType, setBatteryType] = useState('LFP');
 
     const [appliances, setAppliances] = useState([]);
     const [applianceName, setApplianceName] = useState('');
@@ -44,6 +49,12 @@ function Register({ switchToLogin }) {
                 setStep(4);
             }
         } else if (step === 3) {
+            if (hasBattery) {
+                if (!batteryCapacityKwh || parseFloat(batteryCapacityKwh) <= 0) {
+                    setError('Enter a valid battery capacity (kWh).');
+                    return;
+                }
+            }
             setError('');
             setStep(4);
         }
@@ -121,6 +132,11 @@ function Register({ switchToLogin }) {
                         longitude: coords.longitude,
                         tilt: parseFloat(tilt),
                         azimuth: parseFloat(azimuth),
+                        hasBattery,
+                        batteryCapacityKwh: hasBattery ? parseFloat(batteryCapacityKwh) : null,
+                        batteryMaxChargeKw: hasBattery ? parseFloat(batteryMaxChargeKw) : null,
+                        batteryMaxDischargeKw: hasBattery ? parseFloat(batteryMaxDischargeKw) : null,
+                        batteryType: hasBattery ? batteryType : null,
                     })
                 });
 
@@ -263,6 +279,54 @@ function Register({ switchToLogin }) {
                         <LocationPicker
                             onLocationSelect={(selectedCoords) => setCoords(selectedCoords)}
                         />
+
+                        <div style={{ marginTop: 16, marginBottom: 8 }}>
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={hasBattery}
+                                    onChange={e => setHasBattery(e.target.checked)}
+                                />
+                                {' '}I have a home battery (storage)
+                            </label>
+                        </div>
+
+                        {hasBattery && (
+                            <div className="prosumer-fields" style={{ display: 'grid', gap: 8 }}>
+                                <input
+                                    type="number"
+                                    min="0.5"
+                                    step="0.1"
+                                    placeholder="Battery capacity (kWh)"
+                                    value={batteryCapacityKwh}
+                                    onChange={e => setBatteryCapacityKwh(e.target.value)}
+                                />
+                                <input
+                                    type="number"
+                                    min="0.1"
+                                    step="0.1"
+                                    placeholder="Max charge rate (kW)"
+                                    value={batteryMaxChargeKw}
+                                    onChange={e => setBatteryMaxChargeKw(e.target.value)}
+                                />
+                                <input
+                                    type="number"
+                                    min="0.1"
+                                    step="0.1"
+                                    placeholder="Max discharge rate (kW)"
+                                    value={batteryMaxDischargeKw}
+                                    onChange={e => setBatteryMaxDischargeKw(e.target.value)}
+                                />
+                                <select value={batteryType} onChange={e => setBatteryType(e.target.value)}>
+                                    <option value="LFP">LFP (LiFePO4)</option>
+                                    <option value="LITHIUM_ION">Lithium-ion</option>
+                                    <option value="LEAD_ACID">Lead-acid</option>
+                                    <option value="FLOW">Flow battery</option>
+                                    <option value="OTHER">Other</option>
+                                </select>
+                            </div>
+                        )}
+
                         <div className="actions" style={{ marginTop: '15px' }}>
                             <button type="button" onClick={() => setStep(2)}>
                                 Back

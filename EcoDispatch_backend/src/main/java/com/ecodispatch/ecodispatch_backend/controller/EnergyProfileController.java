@@ -32,6 +32,13 @@ public class EnergyProfileController {
         return energyService.createEnergyProfile(userId, energyProfileRequestDTO);
     }
 
+    @PutMapping("/users/{userId}/energy")
+    public EnergyProfileResponseDTO updateEnergyProfile(
+            @PathVariable Integer userId,
+            @Valid @RequestBody EnergyProfileRequestDTO energyProfileRequestDTO) {
+        return energyService.updateEnergyProfile(userId, energyProfileRequestDTO);
+    }
+
     @GetMapping("/users/{userId}/solar-forecast")
     public List<SolarForecastResponseDTO> getSolarForecast(@PathVariable Integer userId) {
         return energyService.getSolarForecastForUser(userId);

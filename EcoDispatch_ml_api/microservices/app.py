@@ -20,7 +20,7 @@ from energy_model.sen_realtime import get_current_hourly_sen_data, calculate_gri
 from energy_model.opcom_realtime import get_day_ahead_prices
 from ai_chatbot.ai_router import router as ai_router
 
-app = FastAPI(title="EcoDispatch ML API")
+app = FastAPI(title="WattWise ML API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -72,9 +72,15 @@ class ApplianceScheduleRequest(BaseModel):
     system_kwp: Optional[float] = 0.0
     tilt: Optional[float] = 35.0
     azimuth: Optional[float] = 180.0
+    has_battery: Optional[bool] = False
+    battery_capacity_kwh: Optional[float] = 0.0
+    battery_max_charge_kw: Optional[float] = 0.0
+    battery_max_discharge_kw: Optional[float] = 0.0
+    battery_type: Optional[str] = None
     committed_power_per_hour: dict[int, float] = {}
     earliest_start: Optional[str] = None
     latest_end: Optional[str] = None
+
 
 class ScheduleRecommendation(BaseModel):
     best_start_time: str
@@ -86,6 +92,8 @@ class ScheduleRecommendation(BaseModel):
     baseline_energy_price: float
     reason: str
     decision_factors: dict[str, float]
+    battery_supported_share: Optional[float] = None
+    strategy: Optional[str] = None
 
 
 class PredictionExplanationResponse(BaseModel):
@@ -112,9 +120,62 @@ def _parse_schedule_time(value: Optional[str], fallback: datetime.datetime) -> d
         ) from error
 
 
+def estimate_pv_kw(hour_of_day: int, system_kwp: float, tilt: float, azimuth: float) -> float:
+    peak_hour = 13.0 + ((azimuth or 180.0) - 180.0) / 30.0
+    if not (6 <= hour_of_day <= 20):
+        return 0.0
+    distance_from_peak = abs(peak_hour - hour_of_day)
+    tilt_penalty = abs((tilt or 35.0) - 35.0) * 0.005
+    return (system_kwp or 0.0) * max(0.0, 1.0 - (distance_from_peak * 0.15) - tilt_penalty)
+
+
+def simulate_battery_soc(
+    forecast_hours: int,
+    earliest_hour: int,
+    system_kwp: float,
+    tilt: float,
+    azimuth: float,
+    committed_power: dict,
+    capacity_kwh: float,
+    max_charge_kw: float,
+    max_discharge_kw: float,
+    base_load_kw: float = 0.4,
+) -> list[dict]:
+    """
+    Hourly SoC trajectory: charge from midday PV surplus, discharge later.
+    Returns per-hour dicts with pv_kw, soc_kwh, available_discharge_kw.
+    """
+    soc = min(capacity_kwh * 0.35, capacity_kwh)  # morning SoC assumption
+    trajectory = []
+    for i in range(forecast_hours):
+        hour = (earliest_hour + i) % 24
+        pv = estimate_pv_kw(hour, system_kwp, tilt, azimuth)
+        committed = float(committed_power.get(hour, 0.0) or committed_power.get(str(hour), 0.0) or 0.0)
+        residual = pv - base_load_kw - committed
+
+        if residual > 0 and capacity_kwh > 0:
+            charge = min(residual, max_charge_kw, capacity_kwh - soc)
+            soc += charge
+        elif residual < 0 and capacity_kwh > 0:
+            # Cover base load shortfall from the pack before flexible appliances
+            discharge_for_home = min(-residual, max_discharge_kw, soc)
+            soc -= discharge_for_home
+
+        available_discharge = min(max_discharge_kw, soc) if capacity_kwh > 0 else 0.0
+        trajectory.append({
+            "hour": hour,
+            "pv_kw": pv,
+            "soc_kwh": soc,
+            "available_discharge_kw": available_discharge,
+            "surplus_kw": max(0.0, residual),
+        })
+
+    return trajectory
+
+
 @app.get("/")
 def home():
-    return {"status": "EcoDispatch ML API is running. Go to /docs to test endpoints."}
+    return {"status": "WattWise ML API is running. Go to /docs to test endpoints."}
 
 
 @app.get("/health")
@@ -297,32 +358,67 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         current_grid_intensity = 300.0
         green_share = 0.5
 
+    has_battery = bool(req.has_battery) and (req.battery_capacity_kwh or 0) > 0
+    capacity = float(req.battery_capacity_kwh or 0.0)
+    max_charge = float(req.battery_max_charge_kw or 3.0)
+    max_discharge = float(req.battery_max_discharge_kw or 3.0)
+
+    battery_traj = []
+    if user_type == "PROSUMER" and has_battery:
+        battery_traj = simulate_battery_soc(
+            forecast_hours=forecast_hours,
+            earliest_hour=earliest.hour,
+            system_kwp=req.system_kwp or 0.0,
+            tilt=req.tilt or 35.0,
+            azimuth=req.azimuth or 180.0,
+            committed_power=req.committed_power_per_hour or {},
+            capacity_kwh=capacity,
+            max_charge_kw=max_charge,
+            max_discharge_kw=max_discharge,
+        )
+
     for i in range(forecast_hours):
         hour_of_day = (earliest.hour + i) % 24
 
         price_at_hour = opcom_prices.get(hour_of_day, 0.5)
         price_score = max(0.0, 1.0 - (price_at_hour / 1.5))
         solar_score = 0.0
+        battery_score = 0.0
+        clean_power_kw = 0.0
 
         if user_type == "PROSUMER":
-            peak_hour = 13.0 + ((req.azimuth or 180.0) - 180.0) / 30.0
+            estimated_pv_power = estimate_pv_kw(
+                hour_of_day, req.system_kwp or 0.0, req.tilt or 35.0, req.azimuth or 180.0
+            )
+            already_committed = float(
+                req.committed_power_per_hour.get(hour_of_day, 0.0)
+                or req.committed_power_per_hour.get(str(hour_of_day), 0.0)
+                or 0.0
+            )
+            net_available_pv = max(0.0, estimated_pv_power - already_committed)
+            clean_power_kw = net_available_pv
 
-            if 6 <= hour_of_day <= 20:
-                distance_from_peak = abs(peak_hour - hour_of_day)
-                tilt_penalty = abs((req.tilt or 35.0) - 35.0) * 0.005
+            if has_battery and battery_traj:
+                # Charge midday surplus into the pack; allow evening discharge to cover flexible loads
+                slot = battery_traj[i]
+                if slot["surplus_kw"] > 0:
+                    # Prefer windows that still have PV surplus available to charge / cover load
+                    battery_score = min(1.0, slot["surplus_kw"] / max(req.power_kw, 0.1)) * 0.35
+                available_from_battery = min(slot["available_discharge_kw"], max_discharge)
+                clean_power_kw = net_available_pv + available_from_battery
+                battery_score = max(
+                    battery_score,
+                    min(1.0, available_from_battery / max(req.power_kw, 0.1)),
+                )
 
-                estimated_pv_power = (req.system_kwp or 0.0) * max(0, (1.0 - (distance_from_peak * 0.15) - tilt_penalty))
-                already_committed = req.committed_power_per_hour.get(hour_of_day, 0.0)
-                net_available_pv = max(0.0, estimated_pv_power - already_committed)
-
-                solar_score = min(net_available_pv / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
+            solar_score = min(clean_power_kw / req.power_kw, 1.0) if req.power_kw > 0 else 1.0
         elif 10 <= hour_of_day <= 16:
             solar_score = min(green_share * 1.2, 1.0)
 
         daylight_bonus = 0.15 if 10 <= hour_of_day <= 16 else 0.0
-        estimated_carbon = current_grid_intensity * (1.0 - 0.35 * solar_score - daylight_bonus)
+        estimated_carbon = current_grid_intensity * (1.0 - 0.35 * solar_score - daylight_bonus - 0.15 * battery_score)
         carbon_score = max(0.0, 1.0 - estimated_carbon / 600.0)
-        final_score = (carbon_score * 0.55) + (solar_score * 0.25) + (price_score * 0.20)
+        final_score = (carbon_score * 0.50) + (solar_score * 0.25) + (price_score * 0.15) + (battery_score * 0.10)
 
         hourly_energy_scores.append({
             "hour_offset": i,
@@ -330,7 +426,9 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             "score": final_score,
             "price": price_at_hour,
             "carbon_intensity": estimated_carbon,
-            "solar_score": solar_score
+            "solar_score": solar_score,
+            "battery_score": battery_score,
+            "clean_power_kw": clean_power_kw,
         })
 
     best_window_start = 0
@@ -352,15 +450,39 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     rec_carbon_intensity = sum(
         item["carbon_intensity"] for item in selected_hours
     ) / req.duration_hours
+    battery_supported_share = round(
+        sum(item.get("battery_score", 0.0) for item in selected_hours) / req.duration_hours * 100,
+        1,
+    )
 
-    if user_type == "PROSUMER":
+    strategy = "LOAD_SHIFT"
+    if user_type == "PROSUMER" and has_battery:
+        avg_solar = sum(item["solar_score"] for item in selected_hours) / req.duration_hours
+        if battery_supported_share >= 40 and avg_solar < 0.55:
+            strategy = "SOLAR_TO_BATTERY_THEN_DISCHARGE"
+            reason = (
+                f"WattWise stores midday PV in the {capacity:.1f} kWh battery, then covers "
+                f"~{battery_supported_share:.0f}% of the {req.power_kw} kW load from storage in this window."
+            )
+        else:
+            strategy = "SOLAR_DIRECT_PLUS_BATTERY"
+            reason = (
+                f"Panels + battery cover ~{avg_coverage:.0f}% of the {req.power_kw} kW appliance "
+                f"(battery contribution ~{battery_supported_share:.0f}%)."
+            )
+        decision_factors = {
+            "Direct Solar Coverage": round(avg_solar * 100, 1),
+            "Battery Discharge Support": battery_supported_share,
+            "Azimuth/Tilt Efficiency": round(max(0, 100 - abs((req.tilt or 35.0) - 35.0) * 2), 1),
+            "External Grid Impact": round(max(0.0, 100 - avg_coverage), 1),
+        }
+    elif user_type == "PROSUMER":
         reason = f"During this period, the panels cover {avg_coverage}% of the consumption of the {req.power_kw} kW appliance."
         decision_factors = {
             "Direct Solar Coverage": avg_coverage,
             "Azimuth/Tilt Efficiency": round(max(0, 100 - abs((req.tilt or 35.0) - 35.0) * 2), 1),
             "External Grid Impact": round(100 - avg_coverage, 1)
         }
-        # prosumer ~48 gCO2/kWh (IPCC)
     else:
         reason = f"Selected the lowest-carbon {req.duration_hours}-hour window in the allowed interval."
         decision_factors = {
@@ -388,7 +510,9 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         recommended_energy_price=round(recommended_price, 3),
         baseline_energy_price=round(baseline_price, 3),
         reason=reason,
-        decision_factors=decision_factors
+        decision_factors=decision_factors,
+        battery_supported_share=battery_supported_share if has_battery else None,
+        strategy=strategy,
     )
 
 @app.get("/api/grid/status")

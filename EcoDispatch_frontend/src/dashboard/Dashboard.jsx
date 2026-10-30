@@ -4,6 +4,8 @@ import NationalGridWidget from "../widgets/NationalGridWidget";
 import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 import HabitLearningSettings from '../privacy/HabitLearningSettings';
 import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
+import ConnectProviderModal from "../connectors/ConnectProviderModal.jsx";
+import LiveEnergyBadge from "../widgets/LiveEnergyBadge.jsx";
 
 function Dashboard({userId, userName, userType, onLogout}) {
     const [userAppliances, setUserAppliances] = useState([]);
@@ -42,6 +44,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
         totalSavedCo2Kg: 0,
         totalSavedMoneyRon: 0
     });
+    const [showConnectors, setShowConnectors] = useState(false);
+    const [liveRefreshKey, setLiveRefreshKey] = useState(0);
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
@@ -506,7 +510,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 </div>
                 {aiBriefing && (
                     <div className="ai-executive-briefing">
-                        <span>Eco Assistant</span>
+                        <span>WattAssistant</span>
                         <div>
                             <strong>
                                 AI Executive Briefing
@@ -517,16 +521,25 @@ function Dashboard({userId, userName, userType, onLogout}) {
                         </div>
                     </div>
                 )}
-                <button onClick={onLogout} className="btn-secondary">Logout</button>
+                <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                    <button type="button" className="dispatch-button" onClick={() => setShowConnectors(true)}>
+                        Connect Real Device
+                    </button>
+                    <button onClick={onLogout} className="btn-secondary">Logout</button>
+                </div>
             </header>
 
             {error && <div className="error-banner">{error}</div>}
+
+            {(userType === 'PROSUMER' || userType === 'CONSUMER') && (
+                <LiveEnergyBadge userId={userId} refreshKey={liveRefreshKey}/>
+            )}
 
             <section className="dispatch-hero">
                 <div>
                     <h2>Let your appliances follow the cleanest energy.</h2>
                     <p>
-                        EcoDispatch searches the time window you allow and schedules
+                        WattWise searches the time window you allow and schedules
                         flexible loads when carbon intensity is lowest.
                     </p>
                 </div>
@@ -898,6 +911,12 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 ecoAnalytics={ecoAnalytics}
                 userAppliances={userAppliances}
                 scheduledTasks={scheduledTasks}
+            />
+            <ConnectProviderModal
+                userId={userId}
+                open={showConnectors}
+                onClose={() => setShowConnectors(false)}
+                onLiveLinked={() => setLiveRefreshKey(k => k + 1)}
             />
         </div>
     );

@@ -179,11 +179,19 @@ public class ApplianceService {
         request.setCommittedPowerPerHour(committedPower);
 
         if (user.getUserType() == UserType.PROSUMER && user.getEnergyProfile() != null) {
-            request.setLat(user.getEnergyProfile().getLatitude());
-            request.setLon(user.getEnergyProfile().getLongitude());
-            request.setSystemKwp(user.getEnergyProfile().getPvSystemKw());
-            request.setTilt(user.getEnergyProfile().getTilt());
-            request.setAzimuth(user.getEnergyProfile().getAzimuth());
+            var profile = user.getEnergyProfile();
+            request.setLat(profile.getLatitude());
+            request.setLon(profile.getLongitude());
+            request.setSystemKwp(profile.getPvSystemKw());
+            request.setTilt(profile.getTilt());
+            request.setAzimuth(profile.getAzimuth());
+            request.setHasBattery(profile.isHasBattery());
+            request.setBatteryCapacityKwh(profile.getBatteryCapacityKwh());
+            request.setBatteryMaxChargeKw(profile.getBatteryMaxChargeKw());
+            request.setBatteryMaxDischargeKw(profile.getBatteryMaxDischargeKw());
+            if (profile.getBatteryType() != null) {
+                request.setBatteryType(profile.getBatteryType().name());
+            }
         }
 
         String baseUrl = pythonApiBaseUrl.endsWith("/") ? pythonApiBaseUrl : pythonApiBaseUrl + "/";

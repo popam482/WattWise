@@ -75,7 +75,7 @@ function EcoAnalyticsWidget({userId, onAnalyticsLoaded}) {
                 <h3>How is this calculated?</h3>
 
                 <p>
-                    EcoDispatch compares your scheduled run times against a
+                    WattWise compares your scheduled run times against a
                     counterfactual baseline (peak-hour grid carbon intensity)
                     using real-time SEN data and IPCC lifecycle emission
                     factors.
