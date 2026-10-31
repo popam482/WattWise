@@ -5,7 +5,6 @@ import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 import HabitLearningSettings from '../privacy/HabitLearningSettings';
 import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
 import ConnectProviderModal from "../connectors/ConnectProviderModal.jsx";
-import LiveEnergyBadge from "../widgets/LiveEnergyBadge.jsx";
 
 function Dashboard({userId, userName, userType, onLogout}) {
     const [userAppliances, setUserAppliances] = useState([]);
@@ -44,8 +43,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
         totalSavedCo2Kg: 0,
         totalSavedMoneyRon: 0
     });
-    const [showConnectors, setShowConnectors] = useState(false);
-    const [liveRefreshKey, setLiveRefreshKey] = useState(0);
+    const [showIntegrations, setShowIntegrations] = useState(false);
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
@@ -56,15 +54,15 @@ function Dashboard({userId, userName, userType, onLogout}) {
     };
 
     useEffect(() => {
-        if (!userId || userType !== 'PROSUMER') return;
+        if (!userId) return;
 
         fetch(`/users/${userId}/energy`, {
             headers: getAuthHeaders()
         })
             .then(res => res.ok ? res.json() : null)
             .then(data => setEnergyProfile(data))
-            .catch(err => console.error("Error fetching energy profile:", err));
-    }, [userId, userType]);
+            .catch(() => setEnergyProfile(null));
+    }, [userId]);
 
     useEffect(() => {
         const timer = setInterval(() => setTicks(t => t + 1), 60000);
@@ -521,19 +519,19 @@ function Dashboard({userId, userName, userType, onLogout}) {
                         </div>
                     </div>
                 )}
-                <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
-                    <button type="button" className="dispatch-button" onClick={() => setShowConnectors(true)}>
-                        Connect Real Device
+                <div style={{display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center'}}>
+                    <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setShowIntegrations(true)}
+                    >
+                        Integrations
                     </button>
                     <button onClick={onLogout} className="btn-secondary">Logout</button>
                 </div>
             </header>
 
             {error && <div className="error-banner">{error}</div>}
-
-            {(userType === 'PROSUMER' || userType === 'CONSUMER') && (
-                <LiveEnergyBadge userId={userId} refreshKey={liveRefreshKey}/>
-            )}
 
             <section className="dispatch-hero">
                 <div>
@@ -545,11 +543,15 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 </div>
             </section>
 
-            {userType === 'PROSUMER' && (
-                <section className="weather-section">
-                    <WeatherSolarWidget userId={userId} energyProfile={energyProfile} />
-                </section>
-            )}
+            <section className="weather-section">
+                <WeatherSolarWidget
+                    userId={userId}
+                    energyProfile={energyProfile}
+                    latitude={energyProfile?.latitude}
+                    longitude={energyProfile?.longitude}
+                    pvSystemKw={energyProfile?.pvSystemKw}
+                />
+            </section>
 
             <section className="grid-section">
                 <NationalGridWidget userId={userId}/>
@@ -914,9 +916,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
             />
             <ConnectProviderModal
                 userId={userId}
-                open={showConnectors}
-                onClose={() => setShowConnectors(false)}
-                onLiveLinked={() => setLiveRefreshKey(k => k + 1)}
+                open={showIntegrations}
+                onClose={() => setShowIntegrations(false)}
             />
         </div>
     );
