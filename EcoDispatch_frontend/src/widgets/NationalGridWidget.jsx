@@ -8,6 +8,7 @@ const FALLBACK_GRID = {
     Green_Share_Percent: 43.8,
     Total_Fossil: 2800,
     Nuclear_MW: 1300,
+    Total_Green_MW: 3200,
     Timestamp: new Date().toISOString(),
     _fallback: true
 };
@@ -79,14 +80,25 @@ function NationalGridWidget({userId}) {
     };
 
     const consumption = data.Predicted_Consumption_MW ?? data.predictedConsumptionMW ?? data.consumption_mw ?? 0;
-    const production = data.Production_MW ?? data.productionMW ?? data.production_mw ?? 0;
+    const production = Number(data.Production_MW ?? data.productionMW ?? data.production_mw ?? 0);
     const balance = data.Balance_MW ?? data.balanceMW ?? data.balance_mw ?? 0;
     const greenShare = data.Green_Share_Percent ?? data.greenSharePercent ?? data.green_share_percent ?? 0;
-    const totalFossil = data.Total_Fossil ?? data.totalFossil ?? data.total_fossil_mw ?? 0;
-    const nuclear = data.Nuclear_MW ?? data.nuclearMW ?? data.nuclear_mw ?? 0;
+    const totalFossil = Number(data.Total_Fossil ?? data.totalFossil ?? data.total_fossil_mw ?? 0);
+    const nuclear = Number(data.Nuclear_MW ?? data.nuclearMW ?? data.nuclear_mw ?? 0);
+    const explicitRenewable = Number(
+        data.Total_Green_MW
+        ?? data.totalGreenMW
+        ?? data.renewablePowerMw
+        ?? data.Renewable_MW
+        ?? NaN
+    );
+    const renewable = Number.isFinite(explicitRenewable)
+        ? explicitRenewable
+        : Math.max(0, production - (totalFossil + nuclear));
     const timestamp = data.Timestamp ?? data.timestamp ?? '';
     const greenPct = Math.max(0, Math.min(100, Number(greenShare) || 0));
     const balancePositive = Number(balance) >= 0;
+    const mixSum = totalFossil + nuclear + renewable;
 
     return (
         <div className="space-y-5">
@@ -124,26 +136,50 @@ function NationalGridWidget({userId}) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
-                    {label: 'Production', value: `${formatValue(production)} MW`, tone: 'text-emerald-400'},
-                    {label: 'Consumption', value: `${formatValue(consumption)} MW`, tone: 'text-blue-400'},
+                    {label: 'Production', value: `${formatValue(production)} MW`, tone: 'text-slate-100', border: 'border-slate-800'},
+                    {label: 'Consumption', value: `${formatValue(consumption)} MW`, tone: 'text-blue-400', border: 'border-blue-500/20'},
                     {
                         label: 'Grid balance',
                         value: `${formatValue(balance)} MW`,
-                        tone: balancePositive ? 'text-emerald-400' : 'text-amber-400'
-                    },
-                    {label: 'Fossil', value: `${formatValue(totalFossil)} MW`, tone: 'text-slate-200'},
-                    {label: 'Nuclear', value: `${formatValue(nuclear)} MW`, tone: 'text-blue-300'}
+                        tone: balancePositive ? 'text-emerald-400' : 'text-amber-400',
+                        border: balancePositive ? 'border-emerald-500/20' : 'border-amber-500/20'
+                    }
                 ].map(item => (
                     <div
                         key={item.label}
-                        className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 backdrop-blur-md"
+                        className={`rounded-xl border bg-slate-950/50 p-3 backdrop-blur-md ${item.border}`}
                     >
                         <p className="text-xs text-slate-500">{item.label}</p>
                         <p className={`mt-1 text-lg font-bold ${item.tone}`}>{item.value}</p>
                     </div>
                 ))}
+            </div>
+
+            <div>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-medium text-slate-300">Generation mix breakdown</h3>
+                    <span className="text-[11px] text-slate-500">
+                        Fossil + Nuclear + Renewable = {formatValue(mixSum)} MW
+                        {production > 0 ? ` · Production ${formatValue(production)} MW` : ''}
+                    </span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-3 backdrop-blur-md">
+                        <p className="text-xs text-slate-500">Fossil Generation</p>
+                        <p className="mt-1 text-lg font-bold text-slate-200">{formatValue(totalFossil)} MW</p>
+                    </div>
+                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 backdrop-blur-md">
+                        <p className="text-xs text-slate-500">Nuclear Generation</p>
+                        <p className="mt-1 text-lg font-bold text-blue-300">{formatValue(nuclear)} MW</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 backdrop-blur-md">
+                        <p className="text-xs text-emerald-400/80">Renewable Generation</p>
+                        <p className="mt-1 text-lg font-bold text-emerald-400">{formatValue(renewable)} MW</p>
+                        <p className="mt-1 text-[10px] text-slate-500">Hydro / Wind / Solar</p>
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -617,7 +617,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
                         <div>
                             <h1 className="text-xl font-bold tracking-tight text-slate-100">WattWise</h1>
                             <p className="text-sm text-slate-400">
-                                {ecoMessage?.welcomeMessage || 'Welcome'}, {userName || 'User'}
+                                {ecoMessage?.welcomeMessage || 'Welcome'} {userName || 'User'}
+                                {ecoMessage?.welcomeMessage || 'Welcome'} {userName || 'User'}
                             </p>
                         </div>
                     </div>
@@ -791,6 +792,11 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                 pvSystemKw={isProsumer ? energyProfile?.pvSystemKw : 0}
                                 isProsumer={isProsumer}
                                 carbonIntensity={carbonIntensity}
+                                greenSharePercent={
+                                    gridSnapshot?.Green_Share_Percent
+                                    ?? gridSnapshot?.greenSharePercent
+                                    ?? null
+                                }
                             />
                         </div>
                         <div className={`${glass} p-5`}>

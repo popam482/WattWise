@@ -1,5 +1,6 @@
 import {useState, useEffect, useMemo} from 'react';
 import {CloudSun, Sun, Activity} from 'lucide-react';
+import EnergyForecastWidget from './EnergyForecastWidget.jsx';
 
 const SIBIU_LAT = 45.7983;
 const SIBIU_LON = 24.1256;
@@ -12,7 +13,8 @@ function WeatherSolarWidget({
     longitude,
     pvSystemKw,
     isProsumer = false,
-    carbonIntensity = null
+    carbonIntensity = null,
+    greenSharePercent = null
 }) {
     const [forecastData, setForecastData] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -126,30 +128,6 @@ function WeatherSolarWidget({
             return h >= currentHour && h < currentHour + 12;
         })
         .slice(0, 12);
-
-    const maxPv = Math.max(
-        0.1,
-        ...nextHours.map(item => Number(item.Estimated_PV_Power_kW) || 0)
-    );
-
-    const carbonTimeline = useMemo(() => {
-        const base = Number.isFinite(Number(carbonIntensity)) ? Number(carbonIntensity) : 280;
-        return nextHours.map((item) => {
-            const hour = new Date(item.Time).getHours();
-            const clouds = Number(item.Cloud_Cover);
-            const cloudFactor = Number.isFinite(clouds) ? clouds / 100 : 0.4;
-            // Midday renewables tend to lower intensity; evening peaks raise it.
-            const diurnal = hour >= 11 && hour <= 16 ? -55 : (hour >= 18 || hour <= 7 ? 45 : 0);
-            const value = Math.max(80, Math.round(base + diurnal + cloudFactor * 40));
-            return {
-                Time: item.Time,
-                hourLabel: hour.toString().padStart(2, '0'),
-                value
-            };
-        });
-    }, [nextHours, carbonIntensity]);
-
-    const maxCarbon = Math.max(1, ...carbonTimeline.map(item => item.value));
 
     if (loading && forecastData.length === 0) {
         return (
@@ -267,63 +245,12 @@ function WeatherSolarWidget({
                 ))}
             </div>
 
-            {isProsumer && nextHours.length > 0 && (
-                <div>
-                    <h4 className="mb-3 text-sm font-medium text-slate-300">Near-term solar production</h4>
-                    <div
-                        className="grid items-end gap-1.5"
-                        style={{gridTemplateColumns: `repeat(${nextHours.length}, minmax(0, 1fr))`, minHeight: 110}}
-                    >
-                        {nextHours.map((item) => {
-                            const pv = Number(item.Estimated_PV_Power_kW) || 0;
-                            const height = Math.max(6, Math.round((pv / maxPv) * 100));
-                            const hourLabel = new Date(item.Time).getHours().toString().padStart(2, '0');
-                            return (
-                                <div key={item.Time} className="text-center">
-                                    <div
-                                        title={`${pv} kW`}
-                                        className="mx-auto mb-1.5 w-full max-w-[18px] rounded-t-md bg-gradient-to-b from-emerald-400 to-emerald-700"
-                                        style={{height: `${height}px`}}
-                                    />
-                                    <div className="text-[10px] text-slate-500">{hourLabel}</div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
-            {!isProsumer && carbonTimeline.length > 0 && (
-                <div>
-                    <h4 className="mb-3 text-sm font-medium text-slate-300">Grid Carbon Intensity Timeline</h4>
-                    <div
-                        className="grid items-end gap-1.5"
-                        style={{gridTemplateColumns: `repeat(${carbonTimeline.length}, minmax(0, 1fr))`, minHeight: 110}}
-                    >
-                        {carbonTimeline.map((item) => {
-                            const height = Math.max(8, Math.round((item.value / maxCarbon) * 100));
-                            const tone = item.value < 200
-                                ? 'from-emerald-400 to-emerald-700'
-                                : item.value < 350
-                                    ? 'from-amber-400 to-amber-700'
-                                    : 'from-rose-400 to-rose-700';
-                            return (
-                                <div key={item.Time} className="text-center">
-                                    <div
-                                        title={`${item.value} gCO₂/kWh`}
-                                        className={`mx-auto mb-1.5 w-full max-w-[18px] rounded-t-md bg-gradient-to-b ${tone}`}
-                                        style={{height: `${height}px`}}
-                                    />
-                                    <div className="text-[10px] text-slate-500">{item.hourLabel}</div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <p className="mt-2 text-xs text-slate-500">
-                        Near-term SEN carbon outlook (gCO₂/kWh) — schedule flexible loads in the greener hours.
-                    </p>
-                </div>
-            )}
+            <EnergyForecastWidget
+                isProsumer={isProsumer}
+                hourlyWeather={nextHours}
+                carbonIntensity={carbonIntensity}
+                greenSharePercent={greenSharePercent}
+            />
         </div>
     );
 }

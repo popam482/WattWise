@@ -9,6 +9,12 @@ export default defineConfig({
       '/users': 'http://localhost:8080',
       '/api/ai': 'http://localhost:8000',
       '/api': 'http://localhost:8080',
+      '/energy-charts': {
+        target: 'https://api.energy-charts.info',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/energy-charts/, ''),
+      },
     },
   },
 })
