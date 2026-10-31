@@ -1,5 +1,15 @@
 import {useState} from 'react';
+import {Zap} from 'lucide-react';
 import LocationPicker from './LocationPicker.jsx';
+
+const SIBIU = {latitude: 45.7983, longitude: 24.1256};
+
+const inputCls =
+    'mb-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40';
+const ghostBtn =
+    'rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800';
+const primaryBtn =
+    'rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all hover:from-emerald-400 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50';
 
 function Register({ switchToLogin }) {
     const [step, setStep] = useState(1);
@@ -10,7 +20,7 @@ function Register({ switchToLogin }) {
 
     const [userType, setUserType] = useState('CONSUMER');
     const [pvSystemKw, setPvSystemKw] = useState('');
-    const [coords, setCoords] = useState({ latitude: 45.7925, longitude: 24.1520 });
+    const [coords, setCoords] = useState({...SIBIU});
     const [tilt, setTilt] = useState(35);
     const [azimuth, setAzimuth] = useState(180);
     const [hasBattery, setHasBattery] = useState(false);
@@ -31,29 +41,28 @@ function Register({ switchToLogin }) {
 
         if (step === 1) {
             if (!name || !password || !email) {
-                setError("Please fill all the required fields.");
+                setError('Please fill all the required fields.');
                 return;
             }
             setError('');
             setStep(2);
         } else if (step === 2) {
-            if (userType === 'PROSUMER') {
-                if (!pvSystemKw) {
-                    setError("Please enter the Photovoltaics capacity");
-                    return;
-                }
-                setError('');
-                setStep(3);
-            } else {
-                setError('');
-                setStep(4);
+            if (userType === 'PROSUMER' && !pvSystemKw) {
+                setError('Please enter the Photovoltaics capacity');
+                return;
             }
+            setError('');
+            setStep(3); // both consumers and prosumers set a location
         } else if (step === 3) {
-            if (hasBattery) {
+            if (userType === 'PROSUMER' && hasBattery) {
                 if (!batteryCapacityKwh || parseFloat(batteryCapacityKwh) <= 0) {
                     setError('Enter a valid battery capacity (kWh).');
                     return;
                 }
+            }
+            if (!Number.isFinite(Number(coords.latitude)) || !Number.isFinite(Number(coords.longitude))) {
+                setError('Please pick a location on the map.');
+                return;
             }
             setError('');
             setStep(4);
@@ -81,7 +90,6 @@ function Register({ switchToLogin }) {
         const payload = { name, email, password, userType };
 
         try {
-            // create user
             const res = await fetch('/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -101,7 +109,6 @@ function Register({ switchToLogin }) {
             const user = await res.json();
             const targetUserId = user.id || user.userId || user.user_id;
 
-            // Authenticated follow-up calls require a JWT
             const loginRes = await fetch('/users/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -121,29 +128,36 @@ function Register({ switchToLogin }) {
                 Authorization: `Bearer ${token}`
             };
 
-            //energy profile - prosumers
-            if (userType === 'PROSUMER' && pvSystemKw) {
-                const profileRes = await fetch(`/users/${targetUserId}/energy`, {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({
-                        pvSystemKw: parseFloat(pvSystemKw),
-                        latitude: coords.latitude,
-                        longitude: coords.longitude,
-                        tilt: parseFloat(tilt),
-                        azimuth: parseFloat(azimuth),
-                        hasBattery,
-                        batteryCapacityKwh: hasBattery ? parseFloat(batteryCapacityKwh) : null,
-                        batteryMaxChargeKw: hasBattery ? parseFloat(batteryMaxChargeKw) : null,
-                        batteryMaxDischargeKw: hasBattery ? parseFloat(batteryMaxDischargeKw) : null,
-                        batteryType: hasBattery ? batteryType : null,
-                    })
-                });
+            // Location profile for everyone (consumers: weather only · prosumers: PV + weather)
+            const profileBody = userType === 'PROSUMER'
+                ? {
+                    pvSystemKw: parseFloat(pvSystemKw),
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    tilt: parseFloat(tilt),
+                    azimuth: parseFloat(azimuth),
+                    hasBattery,
+                    batteryCapacityKwh: hasBattery ? parseFloat(batteryCapacityKwh) : null,
+                    batteryMaxChargeKw: hasBattery ? parseFloat(batteryMaxChargeKw) : null,
+                    batteryMaxDischargeKw: hasBattery ? parseFloat(batteryMaxDischargeKw) : null,
+                    batteryType: hasBattery ? batteryType : null
+                }
+                : {
+                    pvSystemKw: 0,
+                    latitude: coords.latitude ?? SIBIU.latitude,
+                    longitude: coords.longitude ?? SIBIU.longitude,
+                    hasBattery: false
+                };
 
-                if (!profileRes.ok) throw new Error('Energy profile creation failed');
+            const profileRes = await fetch(`/users/${targetUserId}/energy`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(profileBody)
+            });
+            if (!profileRes.ok) {
+                throw new Error('Energy / location profile creation failed');
             }
 
-            // save appliances
             for (const app of appliances) {
                 const applianceRes = await fetch(`/users/${targetUserId}/appliances`, {
                     method: 'POST',
@@ -155,11 +169,9 @@ function Register({ switchToLogin }) {
                 }
             }
 
-            // redirect to login
             if (switchToLogin) switchToLogin();
-
         } catch (err) {
-            console.error("Detailed backend error:", err);
+            console.error('Detailed backend error:', err);
             setError(err.message);
         } finally {
             setSubmitting(false);
@@ -167,51 +179,56 @@ function Register({ switchToLogin }) {
     }
 
     return (
-        <div className="flex min-h-screen items-start justify-center bg-slate-950 px-4 py-10 text-slate-100">
-            <div className="relative w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md sm:p-8 [&_input]:mb-2 [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-slate-700 [&_input]:bg-slate-950/60 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-100 [&_select]:mb-2 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-slate-700 [&_select]:bg-slate-950/60 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-100 [&_button]:rounded-xl [&_button]:border [&_button]:border-slate-700 [&_button]:bg-slate-950/40 [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button]:text-slate-200 [&_button:hover]:bg-slate-800 [&_.authenticationButton]:border-emerald-500/30 [&_.authenticationButton]:bg-emerald-500/15 [&_.authenticationButton]:text-emerald-300 [&_h3]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_label]:text-sm [&_label]:text-slate-400">
-                <h1 className="mb-4 text-xl font-bold text-slate-100">Sign up to WattWise</h1>
-                {error && <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{error}</div>}
+        <div className="flex min-h-screen items-start justify-center bg-slate-950 px-4 py-8 text-slate-100 sm:py-10">
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.10),_transparent_50%)]" />
+            <div className="relative mx-auto w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+                <div className="mb-6 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.35)]">
+                        <Zap className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-100">Sign up to WattWise</h1>
+                        <p className="text-sm text-slate-400">Step {step} of 4</p>
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                        {error}
+                    </div>
+                )}
 
                 {step === 1 && (
-                    <form onSubmit={handleNextStep}>
-                        <input
-                            type="text"
-                            placeholder="Name"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                        />
-                        <input
-                            type="email"
-                            placeholder="Email"
-                            value={email}
-                            onChange={e => setEmail(e.target.value)}
-                        />
-                        <input
-                            type="password"
-                            placeholder="Password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                        />
-                        <button className="authenticationButton" type="submit">
-                            Continue
-                        </button>
+                    <form onSubmit={handleNextStep} className="space-y-1">
+                        <input type="text" placeholder="Name" value={name} onChange={e => setName(e.target.value)} className={inputCls} />
+                        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} />
+                        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
+                        <button className={`${primaryBtn} mt-3 w-full`} type="submit">Continue</button>
                     </form>
                 )}
 
                 {step === 2 && (
-                    <form onSubmit={handleNextStep}>
-                        <h3>Are you a prosumer or consumer?</h3>
-                        <div className="user-type-selector">
+                    <form onSubmit={handleNextStep} className="space-y-4">
+                        <h3 className="text-lg font-semibold text-slate-100">Are you a prosumer or consumer?</h3>
+                        <div className="grid grid-cols-2 gap-2">
                             <button
                                 type="button"
-                                className={userType === 'CONSUMER' ? 'active' : ''}
+                                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                                    userType === 'CONSUMER'
+                                        ? 'border-blue-500/40 bg-blue-500/15 text-blue-300'
+                                        : 'border-slate-700 bg-slate-950/50 text-slate-400 hover:bg-slate-800'
+                                }`}
                                 onClick={() => setUserType('CONSUMER')}
                             >
                                 Consumer
                             </button>
                             <button
                                 type="button"
-                                className={userType === 'PROSUMER' ? 'active' : ''}
+                                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                                    userType === 'PROSUMER'
+                                        ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                                        : 'border-slate-700 bg-slate-950/50 text-slate-400 hover:bg-slate-800'
+                                }`}
                                 onClick={() => setUserType('PROSUMER')}
                             >
                                 Prosumer
@@ -219,160 +236,136 @@ function Register({ switchToLogin }) {
                         </div>
 
                         {userType === 'PROSUMER' && (
-                            <div className="prosumer-fields">
-                                <input
-                                    type="number"
-                                    step="0.1"
-                                    min={"1.0"}
-                                    max={"27.0"}
-                                    placeholder="Photovoltaics capacity (kWp)"
-                                    value={pvSystemKw}
-                                    onChange={e => setPvSystemKw(e.target.value)}
-                                />
-                            </div>
+                            <input
+                                type="number"
+                                step="0.1"
+                                min="1.0"
+                                max="27.0"
+                                placeholder="Photovoltaics capacity (kWp)"
+                                value={pvSystemKw}
+                                onChange={e => setPvSystemKw(e.target.value)}
+                                className={inputCls}
+                            />
                         )}
 
-                        <div className="actions">
-                            <button type="button" onClick={() => setStep(1)}>
-                                Back
-                            </button>
-                            <button className="authenticationButton" type="submit">
-                                Next
-                            </button>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                            <button type="button" className={ghostBtn} onClick={() => setStep(1)}>Back</button>
+                            <button className={primaryBtn} type="submit">Next</button>
                         </div>
                     </form>
                 )}
 
                 {step === 3 && (
-                    <form onSubmit={handleNextStep}>
-                        <h3>Select consumption location & PV details</h3>
-
-                        <div style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px' }}>Panels Orientation (Azimuth):</label>
-                            <select
-                                value={azimuth}
-                                onChange={e => setAzimuth(e.target.value)}
-                                style={{ width: '100%', padding: '8px' }}
-                                required
-                            >
-                                <option value={90}>East (Morning Sun)</option>
-                                <option value={135}>South-East</option>
-                                <option value={180}>South (Noon Sun)</option>
-                                <option value={225}>South-West</option>
-                                <option value={270}>West (Afternoon Sun)</option>
-                            </select>
-                        </div>
-
-                        <div style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'block', marginBottom: '5px' }}>Panels Tilt (Degrees):</label>
-                            <input
-                                type="number"
-                                min="0"
-                                max="90"
-                                value={tilt}
-                                onChange={e => setTilt(e.target.value)}
-                                style={{ width: '100%', padding: '8px' }}
-                                required
-                            />
-                        </div>
+                    <form onSubmit={handleNextStep} className="space-y-4">
+                        <h3 className="text-lg font-semibold text-slate-100">
+                            {userType === 'PROSUMER' ? 'Location & PV details' : 'Your home location'}
+                        </h3>
+                        <p className="text-sm text-slate-400">
+                            {userType === 'PROSUMER'
+                                ? 'We use this for live solar irradiance and local weather.'
+                                : 'Used for local weather and SEN grid outlook — no solar capacity required.'}
+                        </p>
 
                         <LocationPicker
+                            initialLatitude={coords.latitude}
+                            initialLongitude={coords.longitude}
                             onLocationSelect={(selectedCoords) => setCoords(selectedCoords)}
+                            label={userType === 'PROSUMER'
+                                ? 'Click the map to set your PV site'
+                                : 'Click the map to set your home city'}
                         />
 
-                        <div style={{ marginTop: 16, marginBottom: 8 }}>
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={hasBattery}
-                                    onChange={e => setHasBattery(e.target.checked)}
-                                />
-                                {' '}I have a home battery (storage)
-                            </label>
-                        </div>
+                        {userType === 'PROSUMER' && (
+                            <>
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                        Panels Orientation (Azimuth)
+                                    </label>
+                                    <select
+                                        value={azimuth}
+                                        onChange={e => setAzimuth(e.target.value)}
+                                        className={inputCls}
+                                        required
+                                    >
+                                        <option value={90}>East (Morning Sun)</option>
+                                        <option value={135}>South-East</option>
+                                        <option value={180}>South (Noon Sun)</option>
+                                        <option value={225}>South-West</option>
+                                        <option value={270}>West (Afternoon Sun)</option>
+                                    </select>
+                                </div>
 
-                        {hasBattery && (
-                            <div className="prosumer-fields" style={{ display: 'grid', gap: 8 }}>
-                                <input
-                                    type="number"
-                                    min="0.5"
-                                    step="0.1"
-                                    placeholder="Battery capacity (kWh)"
-                                    value={batteryCapacityKwh}
-                                    onChange={e => setBatteryCapacityKwh(e.target.value)}
-                                />
-                                <input
-                                    type="number"
-                                    min="0.1"
-                                    step="0.1"
-                                    placeholder="Max charge rate (kW)"
-                                    value={batteryMaxChargeKw}
-                                    onChange={e => setBatteryMaxChargeKw(e.target.value)}
-                                />
-                                <input
-                                    type="number"
-                                    min="0.1"
-                                    step="0.1"
-                                    placeholder="Max discharge rate (kW)"
-                                    value={batteryMaxDischargeKw}
-                                    onChange={e => setBatteryMaxDischargeKw(e.target.value)}
-                                />
-                                <select value={batteryType} onChange={e => setBatteryType(e.target.value)}>
-                                    <option value="LFP">LFP (LiFePO4)</option>
-                                    <option value="LITHIUM_ION">Lithium-ion</option>
-                                    <option value="LEAD_ACID">Lead-acid</option>
-                                    <option value="FLOW">Flow battery</option>
-                                    <option value="OTHER">Other</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                        Panels Tilt (Degrees)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="90"
+                                        value={tilt}
+                                        onChange={e => setTilt(e.target.value)}
+                                        className={inputCls}
+                                        required
+                                    />
+                                </div>
+
+                                <label className="flex items-center gap-2 text-sm text-slate-300">
+                                    <input
+                                        type="checkbox"
+                                        checked={hasBattery}
+                                        onChange={e => setHasBattery(e.target.checked)}
+                                        className="accent-emerald-500"
+                                    />
+                                    I have a home battery (storage)
+                                </label>
+
+                                {hasBattery && (
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        <input type="number" min="0.5" step="0.1" placeholder="Battery capacity (kWh)" value={batteryCapacityKwh} onChange={e => setBatteryCapacityKwh(e.target.value)} className={inputCls} />
+                                        <input type="number" min="0.1" step="0.1" placeholder="Max charge rate (kW)" value={batteryMaxChargeKw} onChange={e => setBatteryMaxChargeKw(e.target.value)} className={inputCls} />
+                                        <input type="number" min="0.1" step="0.1" placeholder="Max discharge rate (kW)" value={batteryMaxDischargeKw} onChange={e => setBatteryMaxDischargeKw(e.target.value)} className={inputCls} />
+                                        <select value={batteryType} onChange={e => setBatteryType(e.target.value)} className={inputCls}>
+                                            <option value="LFP">LFP (LiFePO4)</option>
+                                            <option value="LITHIUM_ION">Lithium-ion</option>
+                                            <option value="LEAD_ACID">Lead-acid</option>
+                                            <option value="FLOW">Flow battery</option>
+                                            <option value="OTHER">Other</option>
+                                        </select>
+                                    </div>
+                                )}
+                            </>
                         )}
 
-                        <div className="actions" style={{ marginTop: '15px' }}>
-                            <button type="button" onClick={() => setStep(2)}>
-                                Back
-                            </button>
-                            <button className="authenticationButton" type="submit">
-                                Next
-                            </button>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                            <button type="button" className={ghostBtn} onClick={() => setStep(2)}>Back</button>
+                            <button className={primaryBtn} type="submit">Next</button>
                         </div>
                     </form>
                 )}
 
                 {step === 4 && (
-                    <div>
-                        <h3>Add Appliances</h3>
-                        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                            <input
-                                type="text"
-                                placeholder="Appliance name (e.g. Boiler)"
-                                value={applianceName}
-                                onChange={e => setApplianceName(e.target.value)}
-                            />
-                            <input
-                                type="number"
-                                step="0.1"
-                                placeholder="Power (kW)"
-                                value={powerKw}
-                                onChange={e => setPowerKw(e.target.value)}
-                            />
-                            <button type="button" onClick={handleAddAppliance}>Add</button>
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-slate-100">Add Appliances</h3>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <input type="text" placeholder="Appliance name (e.g. Boiler)" value={applianceName} onChange={e => setApplianceName(e.target.value)} className={`${inputCls} mb-0 sm:flex-1`} />
+                            <input type="number" step="0.1" placeholder="Power (kW)" value={powerKw} onChange={e => setPowerKw(e.target.value)} className={`${inputCls} mb-0 sm:w-32`} />
+                            <button type="button" onClick={handleAddAppliance} className={ghostBtn}>Add</button>
                         </div>
 
-                        <div className="appliances-list">
+                        <div className="space-y-2">
                             {appliances.map((app, idx) => (
-                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <span>{app.name} - {app.powerConsumptionKw} kW</span>
-                                    <button type="button" onClick={() => handleRemoveAppliance(idx)}>Delete</button>
+                                <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm">
+                                    <span className="text-slate-300">{app.name} — {app.powerConsumptionKw} kW</span>
+                                    <button type="button" onClick={() => handleRemoveAppliance(idx)} className="text-rose-400 hover:text-rose-300">Delete</button>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="actions" style={{ marginTop: '15px' }}>
-                            <button type="button" onClick={() => setStep(userType === 'PROSUMER' ? 3 : 2)}>
-                                Back
-                            </button>
+                        <div className="flex flex-wrap gap-2 pt-2">
+                            <button type="button" className={ghostBtn} onClick={() => setStep(3)}>Back</button>
                             <button
-                                className="authenticationButton"
+                                className={primaryBtn}
                                 type="button"
                                 onClick={handleFinalRegister}
                                 disabled={submitting}
@@ -383,9 +376,9 @@ function Register({ switchToLogin }) {
                     </div>
                 )}
 
-                <p>
+                <p className="mt-6 text-center text-sm text-slate-400">
                     Already registered?{' '}
-                    <button className="authenticationButton" onClick={switchToLogin}>
+                    <button type="button" className="font-semibold text-emerald-400 hover:text-emerald-300" onClick={switchToLogin}>
                         Sign in
                     </button>
                 </p>

@@ -137,11 +137,11 @@ function WeatherSolarWidget({
                         <CloudSun className="h-5 w-5" />
                     </div>
                     <h3 className="text-lg font-semibold text-slate-100">
-                        {isProsumer ? 'Solar & Weather Overview' : 'Local Weather Overview'}
+                        {isProsumer ? 'Solar & Weather Overview' : 'Local Weather & Grid Outlook'}
                     </h3>
                 </div>
                 <p className="text-sm text-slate-400">
-                    {isProsumer ? 'Loading weather & solar forecast…' : 'Loading local weather…'}
+                    {isProsumer ? 'Loading weather & solar forecast…' : 'Loading local weather for your home location…'}
                 </p>
             </div>
         );
@@ -176,9 +176,16 @@ function WeatherSolarWidget({
                     }`}>
                         {isProsumer ? <Sun className="h-5 w-5" /> : <CloudSun className="h-5 w-5" />}
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-100">
-                        {isProsumer ? 'Solar & Weather Overview' : 'Local Weather Overview'}
-                    </h3>
+                    <div>
+                        <h3 className="text-lg font-semibold text-slate-100">
+                            {isProsumer ? 'Solar & Weather Overview' : 'Local Weather & Grid Outlook'}
+                        </h3>
+                        {!isProsumer && (
+                            <p className="text-xs text-slate-500">
+                                Temperature & cloud coverage for energy-aware scheduling — no PV capacity shown
+                            </p>
+                        )}
+                    </div>
                 </div>
                 {(degraded || usingFallbackLocation) && (
                     <span className="rounded-full border border-slate-700 bg-slate-950/50 px-3 py-1 text-xs text-slate-400">
@@ -221,29 +228,47 @@ function WeatherSolarWidget({
             )}
 
             {!isProsumer && (
-                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                    <div className="mb-1 flex items-center gap-2 text-sm font-medium text-slate-300">
-                        <Activity className="h-4 w-4 text-emerald-400" />
-                        Location
+                <div className="rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-950/40 to-emerald-950/30 p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                            <Activity className="h-4 w-4 text-blue-400" />
+                            Local Weather & Grid Outlook
+                        </div>
+                        <span className="rounded-full border border-slate-700 bg-slate-950/50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            {usingFallbackLocation ? 'Sibiu default' : 'Profile coords'}
+                        </span>
                     </div>
-                    <p className="text-sm text-slate-400">
-                        {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
+                    <p className="mb-3 text-xs text-slate-400">
+                        Home location: {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
                         {usingFallbackLocation ? ' (Sibiu default)' : ''}
                     </p>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {weatherMetrics.map(metric => (
+                            <div
+                                key={metric.label}
+                                className="rounded-xl border border-slate-800 bg-slate-950/50 p-3"
+                            >
+                                <p className="text-xs text-slate-500">{metric.label}</p>
+                                <p className={`mt-1 text-xl font-bold ${metric.accent}`}>{metric.value}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                {weatherMetrics.map(metric => (
-                    <div
-                        key={metric.label}
-                        className="rounded-xl border border-slate-800 bg-slate-950/50 p-3"
-                    >
-                        <p className="text-xs text-slate-500">{metric.label}</p>
-                        <p className={`mt-1 text-xl font-bold ${metric.accent}`}>{metric.value}</p>
-                    </div>
-                ))}
-            </div>
+            {isProsumer && (
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {weatherMetrics.map(metric => (
+                        <div
+                            key={metric.label}
+                            className="rounded-xl border border-slate-800 bg-slate-950/50 p-3"
+                        >
+                            <p className="text-xs text-slate-500">{metric.label}</p>
+                            <p className={`mt-1 text-xl font-bold ${metric.accent}`}>{metric.value}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <EnergyForecastWidget
                 isProsumer={isProsumer}

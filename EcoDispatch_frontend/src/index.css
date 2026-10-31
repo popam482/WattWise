@@ -20,6 +20,26 @@ body {
 
 /* Leaflet map contrast on dark UI */
 .leaflet-container {
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   background: #0f172a;
+  font: inherit;
+}
+
+/* Free OSM tiles → deep slate-navy (filter tiles only; markers stay vibrant) */
+.map-tiles-dark .leaflet-tile-container img {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
+}
+
+.map-tiles-light .leaflet-tile-container img {
+  filter: none !important;
+}
+
+.leaflet-control-zoom a {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-color: #1e293b !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #1e293b !important;
 }

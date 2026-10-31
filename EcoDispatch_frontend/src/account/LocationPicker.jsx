@@ -1,57 +1,153 @@
-import { useState } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapPin, Moon, Sun } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-import markerIconPng from 'leaflet/dist/images/marker-icon.png';
-import markerShadowPng from 'leaflet/dist/images/marker-shadow.png';
+const SIBIU = [45.7983, 24.1256];
 
-const customIcon = L.icon({
-    iconUrl: markerIconPng,
-    shadowUrl: markerShadowPng,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+const pinIcon = L.divIcon({
+    className: 'wattwise-map-pin',
+    html: `<div class="wattwise-pin-dot" style="
+        width:18px;height:18px;border-radius:9999px;
+        background:linear-gradient(135deg,#34d399,#0d9488);
+        border:2px solid #ecfdf5;
+        box-shadow:0 0 0 4px rgba(16,185,129,0.35),0 8px 16px rgba(2,6,23,0.55);
+    "></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
 });
 
-function LocationMarker({ position, setPosition }) {
+function LocationMarker({ position, onPick }) {
     useMapEvents({
         click(e) {
-            setPosition([e.latlng.lat, e.latlng.lng]);
-        },
+            onPick([e.latlng.lat, e.latlng.lng]);
+        }
     });
 
-    return position === null ? null : (
-        <Marker position={position} icon={customIcon} />
-    );
+    if (!position) return null;
+    return <Marker position={position} icon={pinIcon} />;
 }
 
-export default function LocationPicker({ onLocationSelect }) {
-    const [position, setPosition] = useState([45.7925, 24.1520]);
+function MapSizeFix({ position }) {
+    const map = useMap();
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            map.invalidateSize();
+            if (position) {
+                map.setView(position, map.getZoom(), { animate: false });
+            }
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [map, position]);
+
+    return null;
+}
+
+export default function LocationPicker({
+    onLocationSelect,
+    initialLatitude = SIBIU[0],
+    initialLongitude = SIBIU[1],
+    label = 'Click the map to set your home location'
+}) {
+    const initial = [
+        Number.isFinite(Number(initialLatitude)) ? Number(initialLatitude) : SIBIU[0],
+        Number.isFinite(Number(initialLongitude)) ? Number(initialLongitude) : SIBIU[1]
+    ];
+    const [position, setPosition] = useState(initial);
+    const [darkMap, setDarkMap] = useState(true);
+
+    useEffect(() => {
+        onLocationSelect?.({ latitude: initial[0], longitude: initial[1] });
+        // Seed parent once on mount with defaults / props
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handlePositionChange = (newPos) => {
         setPosition(newPos);
-        onLocationSelect({ latitude: newPos[0], longitude: newPos[1] });
+        onLocationSelect?.({ latitude: newPos[0], longitude: newPos[1] });
+    };
+
+    const resetToSibiu = () => {
+        handlePositionChange([...SIBIU]);
     };
 
     return (
-        <div style={{ height: '220px', width: '100%', marginBottom: '15px' }}>
-            <p style={{ fontSize: '13px', color: '#555', marginBottom: '5px' }}>
-                Click on the map to choose your consumption location:
-            </p>
-            <MapContainer
-                center={position}
-                zoom={12}
-                style={{ height: '100%', width: '100%', borderRadius: '8px' }}
+        <div className="mb-4 space-y-3">
+            {/* Scoped map theme — tiles only; marker pane stays unfiltered */}
+            <style>{`
+                .map-tiles-dark .leaflet-tile-container img {
+                    filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
+                }
+                .map-tiles-light .leaflet-tile-container img {
+                    filter: none !important;
+                }
+                .wattwise-map-pin,
+                .wattwise-map-pin .wattwise-pin-dot {
+                    filter: none !important;
+                }
+            `}</style>
+
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
+                        <MapPin className="h-4 w-4 text-emerald-400" />
+                        {label}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                        Lat {position[0].toFixed(4)} · Lon {position[1].toFixed(4)}
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setDarkMap((v) => !v)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100"
+                    >
+                        {darkMap ? (
+                            <>
+                                <Sun className="h-3.5 w-3.5 text-amber-300" />
+                                Light Map
+                            </>
+                        ) : (
+                            <>
+                                <Moon className="h-3.5 w-3.5 text-blue-300" />
+                                Dark Map
+                            </>
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={resetToSibiu}
+                        className="rounded-lg border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    >
+                        Reset to Sibiu
+                    </button>
+                </div>
+            </div>
+
+            <div
+                className={`overflow-hidden rounded-2xl border border-slate-800 shadow-lg shadow-slate-950/40 ${
+                    darkMap ? 'map-tiles-dark' : 'map-tiles-light'
+                }`}
             >
-                <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                />
-                <LocationMarker
-                    position={position}
-                    setPosition={handlePositionChange}
-                />
-            </MapContainer>
+                <div className="h-[240px] w-full sm:h-[280px]">
+                    <MapContainer
+                        center={position}
+                        zoom={12}
+                        scrollWheelZoom
+                        className="h-full w-full"
+                    >
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                        <MapSizeFix position={position} />
+                        <LocationMarker position={position} onPick={handlePositionChange} />
+                    </MapContainer>
+                </div>
+            </div>
         </div>
     );
 }

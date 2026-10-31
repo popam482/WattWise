@@ -109,19 +109,30 @@ public class EnergyProfileService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFound("User not found with id: " + userId));
 
-        if (user.getUserType() == UserType.CONSUMER) {
+        boolean isConsumer = user.getUserType() == UserType.CONSUMER;
+        Double requestedPv = dto.getPvSystemKw();
+        if (isConsumer && requestedPv != null && requestedPv > 0) {
             throw new ConsumerPhotovoltaics("Consumers don't have photovoltaics");
         }
         if (energyRepository.findByUserId(userId).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Energy profile already exists for this user");
         }
+
+        // Consumers may store location-only profiles (weather / SEN outlook); PV stays at 0.
+        Double latitude = dto.getLatitude() != null ? dto.getLatitude() : 45.7983;
+        Double longitude = dto.getLongitude() != null ? dto.getLongitude() : 24.1256;
+
         EnergyProfile profile = new EnergyProfile();
-        profile.setLatitude(dto.getLatitude());
-        profile.setLongitude(dto.getLongitude());
-        profile.setPvSystemKw(dto.getPvSystemKw());
-        profile.setAzimuth(dto.getAzimuth());
-        profile.setTilt(dto.getTilt());
-        applyBatteryFields(profile, dto);
+        profile.setLatitude(latitude);
+        profile.setLongitude(longitude);
+        profile.setPvSystemKw(isConsumer ? 0.0 : requestedPv);
+        profile.setAzimuth(isConsumer ? null : dto.getAzimuth());
+        profile.setTilt(isConsumer ? null : dto.getTilt());
+        if (!isConsumer) {
+            applyBatteryFields(profile, dto);
+        } else {
+            profile.setHasBattery(false);
+        }
         profile.setUser(user);
 
         EnergyProfile savedProfile = energyRepository.save(profile);
@@ -130,16 +141,27 @@ public class EnergyProfileService {
 
     public EnergyProfileResponseDTO updateEnergyProfile(Integer userId, EnergyProfileRequestDTO dto) {
         ownershipGuard.requireOwnership(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFound("User not found with id: " + userId));
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user id: " + userId));
 
         if (dto.getLatitude() != null) profile.setLatitude(dto.getLatitude());
         if (dto.getLongitude() != null) profile.setLongitude(dto.getLongitude());
-        if (dto.getPvSystemKw() != null) profile.setPvSystemKw(dto.getPvSystemKw());
-        if (dto.getAzimuth() != null) profile.setAzimuth(dto.getAzimuth());
-        if (dto.getTilt() != null) profile.setTilt(dto.getTilt());
-        if (dto.getHasBattery() != null) {
-            applyBatteryFields(profile, dto);
+
+        if (user.getUserType() == UserType.CONSUMER) {
+            // Keep consumers location-capable without exposing PV generation fields
+            if (dto.getPvSystemKw() != null && dto.getPvSystemKw() > 0) {
+                throw new ConsumerPhotovoltaics("Consumers don't have photovoltaics");
+            }
+            profile.setPvSystemKw(0.0);
+        } else {
+            if (dto.getPvSystemKw() != null) profile.setPvSystemKw(dto.getPvSystemKw());
+            if (dto.getAzimuth() != null) profile.setAzimuth(dto.getAzimuth());
+            if (dto.getTilt() != null) profile.setTilt(dto.getTilt());
+            if (dto.getHasBattery() != null) {
+                applyBatteryFields(profile, dto);
+            }
         }
 
         return toResponseDTO(energyRepository.save(profile));
