@@ -1,4 +1,5 @@
 import {useState, useEffect, useCallback} from 'react';
+import {Activity} from 'lucide-react';
 
 const FALLBACK_GRID = {
     Predicted_Consumption_MW: 7200,
@@ -58,9 +59,14 @@ function NationalGridWidget({userId}) {
 
     if (loading && !gridData) {
         return (
-            <div>
-                <h2>National Energy Grid Overview</h2>
-                <p style={{opacity: 0.7}}>Loading national grid data…</p>
+            <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400">
+                        <Activity className="h-5 w-5" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-slate-100">National Energy Grid (SEN)</h2>
+                </div>
+                <p className="text-sm text-slate-400">Loading national grid data…</p>
             </div>
         );
     }
@@ -79,41 +85,65 @@ function NationalGridWidget({userId}) {
     const totalFossil = data.Total_Fossil ?? data.totalFossil ?? data.total_fossil_mw ?? 0;
     const nuclear = data.Nuclear_MW ?? data.nuclearMW ?? data.nuclear_mw ?? 0;
     const timestamp = data.Timestamp ?? data.timestamp ?? '';
+    const greenPct = Math.max(0, Math.min(100, Number(greenShare) || 0));
+    const balancePositive = Number(balance) >= 0;
 
     return (
-        <div>
-            <div style={{display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', flexWrap: 'wrap'}}>
-                <h2>National Energy Grid Overview</h2>
+        <div className="space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-400">
+                        <Activity className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-semibold text-slate-100">National Energy Grid (SEN)</h2>
+                        {timestamp && (
+                            <p className="text-xs text-slate-500">
+                                Snapshot {new Date(timestamp).toLocaleString()}
+                            </p>
+                        )}
+                    </div>
+                </div>
                 {(degraded || data._fallback) && (
-                    <span style={{fontSize: 12, opacity: 0.65}}>Cached / demo-safe snapshot</span>
+                    <span className="rounded-full border border-slate-700 bg-slate-950/50 px-3 py-1 text-xs text-slate-400">
+                        Cached / demo-safe snapshot
+                    </span>
                 )}
             </div>
-            <h2>Data for {timestamp}</h2>
-            <div>
-                <div>
-                    <span>Live grid production</span>
-                    <h2>{formatValue(production)} MW</h2>
+
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="text-slate-400">Renewable share</span>
+                    <span className="font-semibold text-emerald-400">{formatValue(greenShare)}%</span>
                 </div>
-                <div>
-                    <span>Live grid consumption</span>
-                    <h2>{formatValue(consumption)} MW</h2>
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all"
+                        style={{width: `${greenPct}%`}}
+                    />
                 </div>
-                <div>
-                    <span>Grid balance</span>
-                    <h4>{formatValue(balance)} MW</h4>
-                </div>
-                <div>
-                    <span>Renewable share</span>
-                    <h2>{formatValue(greenShare)} %</h2>
-                </div>
-                <div>
-                    <span>Fossil generation</span>
-                    <h4>{formatValue(totalFossil)} MW</h4>
-                </div>
-                <div>
-                    <span>Nuclear generation</span>
-                    <h4>{formatValue(nuclear)} MW</h4>
-                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                {[
+                    {label: 'Production', value: `${formatValue(production)} MW`, tone: 'text-emerald-400'},
+                    {label: 'Consumption', value: `${formatValue(consumption)} MW`, tone: 'text-blue-400'},
+                    {
+                        label: 'Grid balance',
+                        value: `${formatValue(balance)} MW`,
+                        tone: balancePositive ? 'text-emerald-400' : 'text-amber-400'
+                    },
+                    {label: 'Fossil', value: `${formatValue(totalFossil)} MW`, tone: 'text-slate-200'},
+                    {label: 'Nuclear', value: `${formatValue(nuclear)} MW`, tone: 'text-blue-300'}
+                ].map(item => (
+                    <div
+                        key={item.label}
+                        className="rounded-xl border border-slate-800 bg-slate-950/50 p-3 backdrop-blur-md"
+                    >
+                        <p className="text-xs text-slate-500">{item.label}</p>
+                        <p className={`mt-1 text-lg font-bold ${item.tone}`}>{item.value}</p>
+                    </div>
+                ))}
             </div>
         </div>
     );

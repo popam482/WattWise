@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useState} from 'react';
+import {Cable, X} from 'lucide-react';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -13,7 +14,7 @@ const PROVIDER_CARDS = [
         id: 'SHELLY',
         title: 'Shelly Smart Meter',
         badge: 'REAL API',
-        badgeTone: '#1f8f4e',
+        badgeClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
         description: 'Optional live home-load from Shelly Cloud. Leave blank to keep using WattWise energy models.',
         real: true,
         needsCredentials: true
@@ -22,7 +23,7 @@ const PROVIDER_CARDS = [
         id: 'OPEN_METEO',
         title: 'Open-Meteo Solar Grid',
         badge: 'REAL API',
-        badgeTone: '#1f8f4e',
+        badgeClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
         description: 'Always on. Uses your Energy Profile coordinates + PV capacity for live irradiance and solar production.',
         real: true,
         needsCredentials: false,
@@ -32,13 +33,22 @@ const PROVIDER_CARDS = [
         id: 'ENTERPRISE',
         title: 'Huawei FusionSolar / Fronius',
         badge: 'ENTERPRISE',
-        badgeTone: '#5b6b7c',
+        badgeClass: 'border-slate-600 bg-slate-800/80 text-slate-300',
         description: 'Plant-level inverter connectors for enterprise demos. Uses the WattWise mock bridge until OAuth is configured.',
         real: false,
         needsCredentials: false,
         enterpriseProviders: ['HUAWEI_FUSIONSOLAR', 'FRONIUS_SOLARWEB']
     }
 ];
+
+const inputClass =
+    'w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none';
+const ghostBtn =
+    'rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+const primaryBtn =
+    'rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-40';
+const dangerBtn =
+    'rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300 hover:bg-rose-500/20 disabled:opacity-40';
 
 function ConnectProviderModal({userId, open, onClose}) {
     const [connectors, setConnectors] = useState([]);
@@ -180,118 +190,85 @@ function ConnectProviderModal({userId, open, onClose}) {
             role="dialog"
             aria-modal="true"
             aria-label="Integrations"
-            style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(12, 22, 20, 0.52)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: 16
-            }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
             onClick={onClose}
         >
             <div
-                className="auth-card"
-                style={{
-                    maxWidth: 820,
-                    width: '100%',
-                    maxHeight: '90vh',
-                    overflow: 'auto',
-                    borderRadius: 16,
-                    padding: 22
-                }}
+                className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-md"
                 onClick={e => e.stopPropagation()}
             >
-                <div style={{display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start'}}>
-                    <div>
-                        <p style={{margin: 0, fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.65}}>
-                            Integration hub
-                        </p>
-                        <h2 style={{margin: '6px 0 8px'}}>Connect external applications</h2>
-                        <p style={{margin: 0, maxWidth: 560, lineHeight: 1.45}}>
-                            WattWise already runs on Open-Meteo and on-device energy models.
-                            Link Shelly only if you want live metered load during the pitch.
-                        </p>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                            <Cable className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Integration hub</p>
+                            <h2 className="mt-1 text-xl font-semibold text-slate-100">Connect external applications</h2>
+                            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+                                WattWise already runs on Open-Meteo and on-device energy models.
+                                Link Shelly only if you want live metered load during the pitch.
+                            </p>
+                        </div>
                     </div>
-                    <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+                    <button type="button" className={ghostBtn} onClick={onClose} aria-label="Close">
+                        <X className="h-4 w-4" />
+                    </button>
                 </div>
 
-                <div
-                    style={{
-                        marginTop: 16,
-                        marginBottom: 18,
-                        padding: '12px 14px',
-                        borderRadius: 12,
-                        background: 'linear-gradient(120deg, rgba(31,143,78,0.10), rgba(40,90,140,0.08))',
-                        border: '1px solid rgba(31,143,78,0.25)'
-                    }}
-                >
-                    <strong style={{fontSize: 13}}>{softStatus(live)}</strong>
+                <div className="mt-5 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/40 to-blue-950/40 p-4">
+                    <strong className="text-sm text-slate-100">{softStatus(live)}</strong>
                     {live && (
-                        <div style={{fontSize: 12, marginTop: 4, opacity: 0.85}}>
+                        <div className="mt-1 text-xs text-slate-400">
                             PV {live.pvPowerKw ?? '—'} kW · Load {live.homeLoadKw ?? '—'} kW · {live.dataSource || 'local models'}
                         </div>
                     )}
                 </div>
 
                 {notice && (
-                    <p role="status" style={{fontSize: 13, marginTop: 0}}>{notice}</p>
+                    <p role="status" className="mt-3 text-sm text-emerald-300">{notice}</p>
                 )}
 
-                <div style={{display: 'grid', gap: 14}}>
+                <div className="mt-5 grid gap-4">
                     {PROVIDER_CARDS.map(card => (
                         <article
                             key={card.id}
-                            style={{
-                                border: '1px solid #d5e0d9',
-                                borderRadius: 14,
-                                padding: 16,
-                                background: '#fff'
-                            }}
+                            className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"
                         >
-                            <div style={{display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap'}}>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
-                                        <h3 style={{margin: 0}}>{card.title}</h3>
-                                        <span style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                            color: '#fff',
-                                            background: card.badgeTone,
-                                            borderRadius: 999,
-                                            padding: '3px 9px'
-                                        }}>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-base font-semibold text-slate-100">{card.title}</h3>
+                                        <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${card.badgeClass}`}>
                                             {card.badge}
                                         </span>
                                     </div>
-                                    <p style={{margin: '8px 0 0', fontSize: 14, lineHeight: 1.45, maxWidth: 520}}>
+                                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
                                         {card.description}
                                     </p>
                                 </div>
 
                                 {card.id === 'OPEN_METEO' && (
-                                    <button type="button" className="btn-secondary" disabled>
+                                    <button type="button" className={ghostBtn} disabled>
                                         Active by default
                                     </button>
                                 )}
 
                                 {card.id === 'SHELLY' && (
-                                    <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                                    <div className="flex flex-wrap gap-2">
                                         {shelly?.connected ? (
                                             <>
-                                                <button type="button" className="btn-secondary" disabled={busy} onClick={pullLiveHub}>
+                                                <button type="button" className={ghostBtn} disabled={busy} onClick={pullLiveHub}>
                                                     Refresh live
                                                 </button>
-                                                <button type="button" className="danger-button" disabled={busy} onClick={() => disconnect('SHELLY')}>
+                                                <button type="button" className={dangerBtn} disabled={busy} onClick={() => disconnect('SHELLY')}>
                                                     Disconnect
                                                 </button>
                                             </>
                                         ) : (
                                             <button
                                                 type="button"
-                                                className="dispatch-button"
+                                                className={primaryBtn}
                                                 disabled={busy}
                                                 onClick={() => setExpandedShelly(v => !v)}
                                             >
@@ -302,22 +279,22 @@ function ConnectProviderModal({userId, open, onClose}) {
                                 )}
 
                                 {card.id === 'ENTERPRISE' && (
-                                    <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
+                                    <div className="flex flex-wrap gap-2">
                                         {huawei?.connected ? (
-                                            <button type="button" className="danger-button" disabled={busy} onClick={() => disconnect('HUAWEI_FUSIONSOLAR')}>
+                                            <button type="button" className={dangerBtn} disabled={busy} onClick={() => disconnect('HUAWEI_FUSIONSOLAR')}>
                                                 Disconnect Huawei
                                             </button>
                                         ) : (
-                                            <button type="button" className="btn-secondary" disabled={busy} onClick={() => connectEnterprise('HUAWEI_FUSIONSOLAR')}>
+                                            <button type="button" className={ghostBtn} disabled={busy} onClick={() => connectEnterprise('HUAWEI_FUSIONSOLAR')}>
                                                 Link Huawei
                                             </button>
                                         )}
                                         {fronius?.connected ? (
-                                            <button type="button" className="danger-button" disabled={busy} onClick={() => disconnect('FRONIUS_SOLARWEB')}>
+                                            <button type="button" className={dangerBtn} disabled={busy} onClick={() => disconnect('FRONIUS_SOLARWEB')}>
                                                 Disconnect Fronius
                                             </button>
                                         ) : (
-                                            <button type="button" className="btn-secondary" disabled={busy} onClick={() => connectEnterprise('FRONIUS_SOLARWEB')}>
+                                            <button type="button" className={ghostBtn} disabled={busy} onClick={() => connectEnterprise('FRONIUS_SOLARWEB')}>
                                                 Link Fronius
                                             </button>
                                         )}
@@ -326,46 +303,19 @@ function ConnectProviderModal({userId, open, onClose}) {
                             </div>
 
                             {card.id === 'SHELLY' && shelly?.connected && (
-                                <p style={{fontSize: 13, marginBottom: 0, marginTop: 12}}>
-                                    Linked device <strong>{shelly.externalSiteId}</strong>
+                                <p className="mt-3 text-sm text-slate-400">
+                                    Linked device <strong className="text-slate-200">{shelly.externalSiteId}</strong>
                                     {shelly.realCredentials ? ' · live credentials stored' : ''}
                                 </p>
                             )}
 
                             {card.id === 'SHELLY' && expandedShelly && !shelly?.connected && (
-                                <div style={{display: 'grid', gap: 8, marginTop: 14}}>
-                                    <input
-                                        type="text"
-                                        placeholder="Device ID"
-                                        value={shellyDeviceId}
-                                        onChange={e => setShellyDeviceId(e.target.value)}
-                                        autoComplete="off"
-                                    />
-                                    <input
-                                        type="password"
-                                        placeholder="Auth Key"
-                                        value={shellyAuthKey}
-                                        onChange={e => setShellyAuthKey(e.target.value)}
-                                        autoComplete="off"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Cloud host (shelly-76-eu.shelly.cloud)"
-                                        value={shellyHost}
-                                        onChange={e => setShellyHost(e.target.value)}
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Friendly label (optional)"
-                                        value={accountLabel}
-                                        onChange={e => setAccountLabel(e.target.value)}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="dispatch-button"
-                                        disabled={busy}
-                                        onClick={connectShelly}
-                                    >
+                                <div className="mt-4 grid gap-2">
+                                    <input type="text" placeholder="Device ID" value={shellyDeviceId} onChange={e => setShellyDeviceId(e.target.value)} autoComplete="off" className={inputClass} />
+                                    <input type="password" placeholder="Auth Key" value={shellyAuthKey} onChange={e => setShellyAuthKey(e.target.value)} autoComplete="off" className={inputClass} />
+                                    <input type="text" placeholder="Cloud host (shelly-76-eu.shelly.cloud)" value={shellyHost} onChange={e => setShellyHost(e.target.value)} className={inputClass} />
+                                    <input type="text" placeholder="Friendly label (optional)" value={accountLabel} onChange={e => setAccountLabel(e.target.value)} className={inputClass} />
+                                    <button type="button" className={primaryBtn} disabled={busy} onClick={connectShelly}>
                                         Save &amp; connect Shelly
                                     </button>
                                 </div>

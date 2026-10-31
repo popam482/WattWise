@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Zap } from 'lucide-react';
 
 function Login({ onLoginSuccess, switchToRegister }) {
     const [email, setEmail] = useState('');
@@ -34,19 +35,37 @@ function Login({ onLoginSuccess, switchToRegister }) {
             });
     };
 
-    return (
-        <div className="container">
-            <div className="auth-card">
-                <h1 className="auth-title">Sign in</h1>
-                {error && <div className="error-banner" style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+    const inputCls =
+        'w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none';
 
-                <form onSubmit={handleLogin}>
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.10),_transparent_50%)]" />
+            <div className="relative w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/80 p-8 backdrop-blur-md">
+                <div className="mb-6 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.35)]">
+                        <Zap className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-100">WattWise</h1>
+                        <p className="text-sm text-slate-400">Sign in to your energy cockpit</p>
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleLogin} className="space-y-3">
                     <input
                         type="email"
                         placeholder="Email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        className={inputCls}
                     />
                     <input
                         type="password"
@@ -54,15 +73,24 @@ function Login({ onLoginSuccess, switchToRegister }) {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        className={inputCls}
                     />
-                    <button className="authenticationButton" type="submit" disabled={loading}>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-40"
+                    >
                         {loading ? 'Signing in...' : 'Sign in'}
                     </button>
                 </form>
 
-                <p>
+                <p className="mt-5 text-center text-sm text-slate-400">
                     Don't have an account?{' '}
-                    <button className="authenticationButton" onClick={switchToRegister}>
+                    <button
+                        type="button"
+                        className="font-medium text-emerald-400 hover:text-emerald-300"
+                        onClick={switchToRegister}
+                    >
                         Sign up
                     </button>
                 </p>

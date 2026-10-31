@@ -167,10 +167,10 @@ function Register({ switchToLogin }) {
     }
 
     return (
-        <div className="container">
-            <div className="auth-card">
-                <h1 className="auth-title">Sign up</h1>
-                {error && <div className="error-banner">{error}</div>}
+        <div className="flex min-h-screen items-start justify-center bg-slate-950 px-4 py-10 text-slate-100">
+            <div className="relative w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md sm:p-8 [&_input]:mb-2 [&_input]:w-full [&_input]:rounded-xl [&_input]:border [&_input]:border-slate-700 [&_input]:bg-slate-950/60 [&_input]:px-3 [&_input]:py-2 [&_input]:text-sm [&_input]:text-slate-100 [&_select]:mb-2 [&_select]:w-full [&_select]:rounded-xl [&_select]:border [&_select]:border-slate-700 [&_select]:bg-slate-950/60 [&_select]:px-3 [&_select]:py-2 [&_select]:text-sm [&_select]:text-slate-100 [&_button]:rounded-xl [&_button]:border [&_button]:border-slate-700 [&_button]:bg-slate-950/40 [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button]:text-slate-200 [&_button:hover]:bg-slate-800 [&_.authenticationButton]:border-emerald-500/30 [&_.authenticationButton]:bg-emerald-500/15 [&_.authenticationButton]:text-emerald-300 [&_h3]:mb-3 [&_h3]:text-lg [&_h3]:font-semibold [&_label]:text-sm [&_label]:text-slate-400">
+                <h1 className="mb-4 text-xl font-bold text-slate-100">Sign up to WattWise</h1>
+                {error && <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{error}</div>}
 
                 {step === 1 && (
                     <form onSubmit={handleNextStep}>

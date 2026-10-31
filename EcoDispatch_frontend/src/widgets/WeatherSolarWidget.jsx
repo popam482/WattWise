@@ -1,4 +1,5 @@
 import {useState, useEffect, useMemo} from 'react';
+import {CloudSun, Sun} from 'lucide-react';
 
 const SIBIU_LAT = 45.7983;
 const SIBIU_LON = 24.1256;
@@ -128,95 +129,101 @@ function WeatherSolarWidget({
 
     if (loading && forecastData.length === 0) {
         return (
-            <div className="weather-solar-widget">
-                <div className="widget-header">
-                    <h3>Solar & Weather Overview</h3>
+            <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                        <CloudSun className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-100">Solar & Weather Overview</h3>
                 </div>
-                <p style={{opacity: 0.7}}>Loading weather & solar forecast…</p>
+                <p className="text-sm text-slate-400">Loading weather & solar forecast…</p>
             </div>
         );
     }
 
     return (
-        <div className="weather-solar-widget">
-            <div className="widget-header">
-                <h3>Solar & Weather Overview</h3>
+        <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                        <Sun className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-100">Solar & Weather Overview</h3>
+                </div>
                 {(degraded || usingFallbackLocation) && (
-                    <span style={{fontSize: 12, opacity: 0.65}}>
+                    <span className="rounded-full border border-slate-700 bg-slate-950/50 px-3 py-1 text-xs text-slate-400">
                         {degraded
                             ? 'Using local solar estimate'
-                            : 'Using Sibiu fallback location until profile loads'}
+                            : 'Sibiu fallback until profile loads'}
                     </span>
                 )}
             </div>
 
-            <div className="pv-system-specs">
-                <h4>PV System Profile</h4>
-                <div>
+            <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                <h4 className="mb-3 text-sm font-medium text-slate-300">PV System Profile</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                     <div>
-                        <strong>Capacity:</strong> {resolvedKwp} kWp
+                        <p className="text-slate-500">Capacity</p>
+                        <p className="font-semibold text-slate-100">{resolvedKwp} kWp</p>
                     </div>
                     <div>
-                        <strong>Tilt:</strong>{' '}
-                        {energyProfile?.tilt != null ? `${energyProfile.tilt}°` : 'N/A'}
+                        <p className="text-slate-500">Tilt</p>
+                        <p className="font-semibold text-slate-100">
+                            {energyProfile?.tilt != null ? `${energyProfile.tilt}°` : 'N/A'}
+                        </p>
                     </div>
                     <div>
-                        <strong>Azimuth:</strong>{' '}
-                        {getCardinalOrientation(energyProfile?.azimuth ?? energyProfile?.azimuth_deg)}
+                        <p className="text-slate-500">Azimuth</p>
+                        <p className="font-semibold text-slate-100">
+                            {getCardinalOrientation(energyProfile?.azimuth ?? energyProfile?.azimuth_deg)}
+                        </p>
                     </div>
                     <div>
-                        <strong>Location:</strong> {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
-                        {usingFallbackLocation ? ' (Sibiu default)' : ''}
+                        <p className="text-slate-500">Location</p>
+                        <p className="font-semibold text-slate-100">
+                            {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
+                            {usingFallbackLocation ? ' (Sibiu)' : ''}
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <div className="solar-metrics-grid">
-                <div className="metric-card">
-                    <span>Current Temp</span>
-                    <h2>{current?.Temp_C ?? '—'}°C</h2>
-                </div>
-                <div className="metric-card">
-                    <span>Irradiance</span>
-                    <h4>{current?.Irradiance_W_m2 ?? '—'} W/m²</h4>
-                </div>
-                <div className="metric-card">
-                    <span>Cloud Coverage</span>
-                    <h4>{current?.Cloud_Cover ?? '—'} %</h4>
-                </div>
-                <div className="metric-card">
-                    <span>Estimated PV Power</span>
-                    <h2>{current?.Estimated_PV_Power_kW ?? '—'} kW</h2>
-                </div>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {[
+                    {label: 'Current Temp', value: `${current?.Temp_C ?? '—'}°C`, accent: 'text-blue-400'},
+                    {label: 'Irradiance', value: `${current?.Irradiance_W_m2 ?? '—'} W/m²`, accent: 'text-emerald-400'},
+                    {label: 'Cloud Coverage', value: `${current?.Cloud_Cover ?? '—'} %`, accent: 'text-slate-200'},
+                    {label: 'Estimated PV', value: `${current?.Estimated_PV_Power_kW ?? '—'} kW`, accent: 'text-emerald-400'}
+                ].map(metric => (
+                    <div
+                        key={metric.label}
+                        className="rounded-xl border border-slate-800 bg-slate-950/50 p-3"
+                    >
+                        <p className="text-xs text-slate-500">{metric.label}</p>
+                        <p className={`mt-1 text-xl font-bold ${metric.accent}`}>{metric.value}</p>
+                    </div>
+                ))}
             </div>
 
             {nextHours.length > 0 && (
-                <div style={{marginTop: 18}}>
-                    <h4 style={{margin: '0 0 10px'}}>Near-term solar production</h4>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: `repeat(${nextHours.length}, minmax(0, 1fr))`,
-                        alignItems: 'end',
-                        gap: 6,
-                        minHeight: 110,
-                        padding: '8px 4px 0'
-                    }}>
+                <div>
+                    <h4 className="mb-3 text-sm font-medium text-slate-300">Near-term solar production</h4>
+                    <div
+                        className="grid items-end gap-1.5"
+                        style={{gridTemplateColumns: `repeat(${nextHours.length}, minmax(0, 1fr))`, minHeight: 110}}
+                    >
                         {nextHours.map((item) => {
                             const pv = Number(item.Estimated_PV_Power_kW) || 0;
                             const height = Math.max(6, Math.round((pv / maxPv) * 100));
                             const hourLabel = new Date(item.Time).getHours().toString().padStart(2, '0');
                             return (
-                                <div key={item.Time} style={{textAlign: 'center'}}>
+                                <div key={item.Time} className="text-center">
                                     <div
                                         title={`${pv} kW`}
-                                        style={{
-                                            height: `${height}px`,
-                                            borderRadius: '8px 8px 2px 2px',
-                                            background: 'linear-gradient(180deg, #3ecf8e 0%, #1f8f4e 100%)',
-                                            marginBottom: 6
-                                        }}
+                                        className="mx-auto mb-1.5 w-full max-w-[18px] rounded-t-md bg-gradient-to-b from-emerald-400 to-emerald-700"
+                                        style={{height: `${height}px`}}
                                     />
-                                    <div style={{fontSize: 11, opacity: 0.75}}>{hourLabel}</div>
+                                    <div className="text-[10px] text-slate-500">{hourLabel}</div>
                                 </div>
                             );
                         })}
