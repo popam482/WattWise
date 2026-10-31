@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../index.css';
+import { ThemeProvider } from '../theme/ThemeContext.jsx';
 import Login from '../account/Login.jsx';
 import Register from '../account/Register.jsx';
 import Dashboard from '../dashboard/Dashboard.jsx';
@@ -84,4 +85,8 @@ function App() {
 
 export default App;
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+    <ThemeProvider>
+        <App />
+    </ThemeProvider>
+);

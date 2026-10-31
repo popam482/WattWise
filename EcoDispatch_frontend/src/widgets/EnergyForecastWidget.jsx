@@ -284,11 +284,11 @@ function EnergyForecastWidget({
     }, [pricePayload, hours]);
 
     const priceBadge = {
-        loading: {label: 'Loading…', className: 'border-slate-700 bg-slate-950/50 text-slate-400'},
-        live: {label: 'LIVE · Energy-Charts', className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'},
-        cached: {label: 'Cached / Optimized', className: 'border-blue-500/30 bg-blue-500/10 text-blue-300'},
-        optimized: {label: 'Cached / Optimized', className: 'border-amber-500/30 bg-amber-500/10 text-amber-300'}
-    }[priceStatus] || {label: 'Cached / Optimized', className: 'border-slate-700 bg-slate-950/50 text-slate-400'};
+        loading: {label: 'Loading…', className: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400'},
+        live: {label: 'LIVE · Energy-Charts', className: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'},
+        cached: {label: 'Cached / Optimized', className: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'},
+        optimized: {label: 'Cached / Optimized', className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'}
+    }[priceStatus] || {label: 'Cached / Optimized', className: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400'};
 
     const selectTab = (tabId) => {
         setActiveTab(tabId);
@@ -302,7 +302,7 @@ function EnergyForecastWidget({
                 ? 'Local solar production (kW) from irradiance × your PV capacity'
                 : 'National grid renewable surplus outlook (wind / hydro / solar mix)',
             icon: isProsumer ? Sun : Wind,
-            accent: isProsumer ? 'text-emerald-400' : 'text-blue-400'
+            accent: isProsumer ? 'text-emerald-700 dark:text-emerald-400' : 'text-blue-700 dark:text-blue-400'
         },
         price: {
             title: priceStatus === 'live'
@@ -314,22 +314,22 @@ function EnergyForecastWidget({
                     ? 'Serving 1-hour local cache · avoids Energy-Charts rate limits'
                     : 'RO peak / solar-dunkelflaute tariff curve · demo-safe',
             icon: TrendingUp,
-            accent: 'text-amber-300'
+            accent: 'text-amber-700 dark:text-amber-300'
         },
         carbon: {
             title: 'Grid Carbon Intensity',
             subtitle: 'SEN footprint outlook (gCO₂/kWh) — greener bars favor flexible loads',
             icon: Leaf,
-            accent: 'text-emerald-400'
+            accent: 'text-emerald-700 dark:text-emerald-400'
         }
     }[activeTab];
 
     const Icon = activeMeta.icon;
 
     return (
-        <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+        <div className="space-y-4 rounded-xl border border-emerald-100/80 bg-emerald-50/40 p-4 dark:border-slate-800 dark:bg-slate-950/40">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-1 rounded-xl border border-slate-800 bg-slate-900/80 p-1">
+                <div className="flex flex-wrap gap-1 rounded-xl border border-emerald-100 bg-white p-1 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none">
                     {TABS.map((tab) => {
                         const selected = activeTab === tab.id;
                         return (
@@ -339,8 +339,8 @@ function EnergyForecastWidget({
                                 onClick={() => selectTab(tab.id)}
                                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-[13px] ${
                                     selected
-                                        ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-300'
-                                        : 'border border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                                        ? 'border border-transparent bg-emerald-600 text-white dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300'
+                                        : 'border border-transparent text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
                                 }`}
                             >
                                 {tab.label}
@@ -354,8 +354,8 @@ function EnergyForecastWidget({
                     onClick={() => setAutoRotate((v) => !v)}
                     className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
                         autoRotate
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                            : 'border-slate-700 bg-slate-950/60 text-slate-400 hover:bg-slate-800'
+                            ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-400 dark:hover:bg-slate-800'
                     }`}
                     aria-pressed={autoRotate}
                 >
@@ -366,12 +366,12 @@ function EnergyForecastWidget({
 
             <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-900/80 ${activeMeta.accent}`}>
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-100 bg-white dark:border-slate-700 dark:bg-slate-900/80 ${activeMeta.accent}`}>
                         <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-semibold text-slate-100">{activeMeta.title}</h4>
-                        <p className="text-xs text-slate-500">{activeMeta.subtitle}</p>
+                        <h4 className="text-sm font-semibold text-emerald-950 dark:text-slate-100">{activeMeta.title}</h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">{activeMeta.subtitle}</p>
                     </div>
                 </div>
                 {activeTab === 'price' && (
@@ -380,7 +380,7 @@ function EnergyForecastWidget({
                     </span>
                 )}
                 {activeTab === 'generation' && !isProsumer && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-300">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">
                         <Activity className="h-3 w-3" />
                         SEN Grid
                     </span>
@@ -473,12 +473,12 @@ function ForecastBars({
                                 }`}
                                 style={{height: `${height}px`}}
                             />
-                            <div className="text-[10px] text-slate-500">{getLabel(row)}</div>
+                            <div className="text-[10px] text-slate-600 dark:text-slate-400">{getLabel(row)}</div>
                         </div>
                     );
                 })}
             </div>
-            {footer && <p className="mt-3 text-xs leading-relaxed text-slate-500">{footer}</p>}
+            {footer && <p className="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{footer}</p>}
         </div>
     );
 }

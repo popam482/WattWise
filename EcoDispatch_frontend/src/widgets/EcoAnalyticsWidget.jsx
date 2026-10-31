@@ -36,7 +36,7 @@ function EcoAnalyticsWidget({userId, onAnalyticsLoaded}) {
 
     if (loading) {
         return (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 text-sm text-slate-400 backdrop-blur-md">
+            <div className="rounded-2xl border border-emerald-100/80 bg-white p-6 text-sm text-slate-600 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 dark:shadow-none dark:backdrop-blur-md">
                 Loading Eco Impact Statistics...
             </div>
         );
@@ -51,33 +51,33 @@ function EcoAnalyticsWidget({userId, onAnalyticsLoaded}) {
             icon: Leaf,
             label: 'Total CO₂ Avoided',
             value: `${analytics.totalSavedCo2Kg} kg`,
-            tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+            tone: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400'
         },
         {
             icon: BarChart3,
             label: 'Optimized Runs',
             value: analytics.totalCompletedTasks,
-            tone: 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+            tone: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400'
         },
         {
             icon: Car,
             label: 'Car Driving Equivalence',
             value: `${analytics.equivalentCarKm} km`,
-            tone: 'border-slate-700 bg-slate-950/50 text-slate-200'
+            tone: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-200'
         },
         {
             icon: Trees,
             label: 'Trees Absorbing CO₂ / Month',
             value: analytics.equivalentTreesPlanted,
-            tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+            tone: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
         }
     ];
 
     return (
         <div className="space-y-5">
             <div>
-                <h2 className="text-lg font-semibold text-slate-100">Historical Eco-Impact & Analytics</h2>
-                <p className="mt-1 text-sm text-slate-400">
+                <h2 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">Historical Eco-Impact & Analytics</h2>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                     Lifetime impact from optimized appliance schedules.
                 </p>
             </div>
@@ -89,14 +89,14 @@ function EcoAnalyticsWidget({userId, onAnalyticsLoaded}) {
                         className={`rounded-2xl border p-4 backdrop-blur-md ${tone}`}
                     >
                         <Icon className="mb-3 h-5 w-5 opacity-80" />
-                        <p className="text-2xl font-bold text-slate-100">{value}</p>
-                        <p className="mt-1 text-xs text-slate-400">{label}</p>
+                        <p className="text-2xl font-bold text-emerald-950 dark:text-slate-100">{value}</p>
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{label}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-sm leading-relaxed text-slate-400">
-                <h3 className="mb-2 text-sm font-medium text-slate-200">How is this calculated?</h3>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+                <h3 className="mb-2 text-sm font-medium text-slate-800 dark:text-slate-200">How is this calculated?</h3>
                 <p>
                     WattWise compares your scheduled run times against a
                     counterfactual baseline (peak-hour grid carbon intensity)

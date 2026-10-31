@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (toggled on <html class="dark">) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --color-slate-850: #0f172a;
@@ -13,16 +16,31 @@ body,
 
 body {
   margin: 0;
-  background: #020617;
-  color: #f1f5f9;
   font-family: var(--font-sans);
 }
 
-/* Leaflet map contrast on dark UI */
+html.dark body,
+html.dark {
+  background: #020617;
+  color: #f1f5f9;
+}
+
+html.light body,
+html:not(.dark) body {
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 45%, #f1f5f9 100%);
+  background-attachment: fixed;
+  color: #0f172a;
+}
+
+/* Leaflet map contrast — follows global theme */
 .leaflet-container {
   border-radius: 1rem;
-  background: #0f172a;
+  background: #f8fafc;
   font: inherit;
+}
+
+html.dark .leaflet-container {
+  background: #0f172a;
 }
 
 /* Free OSM tiles → deep slate-navy (filter tiles only; markers stay vibrant) */
@@ -35,11 +53,21 @@ body {
 }
 
 .leaflet-control-zoom a {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #f1f5f9 !important;
+}
+
+html.dark .leaflet-control-zoom a {
   background: #0f172a !important;
   color: #e2e8f0 !important;
   border-color: #1e293b !important;
 }
 
-.leaflet-control-zoom a:hover {
+html.dark .leaflet-control-zoom a:hover {
   background: #1e293b !important;
 }

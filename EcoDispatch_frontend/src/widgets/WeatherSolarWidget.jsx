@@ -7,6 +7,11 @@ const SIBIU_LON = 24.1256;
 const DEFAULT_KWP = 5;
 const PERFORMANCE_FACTOR = 0.8;
 
+const metricCard =
+    'rounded-xl border border-emerald-100/80 bg-white p-3 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none';
+const labelCls = 'text-xs text-slate-600 dark:text-slate-400';
+const valueBase = 'mt-1 text-xl font-bold';
+
 function WeatherSolarWidget({
     energyProfile,
     latitude,
@@ -133,14 +138,14 @@ function WeatherSolarWidget({
         return (
             <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
                         <CloudSun className="h-5 w-5" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-100">
+                    <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
                         {isProsumer ? 'Solar & Weather Overview' : 'Local Weather & Grid Outlook'}
                     </h3>
                 </div>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                     {isProsumer ? 'Loading weather & solar forecast…' : 'Loading local weather for your home location…'}
                 </p>
             </div>
@@ -149,19 +154,19 @@ function WeatherSolarWidget({
 
     const weatherMetrics = isProsumer
         ? [
-            {label: 'Current Temp', value: `${current?.Temp_C ?? '—'}°C`, accent: 'text-blue-400'},
-            {label: 'Irradiance', value: `${current?.Irradiance_W_m2 ?? '—'} W/m²`, accent: 'text-emerald-400'},
-            {label: 'Cloud Coverage', value: `${current?.Cloud_Cover ?? '—'} %`, accent: 'text-slate-200'},
-            {label: 'Estimated PV', value: `${current?.Estimated_PV_Power_kW ?? '—'} kW`, accent: 'text-emerald-400'}
+            {label: 'Current Temp', value: `${current?.Temp_C ?? '—'}°C`, accent: 'text-blue-700 dark:text-blue-400'},
+            {label: 'Irradiance', value: `${current?.Irradiance_W_m2 ?? '—'} W/m²`, accent: 'text-emerald-700 dark:text-emerald-400'},
+            {label: 'Cloud Coverage', value: `${current?.Cloud_Cover ?? '—'} %`, accent: 'text-slate-800 dark:text-slate-200'},
+            {label: 'Estimated PV', value: `${current?.Estimated_PV_Power_kW ?? '—'} kW`, accent: 'text-emerald-700 dark:text-emerald-400'}
         ]
         : [
-            {label: 'Current Temp', value: `${current?.Temp_C ?? '—'}°C`, accent: 'text-blue-400'},
-            {label: 'Cloud Coverage', value: `${current?.Cloud_Cover ?? '—'} %`, accent: 'text-slate-200'},
-            {label: 'Irradiance', value: `${current?.Irradiance_W_m2 ?? '—'} W/m²`, accent: 'text-slate-200'},
+            {label: 'Current Temp', value: `${current?.Temp_C ?? '—'}°C`, accent: 'text-blue-700 dark:text-blue-400'},
+            {label: 'Cloud Coverage', value: `${current?.Cloud_Cover ?? '—'} %`, accent: 'text-slate-800 dark:text-slate-200'},
+            {label: 'Irradiance', value: `${current?.Irradiance_W_m2 ?? '—'} W/m²`, accent: 'text-slate-800 dark:text-slate-200'},
             {
                 label: 'Grid Carbon Now',
                 value: carbonIntensity != null ? `${carbonIntensity} g` : '—',
-                accent: 'text-emerald-400'
+                accent: 'text-emerald-700 dark:text-emerald-400'
             }
         ];
 
@@ -171,24 +176,24 @@ function WeatherSolarWidget({
                 <div className="flex items-center gap-3">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
                         isProsumer
-                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                            : 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+                            ? 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400'
+                            : 'border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400'
                     }`}>
                         {isProsumer ? <Sun className="h-5 w-5" /> : <CloudSun className="h-5 w-5" />}
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-slate-100">
+                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
                             {isProsumer ? 'Solar & Weather Overview' : 'Local Weather & Grid Outlook'}
                         </h3>
                         {!isProsumer && (
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-600 dark:text-slate-400">
                                 Temperature & cloud coverage for energy-aware scheduling — no PV capacity shown
                             </p>
                         )}
                     </div>
                 </div>
                 {(degraded || usingFallbackLocation) && (
-                    <span className="rounded-full border border-slate-700 bg-slate-950/50 px-3 py-1 text-xs text-slate-400">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
                         {degraded
                             ? 'Using local weather estimate'
                             : 'Sibiu fallback until profile loads'}
@@ -197,28 +202,28 @@ function WeatherSolarWidget({
             </div>
 
             {isProsumer && (
-                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                    <h4 className="mb-3 text-sm font-medium text-slate-300">PV System Profile</h4>
+                <div className="rounded-xl border border-emerald-100/80 bg-emerald-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                    <h4 className="mb-3 text-sm font-medium text-slate-800 dark:text-slate-300">PV System Profile</h4>
                     <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                         <div>
-                            <p className="text-slate-500">Capacity</p>
-                            <p className="font-semibold text-slate-100">{resolvedKwp} kWp</p>
+                            <p className="text-slate-600 dark:text-slate-400">Capacity</p>
+                            <p className="font-semibold text-emerald-950 dark:text-slate-100">{resolvedKwp} kWp</p>
                         </div>
                         <div>
-                            <p className="text-slate-500">Tilt</p>
-                            <p className="font-semibold text-slate-100">
+                            <p className="text-slate-600 dark:text-slate-400">Tilt</p>
+                            <p className="font-semibold text-emerald-950 dark:text-slate-100">
                                 {energyProfile?.tilt != null ? `${energyProfile.tilt}°` : 'N/A'}
                             </p>
                         </div>
                         <div>
-                            <p className="text-slate-500">Azimuth</p>
-                            <p className="font-semibold text-slate-100">
+                            <p className="text-slate-600 dark:text-slate-400">Azimuth</p>
+                            <p className="font-semibold text-emerald-950 dark:text-slate-100">
                                 {getCardinalOrientation(energyProfile?.azimuth ?? energyProfile?.azimuth_deg)}
                             </p>
                         </div>
                         <div>
-                            <p className="text-slate-500">Location</p>
-                            <p className="font-semibold text-slate-100">
+                            <p className="text-slate-600 dark:text-slate-400">Location</p>
+                            <p className="font-semibold text-emerald-950 dark:text-slate-100">
                                 {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
                                 {usingFallbackLocation ? ' (Sibiu)' : ''}
                             </p>
@@ -228,28 +233,25 @@ function WeatherSolarWidget({
             )}
 
             {!isProsumer && (
-                <div className="rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-950/40 to-emerald-950/30 p-4">
+                <div className="rounded-xl border border-sky-200/80 bg-gradient-to-r from-sky-50/80 to-emerald-50/60 p-4 dark:border-blue-500/20 dark:from-blue-950/40 dark:to-emerald-950/30">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
-                            <Activity className="h-4 w-4 text-blue-400" />
+                        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-950 dark:text-slate-100">
+                            <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                             Local Weather & Grid Outlook
                         </div>
-                        <span className="rounded-full border border-slate-700 bg-slate-950/50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        <span className="rounded-full border border-blue-200 bg-blue-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
                             {usingFallbackLocation ? 'Sibiu default' : 'Profile coords'}
                         </span>
                     </div>
-                    <p className="mb-3 text-xs text-slate-400">
+                    <p className="mb-3 text-xs text-slate-600 dark:text-slate-400">
                         Home location: {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
                         {usingFallbackLocation ? ' (Sibiu default)' : ''}
                     </p>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                         {weatherMetrics.map(metric => (
-                            <div
-                                key={metric.label}
-                                className="rounded-xl border border-slate-800 bg-slate-950/50 p-3"
-                            >
-                                <p className="text-xs text-slate-500">{metric.label}</p>
-                                <p className={`mt-1 text-xl font-bold ${metric.accent}`}>{metric.value}</p>
+                            <div key={metric.label} className={metricCard}>
+                                <p className={labelCls}>{metric.label}</p>
+                                <p className={`${valueBase} ${metric.accent}`}>{metric.value}</p>
                             </div>
                         ))}
                     </div>
@@ -259,12 +261,9 @@ function WeatherSolarWidget({
             {isProsumer && (
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     {weatherMetrics.map(metric => (
-                        <div
-                            key={metric.label}
-                            className="rounded-xl border border-slate-800 bg-slate-950/50 p-3"
-                        >
-                            <p className="text-xs text-slate-500">{metric.label}</p>
-                            <p className={`mt-1 text-xl font-bold ${metric.accent}`}>{metric.value}</p>
+                        <div key={metric.label} className={metricCard}>
+                            <p className={labelCls}>{metric.label}</p>
+                            <p className={`${valueBase} ${metric.accent}`}>{metric.value}</p>
                         </div>
                     ))}
                 </div>

@@ -5,11 +5,11 @@ import LocationPicker from './LocationPicker.jsx';
 const SIBIU = {latitude: 45.7983, longitude: 24.1256};
 
 const inputCls =
-    'mb-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40';
+    'mb-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500';
 const ghostBtn =
-    'rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-800';
+    'rounded-xl border border-emerald-100 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-slate-800';
 const primaryBtn =
-    'rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition-all hover:from-emerald-400 hover:to-teal-500 disabled:cursor-not-allowed disabled:opacity-50';
+    'rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gradient-to-r dark:from-emerald-500 dark:to-teal-600 dark:text-slate-950 dark:shadow-emerald-500/20 dark:hover:from-emerald-400 dark:hover:to-teal-500';
 
 function Register({ switchToLogin }) {
     const [step, setStep] = useState(1);
@@ -179,21 +179,21 @@ function Register({ switchToLogin }) {
     }
 
     return (
-        <div className="flex min-h-screen items-start justify-center bg-slate-950 px-4 py-8 text-slate-100 sm:py-10">
-            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.10),_transparent_50%)]" />
-            <div className="relative mx-auto w-full max-w-2xl rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+        <div className="flex min-h-screen items-start justify-center bg-gradient-to-br from-emerald-50/50 via-teal-50/20 to-slate-100 px-4 py-8 text-slate-900 sm:py-10 dark:bg-slate-950 dark:bg-none dark:text-slate-100">
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.12),_transparent_50%)]" />
+            <div className="relative mx-auto w-full max-w-2xl rounded-2xl border border-emerald-100/80 bg-white p-6 shadow-2xl shadow-emerald-900/10 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none dark:backdrop-blur-xl sm:p-8">
                 <div className="mb-6 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.35)]">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-100 text-emerald-700 shadow-sm dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400 dark:shadow-[0_0_24px_rgba(16,185,129,0.35)]">
                         <Zap className="h-5 w-5" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-100">Sign up to WattWise</h1>
-                        <p className="text-sm text-slate-400">Step {step} of 4</p>
+                        <h1 className="text-xl font-bold text-emerald-950 dark:text-slate-100">Sign up to WattWise</h1>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Step {step} of 4</p>
                     </div>
                 </div>
 
                 {error && (
-                    <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                    <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
                         {error}
                     </div>
                 )}
@@ -209,14 +209,14 @@ function Register({ switchToLogin }) {
 
                 {step === 2 && (
                     <form onSubmit={handleNextStep} className="space-y-4">
-                        <h3 className="text-lg font-semibold text-slate-100">Are you a prosumer or consumer?</h3>
+                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">Are you a prosumer or consumer?</h3>
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 type="button"
                                 className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
                                     userType === 'CONSUMER'
-                                        ? 'border-blue-500/40 bg-blue-500/15 text-blue-300'
-                                        : 'border-slate-700 bg-slate-950/50 text-slate-400 hover:bg-slate-800'
+                                        ? 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-300'
+                                        : 'border-emerald-100 bg-white text-slate-600 hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400 dark:hover:bg-slate-800'
                                 }`}
                                 onClick={() => setUserType('CONSUMER')}
                             >
@@ -226,8 +226,8 @@ function Register({ switchToLogin }) {
                                 type="button"
                                 className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
                                     userType === 'PROSUMER'
-                                        ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-                                        : 'border-slate-700 bg-slate-950/50 text-slate-400 hover:bg-slate-800'
+                                        ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300'
+                                        : 'border-emerald-100 bg-white text-slate-600 hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400 dark:hover:bg-slate-800'
                                 }`}
                                 onClick={() => setUserType('PROSUMER')}
                             >
@@ -257,10 +257,10 @@ function Register({ switchToLogin }) {
 
                 {step === 3 && (
                     <form onSubmit={handleNextStep} className="space-y-4">
-                        <h3 className="text-lg font-semibold text-slate-100">
+                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
                             {userType === 'PROSUMER' ? 'Location & PV details' : 'Your home location'}
                         </h3>
-                        <p className="text-sm text-slate-400">
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
                             {userType === 'PROSUMER'
                                 ? 'We use this for live solar irradiance and local weather.'
                                 : 'Used for local weather and SEN grid outlook — no solar capacity required.'}
@@ -278,7 +278,7 @@ function Register({ switchToLogin }) {
                         {userType === 'PROSUMER' && (
                             <>
                                 <div>
-                                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
                                         Panels Orientation (Azimuth)
                                     </label>
                                     <select
@@ -296,7 +296,7 @@ function Register({ switchToLogin }) {
                                 </div>
 
                                 <div>
-                                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
                                         Panels Tilt (Degrees)
                                     </label>
                                     <input
@@ -310,7 +310,7 @@ function Register({ switchToLogin }) {
                                     />
                                 </div>
 
-                                <label className="flex items-center gap-2 text-sm text-slate-300">
+                                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                                     <input
                                         type="checkbox"
                                         checked={hasBattery}
@@ -346,7 +346,7 @@ function Register({ switchToLogin }) {
 
                 {step === 4 && (
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-slate-100">Add Appliances</h3>
+                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">Add Appliances</h3>
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <input type="text" placeholder="Appliance name (e.g. Boiler)" value={applianceName} onChange={e => setApplianceName(e.target.value)} className={`${inputCls} mb-0 sm:flex-1`} />
                             <input type="number" step="0.1" placeholder="Power (kW)" value={powerKw} onChange={e => setPowerKw(e.target.value)} className={`${inputCls} mb-0 sm:w-32`} />
@@ -355,9 +355,9 @@ function Register({ switchToLogin }) {
 
                         <div className="space-y-2">
                             {appliances.map((app, idx) => (
-                                <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-sm">
-                                    <span className="text-slate-300">{app.name} — {app.powerConsumptionKw} kW</span>
-                                    <button type="button" onClick={() => handleRemoveAppliance(idx)} className="text-rose-400 hover:text-rose-300">Delete</button>
+                                <div key={idx} className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/50">
+                                    <span className="text-slate-700 dark:text-slate-300">{app.name} — {app.powerConsumptionKw} kW</span>
+                                    <button type="button" onClick={() => handleRemoveAppliance(idx)} className="text-rose-600 hover:text-rose-500 dark:text-rose-400 dark:hover:text-rose-300">Delete</button>
                                 </div>
                             ))}
                         </div>
@@ -376,9 +376,9 @@ function Register({ switchToLogin }) {
                     </div>
                 )}
 
-                <p className="mt-6 text-center text-sm text-slate-400">
+                <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
                     Already registered?{' '}
-                    <button type="button" className="font-semibold text-emerald-400 hover:text-emerald-300" onClick={switchToLogin}>
+                    <button type="button" className="font-semibold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300" onClick={switchToLogin}>
                         Sign in
                     </button>
                 </p>

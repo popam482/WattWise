@@ -1,12 +1,29 @@
 <!doctype html>
-<html lang="en" class="dark bg-slate-950">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WattWise</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('wattwise_theme') || 'dark';
+          var root = document.documentElement;
+          if (theme === 'light') {
+            root.classList.remove('dark');
+            root.classList.add('light', 'bg-slate-50');
+          } else {
+            root.classList.add('dark', 'bg-slate-950');
+            root.classList.remove('light');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark', 'bg-slate-950');
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-slate-950 text-slate-100 antialiased">
+  <body class="antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main/Main.jsx"></script>
   </body>

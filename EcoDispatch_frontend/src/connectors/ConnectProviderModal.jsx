@@ -14,7 +14,7 @@ const PROVIDER_CARDS = [
         id: 'SHELLY',
         title: 'Shelly Smart Meter',
         badge: 'REAL API',
-        badgeClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+        badgeClass: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
         description: 'Optional live home-load from Shelly Cloud. Leave blank to keep using WattWise energy models.',
         real: true,
         needsCredentials: true
@@ -23,7 +23,7 @@ const PROVIDER_CARDS = [
         id: 'OPEN_METEO',
         title: 'Open-Meteo Solar Grid',
         badge: 'REAL API',
-        badgeClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300',
+        badgeClass: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
         description: 'Always on. Uses your Energy Profile coordinates + PV capacity for live irradiance and solar production.',
         real: true,
         needsCredentials: false,
@@ -33,7 +33,7 @@ const PROVIDER_CARDS = [
         id: 'ENTERPRISE',
         title: 'Huawei FusionSolar / Fronius',
         badge: 'ENTERPRISE',
-        badgeClass: 'border-slate-600 bg-slate-800/80 text-slate-300',
+        badgeClass: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-300',
         description: 'Plant-level inverter connectors for enterprise demos. Uses the WattWise mock bridge until OAuth is configured.',
         real: false,
         needsCredentials: false,
@@ -42,13 +42,13 @@ const PROVIDER_CARDS = [
 ];
 
 const inputClass =
-    'w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none';
+    'w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-500/50';
 const ghostBtn =
-    'rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40';
+    'rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300 dark:hover:bg-slate-800';
 const primaryBtn =
-    'rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-40';
+    'rounded-xl border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25';
 const dangerBtn =
-    'rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300 hover:bg-rose-500/20 disabled:opacity-40';
+    'rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100 disabled:opacity-40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20';
 
 function ConnectProviderModal({userId, open, onClose}) {
     const [connectors, setConnectors] = useState([]);
@@ -190,22 +190,22 @@ function ConnectProviderModal({userId, open, onClose}) {
             role="dialog"
             aria-modal="true"
             aria-label="Integrations"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 p-4 backdrop-blur-sm dark:bg-slate-950/70"
             onClick={onClose}
         >
             <div
-                className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-md"
+                className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-emerald-100/80 bg-white p-6 shadow-2xl shadow-emerald-900/10 dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-none dark:backdrop-blur-md"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
                             <Cable className="h-5 w-5" />
                         </div>
                         <div>
-                            <p className="text-xs uppercase tracking-[0.12em] text-slate-500">Integration hub</p>
-                            <h2 className="mt-1 text-xl font-semibold text-slate-100">Connect external applications</h2>
-                            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+                            <p className="text-xs uppercase tracking-[0.12em] text-slate-600 dark:text-slate-400">Integration hub</p>
+                            <h2 className="mt-1 text-xl font-semibold text-emerald-950 dark:text-slate-100">Connect external applications</h2>
+                            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                                 WattWise already runs on Open-Meteo and on-device energy models.
                                 Link Shelly only if you want live metered load during the pitch.
                             </p>
@@ -216,34 +216,34 @@ function ConnectProviderModal({userId, open, onClose}) {
                     </button>
                 </div>
 
-                <div className="mt-5 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/40 to-blue-950/40 p-4">
-                    <strong className="text-sm text-slate-100">{softStatus(live)}</strong>
+                <div className="mt-5 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-sky-50 p-4 dark:border-emerald-500/20 dark:from-emerald-950/40 dark:to-blue-950/40">
+                    <strong className="text-sm text-emerald-950 dark:text-slate-100">{softStatus(live)}</strong>
                     {live && (
-                        <div className="mt-1 text-xs text-slate-400">
+                        <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                             PV {live.pvPowerKw ?? '—'} kW · Load {live.homeLoadKw ?? '—'} kW · {live.dataSource || 'local models'}
                         </div>
                     )}
                 </div>
 
                 {notice && (
-                    <p role="status" className="mt-3 text-sm text-emerald-300">{notice}</p>
+                    <p role="status" className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>
                 )}
 
                 <div className="mt-5 grid gap-4">
                     {PROVIDER_CARDS.map(card => (
                         <article
                             key={card.id}
-                            className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"
+                            className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 dark:border-slate-800 dark:bg-slate-950/50"
                         >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <h3 className="text-base font-semibold text-slate-100">{card.title}</h3>
+                                        <h3 className="text-base font-semibold text-emerald-950 dark:text-slate-100">{card.title}</h3>
                                         <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${card.badgeClass}`}>
                                             {card.badge}
                                         </span>
                                     </div>
-                                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+                                    <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                                         {card.description}
                                     </p>
                                 </div>
@@ -303,8 +303,8 @@ function ConnectProviderModal({userId, open, onClose}) {
                             </div>
 
                             {card.id === 'SHELLY' && shelly?.connected && (
-                                <p className="mt-3 text-sm text-slate-400">
-                                    Linked device <strong className="text-slate-200">{shelly.externalSiteId}</strong>
+                                <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
+                                    Linked device <strong className="text-emerald-950 dark:text-slate-200">{shelly.externalSiteId}</strong>
                                     {shelly.realCredentials ? ' · live credentials stored' : ''}
                                 </p>
                             )}

@@ -1,24 +1,25 @@
 ﻿import {useState, useEffect, useCallback} from 'react';
-import {Sun, Plug, Zap, Leaf, Cable, LogOut, Plus, Activity} from 'lucide-react';
+import {Sun, Moon, Plug, Zap, Leaf, Cable, LogOut, Plus, Activity} from 'lucide-react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 import HabitLearningSettings from '../privacy/HabitLearningSettings';
 import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
 import ConnectProviderModal from "../connectors/ConnectProviderModal.jsx";
+import {useTheme} from '../theme/ThemeContext.jsx';
 
-const glass = "rounded-2xl border border-slate-800 bg-slate-900/80 backdrop-blur-md";
-const inputCls = "w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none";
+const glass = "rounded-2xl border border-emerald-100/80 bg-white shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none dark:backdrop-blur-md";
+const inputCls = "w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-500/50";
 const selectCls = inputCls;
-const ghostBtn = "rounded-xl border border-slate-700 bg-transparent px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-800";
-const primaryBtn = "rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40";
-const dangerText = "text-sm text-rose-400 hover:text-rose-300";
-const softText = "text-sm text-slate-400 hover:text-slate-200";
+const ghostBtn = "rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-emerald-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800";
+const primaryBtn = "rounded-xl border border-transparent bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-40";
+const dangerText = "text-sm text-rose-600 hover:text-rose-500 dark:text-rose-400 dark:hover:text-rose-300";
+const softText = "text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200";
 
 function statusTone(color) {
-    if (color === 'green') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
-    if (color === 'yellow') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
-    return 'border-blue-500/30 bg-blue-500/10 text-blue-300';
+    if (color === 'green') return 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300';
+    if (color === 'yellow') return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300';
+    return 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300';
 }
 
 /** Approximate SEN carbon intensity (gCO₂/kWh) from national grid snapshot. */
@@ -54,6 +55,7 @@ function isProsumerUser(userType, energyProfile) {
 }
 
 function Dashboard({userId, userName, userType, onLogout}) {
+    const {isDark, toggleTheme} = useTheme();
     const [userAppliances, setUserAppliances] = useState([]);
     const [recommendations, setRecommendations] = useState({});
     const [loadingApplianceId, setLoadingApplianceId] = useState(null);
@@ -531,22 +533,22 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusTone(taskStatus.color)}`}>
                     {taskStatus.label}
                 </span>
-                <p className="mt-1 text-xs text-slate-500">{taskStatus.desc}</p>
-                <h3 className="mt-3 text-base font-semibold text-slate-100">{task.applianceName}</h3>
-                <p className="mt-2 text-sm text-slate-400">
-                    <span className="text-slate-500">Start:</span>{' '}
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{taskStatus.desc}</p>
+                <h3 className="mt-3 text-base font-semibold text-slate-900 dark:text-slate-100">{task.applianceName}</h3>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="text-slate-500 dark:text-slate-500">Start:</span>{' '}
                     {new Date(task.startTime).toLocaleString()}
                 </p>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                     <span className="text-slate-500">Duration:</span> {task.durationMinutes} mins
                 </p>
                 {task.savedCo2Grams > 0 && (
-                    <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300">
                         Eco-Impact: avoided {(task.savedCo2Grams >= 1000 ? (task.savedCo2Grams / 1000).toFixed(2) + ' kg' : task.savedCo2Grams.toFixed(0) + ' g')} CO₂
                     </div>
                 )}
                 {task.savedMoneyRon > 0 && (
-                    <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-300">
+                    <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
                         Saved {task.savedMoneyRon.toFixed(2)} RON
                     </div>
                 )}
@@ -604,32 +606,48 @@ function Dashboard({userId, userName, userType, onLogout}) {
         : (isProsumer ? 'LIVE DATA: Open-Meteo & Shelly' : 'LIVE DATA: SEN Grid & Shelly');
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100">
-            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.08),_transparent_50%),radial-gradient(ellipse_at_bottom_right,_rgba(59,130,246,0.07),_transparent_45%)]" />
+        <div className="min-h-screen bg-gradient-to-br from-emerald-50/50 via-teal-50/20 to-slate-100 text-slate-900 transition-colors dark:bg-slate-950 dark:bg-none dark:text-slate-100">
+            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.10),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(45,212,191,0.08),_transparent_45%)] dark:bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.08),_transparent_50%),radial-gradient(ellipse_at_bottom_right,_rgba(59,130,246,0.07),_transparent_45%)]" />
 
             <div className="relative mx-auto max-w-7xl space-y-6 px-4 py-6 pb-28 sm:px-6 lg:px-8">
                 <header className={`${glass} flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5`}>
                     <div className="flex items-center gap-3">
-                        <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.35)]">
+                        <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-600 shadow-sm dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400 dark:shadow-[0_0_24px_rgba(16,185,129,0.35)]">
                             <Zap className="h-5 w-5" />
-                            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 dark:bg-emerald-400 dark:shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold tracking-tight text-slate-100">WattWise</h1>
-                            <p className="text-sm text-slate-400">
+                            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">WattWise</h1>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
                                 {ecoMessage?.welcomeMessage || 'Welcome'} {userName || 'User'}!
                             </p>
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                             <span className="relative flex h-2 w-2">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                                <span className="relative inline-flex h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                                <span className="relative inline-flex h-2 w-2 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400" />
                             </span>
                             {liveLabel}
                         </span>
+                        <button
+                            type="button"
+                            className={`${ghostBtn} transition-colors duration-300`}
+                            onClick={toggleTheme}
+                            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                            title={isDark ? 'Light mode' : 'Dark mode'}
+                        >
+                            <span className="inline-flex items-center gap-2">
+                                {isDark ? (
+                                    <Sun className="h-4 w-4 text-amber-300 transition-transform duration-300" />
+                                ) : (
+                                    <Moon className="h-4 w-4 text-slate-600 transition-transform duration-300" />
+                                )}
+                                <span className="hidden sm:inline">{isDark ? 'Light' : 'Dark'}</span>
+                            </span>
+                        </button>
                         <button
                             type="button"
                             className={ghostBtn}
@@ -650,90 +668,90 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 </header>
 
                 {ecoMessage?.content && (
-                    <p className="text-sm text-slate-400">
-                        <span className="font-medium text-emerald-400">Tip of the day:</span> {ecoMessage.content}
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                        <span className="font-medium text-emerald-800 dark:text-emerald-400">Tip of the day:</span> {ecoMessage.content}
                     </p>
                 )}
 
                 {aiBriefing && (
-                    <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/40 to-blue-950/40 p-6">
+                    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-sky-50 p-6 dark:border-emerald-500/20 dark:from-emerald-950/40 dark:to-blue-950/40">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-300">
+                            <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                                 WattAssistant
                             </span>
-                            <strong className="text-slate-100">AI Executive Briefing</strong>
+                            <strong className="text-emerald-950 dark:text-slate-100">AI Executive Briefing</strong>
                         </div>
-                        <p className="text-sm leading-relaxed text-slate-300">{aiBriefing}</p>
+                        <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">{aiBriefing}</p>
                     </div>
                 )}
 
                 {error && (
-                    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
                         {error}
                     </div>
                 )}
 
                 <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {isProsumer ? (
-                        <div className={`${glass} border-emerald-500/20 p-5`}>
+                        <div className={`${glass} border-emerald-200 dark:border-emerald-500/20 p-5`}>
                             <div className="mb-3 flex items-center justify-between">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live Solar Production</p>
-                                <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-400">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Live Solar Production</p>
+                                <span className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
                                     <Sun className="h-4 w-4" />
                                 </span>
                             </div>
-                            <p className="text-3xl font-bold text-emerald-400">
+                            <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                                 {hasSolar ? solarKw.toFixed(2) : '—'}
-                                <span className="ml-1 text-base font-medium text-slate-500">kW</span>
+                                <span className="ml-1 text-base font-medium text-slate-500 dark:text-slate-400">kW</span>
                             </p>
                         </div>
                     ) : (
-                        <div className={`${glass} border-blue-500/20 p-5`}>
+                        <div className={`${glass} border-blue-200 dark:border-blue-500/20 p-5`}>
                             <div className="mb-3 flex items-center justify-between">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Consumption</p>
-                                <span className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 text-blue-400">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Grid Consumption</p>
+                                <span className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400">
                                     <Plug className="h-4 w-4" />
                                 </span>
                             </div>
-                            <p className="text-3xl font-bold text-blue-400">
+                            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                                 {gridConsumptionKw != null ? gridConsumptionKw.toFixed(2) : '—'}
-                                <span className="ml-1 text-base font-medium text-slate-500">kW</span>
+                                <span className="ml-1 text-base font-medium text-slate-500 dark:text-slate-400">kW</span>
                             </p>
                         </div>
                     )}
 
-                    <div className={`${glass} border-blue-500/20 p-5`}>
+                    <div className={`${glass} border-blue-200 dark:border-blue-500/20 p-5`}>
                         <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                 {isProsumer ? 'Current Home Load' : 'Home Load'}
                             </p>
-                            <span className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 text-blue-400">
+                            <span className="rounded-lg border border-blue-200 bg-blue-50 p-2 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400">
                                 <Plug className="h-4 w-4" />
                             </span>
                         </div>
-                        <p className="text-3xl font-bold text-blue-400">
+                        <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                             {hasLoad ? loadKw.toFixed(2) : '—'}
-                            <span className="ml-1 text-base font-medium text-slate-500">kW</span>
+                            <span className="ml-1 text-base font-medium text-slate-500 dark:text-slate-400">kW</span>
                         </p>
                     </div>
 
                     {isProsumer ? (
                         <div className={`${glass} p-5`}>
                             <div className="mb-3 flex items-center justify-between">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Balance</p>
-                                <span className="rounded-lg border border-slate-700 bg-slate-950/60 p-2 text-slate-300">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Grid Balance</p>
+                                <span className="rounded-lg border border-slate-200 bg-slate-100 p-2 text-slate-600 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
                                     <Zap className="h-4 w-4" />
                                 </span>
                             </div>
-                            <p className={`text-3xl font-bold ${netKw == null ? 'text-slate-300' : netKw >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            <p className={`text-3xl font-bold ${netKw == null ? 'text-slate-500 dark:text-slate-300' : netKw >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                 {netKw == null ? '—' : `${netKw >= 0 ? '+' : ''}${netKw.toFixed(2)}`}
-                                <span className="ml-1 text-base font-medium text-slate-500">kW</span>
+                                <span className="ml-1 text-base font-medium text-slate-500 dark:text-slate-400">kW</span>
                             </p>
                             {netKw != null && (
                                 <span className={`mt-2 inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
                                     netKw >= 0
-                                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                        : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                        : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300'
                                 }`}>
                                     {netKw >= 0 ? 'EXPORTING' : 'IMPORTING'}
                                 </span>
@@ -742,40 +760,40 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     ) : (
                         <div className={`${glass} p-5`}>
                             <div className="mb-3 flex items-center justify-between">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Carbon Intensity</p>
-                                <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-400">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Grid Carbon Intensity</p>
+                                <span className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
                                     <Activity className="h-4 w-4" />
                                 </span>
                             </div>
                             <p className={`text-3xl font-bold ${
                                 carbonIntensity == null
-                                    ? 'text-slate-300'
+                                    ? 'text-slate-500 dark:text-slate-300'
                                     : carbonIntensity < 200
-                                        ? 'text-emerald-400'
+                                        ? 'text-emerald-600 dark:text-emerald-400'
                                         : carbonIntensity < 350
-                                            ? 'text-amber-400'
-                                            : 'text-rose-400'
+                                            ? 'text-amber-600 dark:text-amber-400'
+                                            : 'text-rose-600 dark:text-rose-400'
                             }`}>
                                 {carbonIntensity != null ? carbonIntensity : '—'}
-                                <span className="ml-1 text-base font-medium text-slate-500">gCO₂/kWh</span>
+                                <span className="ml-1 text-base font-medium text-slate-500 dark:text-slate-400">gCO₂/kWh</span>
                             </p>
                         </div>
                     )}
 
                     <div className={`${glass} p-5`}>
                         <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Eco Savings</p>
-                            <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-400">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Eco Savings</p>
+                            <span className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
                                 <Leaf className="h-4 w-4" />
                             </span>
                         </div>
-                        <p className="text-2xl font-bold text-slate-100">
+                        <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                             {Number(ecoAnalytics.totalSavedCo2Kg || 0).toFixed(1)}
-                            <span className="ml-1 text-sm font-medium text-slate-500">kg CO₂</span>
+                            <span className="ml-1 text-sm font-medium text-slate-500 dark:text-slate-400">kg CO₂</span>
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-blue-400">
+                        <p className="mt-1 text-lg font-semibold text-blue-600 dark:text-blue-400">
                             {Number(ecoAnalytics.totalSavedMoneyRon || 0).toFixed(2)}
-                            <span className="ml-1 text-sm font-medium text-slate-500">RON</span>
+                            <span className="ml-1 text-sm font-medium text-slate-500 dark:text-slate-400">RON</span>
                         </p>
                     </div>
                 </section>
@@ -805,11 +823,11 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
                     <div className={`lg:col-span-2 ${glass} p-5`}>
                         <div className="mb-4">
-                            <h2 className="text-lg font-semibold text-slate-100">Autonomous Dispatch</h2>
-                            <p className="mt-1 text-sm text-slate-400">Define the rules. We find the greenest run.</p>
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Autonomous Dispatch</h2>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Define the rules. We find the greenest run.</p>
                         </div>
 
-                        <form onSubmit={handleAddAppliance} className="mb-6 space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                        <form onSubmit={handleAddAppliance} className="mb-6 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
                             <div className="grid gap-2 sm:grid-cols-[1fr_100px_auto]">
                                 <input type="text" placeholder="Appliance name (e.g. EV Charger)" value={newName} onChange={e => setNewName(e.target.value)} required className={inputCls} />
                                 <input type="number" step="0.1" min="0" placeholder="kW" value={newPower} onChange={e => setNewPower(e.target.value)} required className={inputCls} />
@@ -819,7 +837,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                 </button>
                             </div>
 
-                            <label className="flex items-center gap-3 text-sm text-slate-300">
+                            <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
                                 <button
                                     type="button"
                                     role="switch"
@@ -827,8 +845,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                     onClick={() => setNewIsRecurring(v => !v)}
                                     className={`relative h-6 w-11 rounded-full border transition ${
                                         newIsRecurring
-                                            ? 'border-emerald-500/40 bg-emerald-500/30'
-                                            : 'border-slate-600 bg-slate-800'
+                                            ? 'border-emerald-300 bg-emerald-200 dark:border-emerald-500/40 dark:bg-emerald-500/30'
+                                            : 'border-slate-300 bg-slate-200 dark:border-slate-600 dark:bg-slate-800'
                                     }`}
                                 >
                                     <span className={`absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white transition ${
@@ -876,8 +894,8 @@ function Dashboard({userId, userName, userType, onLogout}) {
                             ].map(group => group.appliances.length > 0 && (
                                 <section className="mb-6 last:mb-0" key={group.key}>
                                     <div className="mb-3">
-                                        <h3 className="text-sm font-semibold text-slate-200">{group.title}</h3>
-                                        <p className="text-xs text-slate-500">{group.description}</p>
+                                        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{group.title}</h3>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
                                     </div>
                                     <div className="space-y-3">
                                         {group.appliances.map(app => {
@@ -886,16 +904,16 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                 : isSmartRecurring(app);
 
                                             return (
-                                                <div key={app.id} className="rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+                                                <div key={app.id} className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none">
                                                     <div className="mb-3 flex items-start justify-between gap-2">
                                                         <div>
-                                                            <h3 className="font-semibold text-slate-100">{app.name}</h3>
-                                                            <span className="text-xs text-slate-500">{app.powerConsumptionKw} kW flexible load</span>
+                                                            <h3 className="font-semibold text-slate-900 dark:text-slate-100">{app.name}</h3>
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400">{app.powerConsumptionKw} kW flexible load</span>
                                                         </div>
                                                         <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
                                                             smartRecurringActive
-                                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                                                : 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                                                : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
                                                         }`}>
                                                             {smartRecurringActive ? 'AUTONOMOUS' : 'FLEXIBLE'}
                                                         </span>
@@ -905,7 +923,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                         <form onSubmit={e => handleSaveEdit(e, app.id)} className="space-y-2">
                                                             <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required className={inputCls} />
                                                             <input type="number" step="0.1" min="0" value={editPower} onChange={e => setEditPower(e.target.value)} required className={inputCls} />
-                                                            <label className="flex items-center gap-2 text-sm text-slate-300">
+                                                            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
                                                                 <input type="checkbox" checked={editIsRecurring} onChange={e => setEditIsRecurring(e.target.checked)} className="accent-emerald-500" />
                                                                 Smart recurring
                                                             </label>
@@ -941,18 +959,18 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                     )}
 
                                                     {!smartRecurringActive && (
-                                                        <div className="space-y-2 border-t border-slate-800 pt-3">
+                                                        <div className="space-y-2 border-t border-slate-200 pt-3 dark:border-slate-800">
                                                             <div className="grid gap-2">
-                                                                <label className="text-xs text-slate-500" htmlFor={`duration-${app.id}`}>Runtime</label>
+                                                                <label className="text-xs text-slate-500 dark:text-slate-400" htmlFor={`duration-${app.id}`}>Runtime</label>
                                                                 <select id={`duration-${app.id}`} value={applianceDuration[app.id] || 2} onChange={(e) => handleDurationChange(app.id, e.target.value)} className={selectCls}>
                                                                     <option value={1}>1 hour</option>
                                                                     <option value={2}>2 hours</option>
                                                                     <option value={3}>3 hours</option>
                                                                     <option value={4}>4 hours</option>
                                                                 </select>
-                                                                <label className="text-xs text-slate-500" htmlFor={`earliest-${app.id}`}>Earliest start</label>
+                                                                <label className="text-xs text-slate-500 dark:text-slate-400" htmlFor={`earliest-${app.id}`}>Earliest start</label>
                                                                 <input id={`earliest-${app.id}`} type="datetime-local" value={getDispatchWindow(app.id).earliestStart} onChange={(e) => updateDispatchWindow(app.id, 'earliestStart', e.target.value)} className={inputCls} />
-                                                                <label className="text-xs text-slate-500" htmlFor={`latest-${app.id}`}>Must finish by</label>
+                                                                <label className="text-xs text-slate-500 dark:text-slate-400" htmlFor={`latest-${app.id}`}>Must finish by</label>
                                                                 <input id={`latest-${app.id}`} type="datetime-local" value={getDispatchWindow(app.id).latestEnd} onChange={(e) => updateDispatchWindow(app.id, 'latestEnd', e.target.value)} className={inputCls} />
                                                             </div>
                                                             <button className={`${primaryBtn} w-full`} type="button" onClick={() => handleGetRecommendation(app.id)} disabled={loadingApplianceId === app.id}>
@@ -966,26 +984,26 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                         const scores = getTransparentScorecard(rec) || {};
                                                         const alreadyScheduled = scheduledStatus[app.id];
                                                         return (
-                                                            <div className="mt-3 space-y-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                                                            <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/5">
                                                                 <div className="flex items-center justify-between gap-2">
-                                                                    <h5 className="text-sm font-semibold text-slate-100">Transparent Decision Scorecard</h5>
+                                                                    <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Transparent Decision Scorecard</h5>
                                                                     {alreadyScheduled && (
-                                                                        <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-300">SCHEDULED</span>
+                                                                        <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">SCHEDULED</span>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-sm text-slate-300">
-                                                                    <strong className="text-slate-100">Best window:</strong>{' '}
+                                                                <div className="text-sm text-slate-600 dark:text-slate-300">
+                                                                    <strong className="text-slate-900 dark:text-slate-100">Best window:</strong>{' '}
                                                                     {rec.best_start_time || '—'}
                                                                     {rec.best_end_time ? ` → ${rec.best_end_time}` : ''}
                                                                 </div>
-                                                                {rec.reason && <p className="text-xs text-slate-400">{rec.reason}</p>}
-                                                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-400">
-                                                                    <div>Carbon: <span className="font-semibold text-emerald-300">{scores.carbonScore ?? '—'}/100</span></div>
-                                                                    <div>Renewable: <span className="font-semibold text-emerald-300">{scores.renewableAvailability ?? '—'}%</span></div>
-                                                                    <div>Price: <span className="font-semibold text-blue-300">{scores.priceScore ?? '—'}/100</span></div>
-                                                                    <div>Grid stress: <span className="font-semibold text-slate-200">{scores.gridStress ?? '—'}</span></div>
+                                                                {rec.reason && <p className="text-xs text-slate-500 dark:text-slate-400">{rec.reason}</p>}
+                                                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                                                    <div>Carbon: <span className="font-semibold text-emerald-700 dark:text-emerald-300">{scores.carbonScore ?? '—'}/100</span></div>
+                                                                    <div>Renewable: <span className="font-semibold text-emerald-700 dark:text-emerald-300">{scores.renewableAvailability ?? '—'}%</span></div>
+                                                                    <div>Price: <span className="font-semibold text-blue-700 dark:text-blue-300">{scores.priceScore ?? '—'}/100</span></div>
+                                                                    <div>Grid stress: <span className="font-semibold text-slate-800 dark:text-slate-200">{scores.gridStress ?? '—'}</span></div>
                                                                 </div>
-                                                                <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+                                                                <div className="flex flex-wrap gap-3 text-[11px] text-slate-500 dark:text-slate-500">
                                                                     <span>AI Confidence: {scores.confidence ?? '—'}%</span>
                                                                     <span>Multi-factor solar & grid model</span>
                                                                 </div>
@@ -1008,11 +1026,11 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 <section className={`${glass} p-5 sm:p-6`}>
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
                         <div>
-                            <h2 className="text-lg font-semibold text-slate-100">My Active Eco-Schedules</h2>
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">My Active Eco-Schedules</h2>
                             <div className="mt-2 flex flex-wrap gap-2">
-                                <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs text-amber-300">{scheduledStats.PENDING} Pending</span>
-                                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-300">{scheduledStats.RUNNING} Running</span>
-                                <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-xs text-blue-300">{scheduledStats.COMPLETED} Completed</span>
+                                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">{scheduledStats.PENDING} Pending</span>
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">{scheduledStats.RUNNING} Running</span>
+                                <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-xs text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">{scheduledStats.COMPLETED} Completed</span>
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -1033,13 +1051,13 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     </div>
 
                     {scheduledTasks.length === 0 ? (
-                        <p className="text-sm text-slate-500">No active eco-schedules for {selectedDate}.</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">No active eco-schedules for {selectedDate}.</p>
                     ) : (
                         <div className="space-y-6">
                             <div>
-                                <h3 className="mb-3 text-sm font-semibold text-slate-300">Smart Recurring Rules (automatic)</h3>
+                                <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Smart Recurring Rules (automatic)</h3>
                                 {smartTasks.length === 0 ? (
-                                    <p className="text-sm text-slate-500">No automatic dispatches for {selectedDate}.</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">No automatic dispatches for {selectedDate}.</p>
                                 ) : (
                                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                         {smartTasks.map(renderTaskCard)}
@@ -1047,9 +1065,9 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                 )}
                             </div>
                             <div>
-                                <h3 className="mb-3 text-sm font-semibold text-slate-300">Manual schedules</h3>
+                                <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Manual schedules</h3>
                                 {manualTasks.length === 0 ? (
-                                    <p className="text-sm text-slate-500">No manual schedules for {selectedDate}.</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">No manual schedules for {selectedDate}.</p>
                                 ) : (
                                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                         {manualTasks.map(renderTaskCard)}

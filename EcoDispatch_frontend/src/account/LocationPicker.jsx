@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import { MapPin, Moon, Sun } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { useTheme } from '../theme/ThemeContext.jsx';
 
 const SIBIU = [45.7983, 24.1256];
 
@@ -51,12 +52,12 @@ export default function LocationPicker({
     initialLongitude = SIBIU[1],
     label = 'Click the map to set your home location'
 }) {
+    const { isDark } = useTheme();
     const initial = [
         Number.isFinite(Number(initialLatitude)) ? Number(initialLatitude) : SIBIU[0],
         Number.isFinite(Number(initialLongitude)) ? Number(initialLongitude) : SIBIU[1]
     ];
     const [position, setPosition] = useState(initial);
-    const [darkMap, setDarkMap] = useState(true);
 
     useEffect(() => {
         onLocationSelect?.({ latitude: initial[0], longitude: initial[1] });
@@ -91,45 +92,26 @@ export default function LocationPicker({
 
             <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                    <p className="flex items-center gap-1.5 text-sm font-medium text-slate-300">
-                        <MapPin className="h-4 w-4 text-emerald-400" />
+                    <p className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                         {label}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-500">
                         Lat {position[0].toFixed(4)} · Lon {position[1].toFixed(4)}
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setDarkMap((v) => !v)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-100"
-                    >
-                        {darkMap ? (
-                            <>
-                                <Sun className="h-3.5 w-3.5 text-amber-300" />
-                                Light Map
-                            </>
-                        ) : (
-                            <>
-                                <Moon className="h-3.5 w-3.5 text-blue-300" />
-                                Dark Map
-                            </>
-                        )}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={resetToSibiu}
-                        className="rounded-lg border border-slate-700 bg-slate-950/60 px-2.5 py-1 text-[11px] font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                    >
-                        Reset to Sibiu
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onClick={resetToSibiu}
+                    className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                >
+                    Reset to Sibiu
+                </button>
             </div>
 
             <div
-                className={`overflow-hidden rounded-2xl border border-slate-800 shadow-lg shadow-slate-950/40 ${
-                    darkMap ? 'map-tiles-dark' : 'map-tiles-light'
+                className={`overflow-hidden rounded-2xl border border-slate-200 shadow-sm transition-all duration-300 dark:border-slate-800 dark:shadow-lg dark:shadow-slate-950/40 ${
+                    isDark ? 'map-tiles-dark' : 'map-tiles-light'
                 }`}
             >
                 <div className="h-[240px] w-full sm:h-[280px]">
