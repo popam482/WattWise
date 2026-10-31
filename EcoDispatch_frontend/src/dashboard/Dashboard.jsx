@@ -93,8 +93,10 @@ function Dashboard({userId, userName, userType, onLogout}) {
     const [aiBriefing, setAiBriefing] = useState("");
     const [ecoAnalytics, setEcoAnalytics] = useState({
         totalSavedCo2Kg: 0,
-        totalSavedMoneyRon: 0
+        totalSavedMoneyRon: 0,
+        totalCompletedTasks: 0
     });
+    const [analyticsReady, setAnalyticsReady] = useState(false);
     const [showIntegrations, setShowIntegrations] = useState(false);
     const [schedulingAppliance, setSchedulingAppliance] = useState(null);
     const [schedulerStep, setSchedulerStep] = useState(null); // 'config' | 'result'
@@ -168,7 +170,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
     }, []);
 
     useEffect(() => {
-        if (!userId) return;
+        if (!userId || !analyticsReady) return;
 
         fetch('/api/ai/briefing', {
             method: 'POST',
@@ -178,7 +180,9 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 user_type: userType || "PROSUMER",
                 saved_co2_kg: ecoAnalytics.totalSavedCo2Kg || 0,
                 saved_money_ron: ecoAnalytics.totalSavedMoneyRon || 0,
-                active_schedules_count: scheduledTasks.length
+                optimized_runs_count: ecoAnalytics.totalCompletedTasks || 0,
+                active_schedules_count: scheduledTasks.length,
+                top_solar_hour: "13:00"
             })
         })
             .then(async res => {
@@ -193,7 +197,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 }
             })
             .catch(err => console.error("AI Briefing fetch error:", err));
-    }, [userId, userName, userType, scheduledTasks.length, ecoAnalytics.totalSavedCo2Kg, ecoAnalytics.totalSavedMoneyRon]);
+    }, [userId, userName, userType, scheduledTasks.length, analyticsReady, ecoAnalytics.totalSavedCo2Kg, ecoAnalytics.totalSavedMoneyRon, ecoAnalytics.totalCompletedTasks]);
 
     const getTaskStatus = (startTimeStr, durationMinutes) => {
         const now = new Date();
@@ -1049,7 +1053,17 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 </section>
 
                 <section className={`${glass} p-5 sm:p-6`}>
-                    <EcoAnalyticsWidget userId={userId} onAnalyticsLoaded={setEcoAnalytics}/>
+                    <EcoAnalyticsWidget
+                        userId={userId}
+                        onAnalyticsLoaded={(data) => {
+                            setEcoAnalytics({
+                                totalSavedCo2Kg: data?.totalSavedCo2Kg ?? 0,
+                                totalSavedMoneyRon: data?.totalSavedMoneyRon ?? 0,
+                                totalCompletedTasks: data?.totalCompletedTasks ?? 0
+                            });
+                            setAnalyticsReady(true);
+                        }}
+                    />
                 </section>
 
                 <HabitLearningSettings userId={userId}/>

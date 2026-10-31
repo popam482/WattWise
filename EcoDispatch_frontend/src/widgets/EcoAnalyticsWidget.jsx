@@ -22,13 +22,21 @@ function EcoAnalyticsWidget({userId, onAnalyticsLoaded}) {
                 if (data && typeof onAnalyticsLoaded === 'function') {
                     onAnalyticsLoaded({
                         totalSavedCo2Kg: data.totalSavedCo2Kg ?? 0,
-                        totalSavedMoneyRon: data.totalSavedMoneyRon ?? 0
+                        totalSavedMoneyRon: data.totalSavedMoneyRon ?? 0,
+                        totalCompletedTasks: data.totalCompletedTasks ?? 0
                     });
                 }
             })
-            .catch((err) =>
-                console.error('Error fetching eco-analytics:', err)
-            )
+            .catch((err) => {
+                console.error('Error fetching eco-analytics:', err);
+                if (typeof onAnalyticsLoaded === 'function') {
+                    onAnalyticsLoaded({
+                        totalSavedCo2Kg: 0,
+                        totalSavedMoneyRon: 0,
+                        totalCompletedTasks: 0
+                    });
+                }
+            })
             .finally(() => setLoading(false));
         // Intentionally depend only on userId; parent callback is a stable setState
         // eslint-disable-next-line react-hooks/exhaustive-deps
