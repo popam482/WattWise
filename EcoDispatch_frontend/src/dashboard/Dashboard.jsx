@@ -1,5 +1,5 @@
 ﻿import {useState, useEffect, useCallback} from 'react';
-import {Sun, Plug, Zap, Leaf, Cable, LogOut, Plus} from 'lucide-react';
+import {Sun, Plug, Zap, Leaf, Cable, LogOut, Plus, Activity} from 'lucide-react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
@@ -19,6 +19,38 @@ function statusTone(color) {
     if (color === 'green') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
     if (color === 'yellow') return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
     return 'border-blue-500/30 bg-blue-500/10 text-blue-300';
+}
+
+/** Approximate SEN carbon intensity (gCO₂/kWh) from national grid snapshot. */
+function estimateGridCarbonIntensity(grid) {
+    if (!grid) return null;
+    const production = Number(grid.Production_MW ?? grid.productionMW ?? 0);
+    const fossil = Number(grid.Total_Fossil ?? grid.totalFossil ?? 0);
+    const nuclear = Number(grid.Nuclear_MW ?? grid.nuclearMW ?? 0);
+    const green = Number(
+        grid.Total_Green_MW
+        ?? grid.totalGreenMW
+        ?? Math.max(0, production - fossil - nuclear)
+    );
+
+    if (production > 0) {
+        // IPCC-aligned rough factors (gCO2/kWh) applied to MW mix
+        return Math.round(((fossil * 820) + (nuclear * 12) + (green * 40)) / production);
+    }
+
+    const greenShare = Number(grid.Green_Share_Percent ?? grid.greenSharePercent);
+    if (Number.isFinite(greenShare)) {
+        return Math.round(480 - (greenShare * 3.2));
+    }
+    return null;
+}
+
+function isProsumerUser(userType, energyProfile) {
+    const typedProsumer = String(userType || '').toUpperCase() === 'PROSUMER';
+    const flaggedSolar = energyProfile?.hasSolar === true;
+    const pvKw = Number(energyProfile?.pvSystemKw ?? energyProfile?.pv_system_kw);
+    const hasPvCapacity = Number.isFinite(pvKw) && pvKw > 0;
+    return typedProsumer || flaggedSolar || hasPvCapacity;
 }
 
 function Dashboard({userId, userName, userType, onLogout}) {
@@ -53,6 +85,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const [energyProfile, setEnergyProfile] = useState(null);
     const [liveEnergy, setLiveEnergy] = useState(null);
+    const [gridSnapshot, setGridSnapshot] = useState(null);
 
     const [aiBriefing, setAiBriefing] = useState("");
     const [ecoAnalytics, setEcoAnalytics] = useState({
@@ -94,6 +127,32 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
         pullLive();
         const id = setInterval(pullLive, 30000);
+        return () => clearInterval(id);
+    }, [userId]);
+
+    useEffect(() => {
+        if (!userId) return;
+
+        const pullGrid = () => {
+            fetch('/api/national-grid/current')
+                .then(async res => {
+                    if (!res.ok) return null;
+                    const body = await res.text();
+                    if (!body.trim()) return null;
+                    try {
+                        return JSON.parse(body);
+                    } catch {
+                        return null;
+                    }
+                })
+                .then(data => {
+                    if (data) setGridSnapshot(data);
+                })
+                .catch(() => {});
+        };
+
+        pullGrid();
+        const id = setInterval(pullGrid, 60000);
         return () => clearInterval(id);
     }, [userId]);
 
@@ -523,18 +582,26 @@ function Dashboard({userId, userName, userType, onLogout}) {
         return acc;
     }, { PENDING: 0, RUNNING: 0, COMPLETED: 0 });
 
+    const isProsumer = isProsumerUser(userType, energyProfile);
     const solarKw = Number(liveEnergy?.pvPowerKw);
     const loadKw = Number(liveEnergy?.homeLoadKw);
-    const hasSolar = Number.isFinite(solarKw);
+    const importKw = Number(liveEnergy?.gridImportKw);
+    const hasSolar = isProsumer && Number.isFinite(solarKw);
     const hasLoad = Number.isFinite(loadKw);
-    const netKw = hasSolar && hasLoad ? solarKw - loadKw : null;
+    const hasImport = Number.isFinite(importKw);
+    const gridConsumptionKw = hasImport && importKw > 0
+        ? importKw
+        : (hasLoad ? loadKw : null);
+    const netKw = isProsumer && hasSolar && hasLoad ? solarKw - loadKw : null;
+    const carbonIntensity = estimateGridCarbonIntensity(gridSnapshot);
     const liveSources = [
-        liveEnergy?.solarLive ? 'Open-Meteo' : null,
-        liveEnergy?.shellyLive ? 'Shelly' : null
+        isProsumer && liveEnergy?.solarLive ? 'Open-Meteo' : null,
+        liveEnergy?.shellyLive ? 'Shelly' : null,
+        !isProsumer ? 'SEN Grid' : null
     ].filter(Boolean);
     const liveLabel = liveSources.length
         ? `LIVE DATA: ${liveSources.join(' & ')}`
-        : 'LIVE DATA: Open-Meteo & Shelly';
+        : (isProsumer ? 'LIVE DATA: Open-Meteo & Shelly' : 'LIVE DATA: SEN Grid & Shelly');
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -607,22 +674,39 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 )}
 
                 <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className={`${glass} border-emerald-500/20 p-5`}>
-                        <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live Solar Production</p>
-                            <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-400">
-                                <Sun className="h-4 w-4" />
-                            </span>
+                    {isProsumer ? (
+                        <div className={`${glass} border-emerald-500/20 p-5`}>
+                            <div className="mb-3 flex items-center justify-between">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Live Solar Production</p>
+                                <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-400">
+                                    <Sun className="h-4 w-4" />
+                                </span>
+                            </div>
+                            <p className="text-3xl font-bold text-emerald-400">
+                                {hasSolar ? solarKw.toFixed(2) : '—'}
+                                <span className="ml-1 text-base font-medium text-slate-500">kW</span>
+                            </p>
                         </div>
-                        <p className="text-3xl font-bold text-emerald-400">
-                            {hasSolar ? solarKw.toFixed(2) : '—'}
-                            <span className="ml-1 text-base font-medium text-slate-500">kW</span>
-                        </p>
-                    </div>
+                    ) : (
+                        <div className={`${glass} border-blue-500/20 p-5`}>
+                            <div className="mb-3 flex items-center justify-between">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Consumption</p>
+                                <span className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 text-blue-400">
+                                    <Plug className="h-4 w-4" />
+                                </span>
+                            </div>
+                            <p className="text-3xl font-bold text-blue-400">
+                                {gridConsumptionKw != null ? gridConsumptionKw.toFixed(2) : '—'}
+                                <span className="ml-1 text-base font-medium text-slate-500">kW</span>
+                            </p>
+                        </div>
+                    )}
 
                     <div className={`${glass} border-blue-500/20 p-5`}>
                         <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Current Home Load</p>
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                {isProsumer ? 'Current Home Load' : 'Home Load'}
+                            </p>
                             <span className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-2 text-blue-400">
                                 <Plug className="h-4 w-4" />
                             </span>
@@ -633,27 +717,50 @@ function Dashboard({userId, userName, userType, onLogout}) {
                         </p>
                     </div>
 
-                    <div className={`${glass} p-5`}>
-                        <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Balance</p>
-                            <span className="rounded-lg border border-slate-700 bg-slate-950/60 p-2 text-slate-300">
-                                <Zap className="h-4 w-4" />
-                            </span>
+                    {isProsumer ? (
+                        <div className={`${glass} p-5`}>
+                            <div className="mb-3 flex items-center justify-between">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Balance</p>
+                                <span className="rounded-lg border border-slate-700 bg-slate-950/60 p-2 text-slate-300">
+                                    <Zap className="h-4 w-4" />
+                                </span>
+                            </div>
+                            <p className={`text-3xl font-bold ${netKw == null ? 'text-slate-300' : netKw >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                {netKw == null ? '—' : `${netKw >= 0 ? '+' : ''}${netKw.toFixed(2)}`}
+                                <span className="ml-1 text-base font-medium text-slate-500">kW</span>
+                            </p>
+                            {netKw != null && (
+                                <span className={`mt-2 inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                                    netKw >= 0
+                                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                        : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                                }`}>
+                                    {netKw >= 0 ? 'EXPORTING' : 'IMPORTING'}
+                                </span>
+                            )}
                         </div>
-                        <p className={`text-3xl font-bold ${netKw == null ? 'text-slate-300' : netKw >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {netKw == null ? '—' : `${netKw >= 0 ? '+' : ''}${netKw.toFixed(2)}`}
-                            <span className="ml-1 text-base font-medium text-slate-500">kW</span>
-                        </p>
-                        {netKw != null && (
-                            <span className={`mt-2 inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
-                                netKw >= 0
-                                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                    : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                    ) : (
+                        <div className={`${glass} p-5`}>
+                            <div className="mb-3 flex items-center justify-between">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Grid Carbon Intensity</p>
+                                <span className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-400">
+                                    <Activity className="h-4 w-4" />
+                                </span>
+                            </div>
+                            <p className={`text-3xl font-bold ${
+                                carbonIntensity == null
+                                    ? 'text-slate-300'
+                                    : carbonIntensity < 200
+                                        ? 'text-emerald-400'
+                                        : carbonIntensity < 350
+                                            ? 'text-amber-400'
+                                            : 'text-rose-400'
                             }`}>
-                                {netKw >= 0 ? 'EXPORTING' : 'IMPORTING'}
-                            </span>
-                        )}
-                    </div>
+                                {carbonIntensity != null ? carbonIntensity : '—'}
+                                <span className="ml-1 text-base font-medium text-slate-500">gCO₂/kWh</span>
+                            </p>
+                        </div>
+                    )}
 
                     <div className={`${glass} p-5`}>
                         <div className="mb-3 flex items-center justify-between">
@@ -663,11 +770,11 @@ function Dashboard({userId, userName, userType, onLogout}) {
                             </span>
                         </div>
                         <p className="text-2xl font-bold text-slate-100">
-                            {(ecoAnalytics.totalSavedCo2Kg || 0).toFixed?.(1) ?? ecoAnalytics.totalSavedCo2Kg}
+                            {Number(ecoAnalytics.totalSavedCo2Kg || 0).toFixed(1)}
                             <span className="ml-1 text-sm font-medium text-slate-500">kg CO₂</span>
                         </p>
                         <p className="mt-1 text-lg font-semibold text-blue-400">
-                            {(ecoAnalytics.totalSavedMoneyRon || 0).toFixed?.(2) ?? ecoAnalytics.totalSavedMoneyRon}
+                            {Number(ecoAnalytics.totalSavedMoneyRon || 0).toFixed(2)}
                             <span className="ml-1 text-sm font-medium text-slate-500">RON</span>
                         </p>
                     </div>
@@ -681,7 +788,9 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                 energyProfile={energyProfile}
                                 latitude={energyProfile?.latitude}
                                 longitude={energyProfile?.longitude}
-                                pvSystemKw={energyProfile?.pvSystemKw}
+                                pvSystemKw={isProsumer ? energyProfile?.pvSystemKw : 0}
+                                isProsumer={isProsumer}
+                                carbonIntensity={carbonIntensity}
                             />
                         </div>
                         <div className={`${glass} p-5`}>

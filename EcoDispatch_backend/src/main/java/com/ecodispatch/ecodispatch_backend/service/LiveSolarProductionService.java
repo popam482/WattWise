@@ -41,12 +41,16 @@ public class LiveSolarProductionService {
     }
 
     public SolarLiveEstimate estimateLivePv(EnergyProfile profile) {
-        if (profile == null || profile.getLatitude() == null || profile.getLongitude() == null) {
-            return fallback(null, "Energy profile missing coordinates — using solar curve fallback");
+        if (profile == null) {
+            return new SolarLiveEstimate(0.0, 0.0, false, "No energy profile — solar production unavailable");
         }
         double systemKwp = profile.getPvSystemKw() != null ? profile.getPvSystemKw() : 0.0;
         if (systemKwp <= 0) {
-            return fallback(profile, "PV capacity is zero — using solar curve fallback");
+            // Consumers / zero-capacity profiles must never receive a fake PV curve
+            return new SolarLiveEstimate(0.0, 0.0, false, "No PV capacity configured — solar production is zero");
+        }
+        if (profile.getLatitude() == null || profile.getLongitude() == null) {
+            return fallback(profile, "Energy profile missing coordinates — using solar curve fallback");
         }
 
         try {
@@ -130,7 +134,10 @@ public class LiveSolarProductionService {
     }
 
     private SolarLiveEstimate fallback(EnergyProfile profile, String message) {
-        double systemKwp = profile != null && profile.getPvSystemKw() != null ? profile.getPvSystemKw() : 5.0;
+        double systemKwp = profile != null && profile.getPvSystemKw() != null ? profile.getPvSystemKw() : 0.0;
+        if (systemKwp <= 0) {
+            return new SolarLiveEstimate(0.0, 0.0, false, message);
+        }
         int hour = LocalDateTime.now(ZONE).getHour();
         double pv = 0.0;
         if (hour >= 6 && hour <= 20) {
