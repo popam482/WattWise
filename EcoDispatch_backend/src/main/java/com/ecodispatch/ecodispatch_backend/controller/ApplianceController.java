@@ -74,6 +74,18 @@ public class ApplianceController {
         applianceService.cancelScheduledTask(userId, logId);
     }
 
+    /**
+     * Flexible recurring cancel:
+     * scope=ONE_DAY → skip selected date only (rule stays active)
+     * scope=ALL_FUTURE → deactivate recurring rule and cancel upcoming runs
+     */
+    @PostMapping("/users/{userId}/appliances/scheduled/cancel")
+    public void cancelRecurringSchedule(
+            @PathVariable Integer userId,
+            @RequestBody RecurringCancelRequestDTO dto) {
+        applianceService.cancelRecurringSchedule(userId, dto);
+    }
+
     @GetMapping("/users/{userId}/eco-analytics")
     public EcoAnalyticsDTO getEcoAnalytics(@PathVariable Integer userId) {
         return applianceService.getUserEcoAnalytics(userId);

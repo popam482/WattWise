@@ -18,6 +18,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.DoubleSummaryStatistics;
 import java.util.HashMap;
@@ -148,17 +149,33 @@ public class ApplianceService {
             throw new ApplianceNotFound("Appliance does not belong to user");
         }
 
+        // Time-boundary guard: never ask ML to search before "now"
+        ZoneId bucharest = ZoneId.of("Europe/Bucharest");
+        LocalDateTime now = LocalDateTime.now(bucharest).withSecond(0).withNano(0);
+        DateTimeFormatter isoMinute = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
+
+        LocalDateTime effectiveEarliest = parseFlexibleDateTime(earliestStart, now);
+        if (effectiveEarliest.isBefore(now)) {
+            effectiveEarliest = now;
+        }
+        LocalDateTime effectiveLatest = parseFlexibleDateTime(
+                latestEnd,
+                now.plusHours(24)
+        );
+        if (!effectiveLatest.isAfter(effectiveEarliest)) {
+            effectiveLatest = effectiveEarliest.plusHours(Math.max(durationHours, 2) + 2L);
+        }
+
         ApplianceRecommendationRequestDTO request = new ApplianceRecommendationRequestDTO();
         request.setUserType(user.getUserType().name());
         request.setDurationHours(durationHours);
         request.setPowerKw(appliance.getPowerConsumptionKw());
-        request.setEarliestStart(earliestStart);
-        request.setLatestEnd(latestEnd);
+        request.setEarliestStart(effectiveEarliest.format(isoMinute));
+        request.setLatestEnd(effectiveLatest.format(isoMinute));
 
         Map<Integer, Double> committedPower = new HashMap<>();
 
         if (user.getUserType() == UserType.PROSUMER) {
-            LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Bucharest"));
             LocalDateTime tomorrow = now.plusHours(24);
 
             List<ApplianceUsageLog> activeTasks = applianceUsageLogRepository
@@ -325,9 +342,9 @@ public class ApplianceService {
         }
 
         List<ApplianceUsageLog> recentLogs = applianceUsageLogRepository
-                .findByApplianceUserIdAndStatusAndStartTimeBetween(
+                .findByApplianceUserIdAndStatusInAndStartTimeBetween(
                         userId,
-                        "SCHEDULED",
+                        Arrays.asList("SCHEDULED", "CANCELLED"),
                         targetDate.minusDays(1).atStartOfDay(),
                         targetDate.plusDays(2).atStartOfDay()
                 );
@@ -355,7 +372,16 @@ public class ApplianceService {
                 latestEnd = latestEnd.plusDays(1);
             }
 
-            final LocalDateTime recurrenceWindowStart = earliestStart;
+            // Never optimize into the past for today's recurrence window
+            LocalDateTime nowBucharest = LocalDateTime.now(ZoneId.of("Europe/Bucharest")).withSecond(0).withNano(0);
+            if (earliestStart.isBefore(nowBucharest)) {
+                earliestStart = nowBucharest;
+            }
+            if (!latestEnd.isAfter(earliestStart)) {
+                continue;
+            }
+
+            final LocalDateTime recurrenceWindowStart = targetDate.atTime(startTime);
             final LocalDateTime recurrenceWindowEnd = latestEnd;
 
             ApplianceUsageLog existingLog = recentLogs.stream()
@@ -364,6 +390,11 @@ public class ApplianceService {
                             !log.getStartTime().isAfter(recurrenceWindowEnd))
                     .findFirst()
                     .orElse(null);
+
+            // User explicitly cancelled this recurrence window — do not auto-recreate
+            if (existingLog != null && "CANCELLED".equalsIgnoreCase(existingLog.getStatus())) {
+                continue;
+            }
 
             int durationHours = app.getPreferredDuration() != null ? app.getPreferredDuration() : 2;
 
@@ -428,6 +459,7 @@ public class ApplianceService {
         LocalDateTime dayEnd = targetDate.plusDays(1).atStartOfDay();
 
         return recentLogs.stream()
+                .filter(log -> "SCHEDULED".equalsIgnoreCase(log.getStatus()))
                 .filter(log -> !log.getStartTime().isBefore(dayStart) && log.getStartTime().isBefore(dayEnd))
                 .map(log -> new ApplianceUsageLogResponseDTO(
                         log.getId(),
@@ -455,7 +487,110 @@ public class ApplianceService {
             throw new ApplianceNotFound("Task does not belong to user");
         }
 
-        applianceUsageLogRepository.delete(log);
+        // Soft-cancel so recurring auto-dispatch does not recreate the same day
+        if (Boolean.TRUE.equals(log.getAppliance().getIsRecurring())) {
+            log.setStatus("CANCELLED");
+            log.setDecisionReason("Cancelled by user for this occurrence");
+            applianceUsageLogRepository.save(log);
+        } else {
+            applianceUsageLogRepository.delete(log);
+        }
+    }
+
+    @Transactional
+    public void cancelRecurringSchedule(Integer userId, RecurringCancelRequestDTO dto) {
+        validateUserOwnership(userId);
+
+        if (dto == null || dto.getScope() == null) {
+            throw new IllegalArgumentException("scope is required (ONE_DAY or ALL_FUTURE)");
+        }
+
+        String scope = dto.getScope().trim().toUpperCase();
+        ZoneId zone = ZoneId.of("Europe/Bucharest");
+        LocalDateTime now = LocalDateTime.now(zone);
+
+        if ("ONE_DAY".equals(scope)) {
+            cancelOneRecurringDay(userId, dto, zone);
+            return;
+        }
+
+        if ("ALL_FUTURE".equals(scope)) {
+            Integer applianceId = dto.getApplianceId();
+            if (applianceId == null && dto.getLogId() != null) {
+                ApplianceUsageLog log = applianceUsageLogRepository.findById(dto.getLogId())
+                        .orElseThrow(() -> new ApplianceNotFound("Scheduled task not found"));
+                if (!log.getAppliance().getUser().getUser_id().equals(userId)) {
+                    throw new ApplianceNotFound("Task does not belong to user");
+                }
+                applianceId = log.getAppliance().getId();
+            }
+            if (applianceId == null) {
+                throw new IllegalArgumentException("applianceId is required for ALL_FUTURE");
+            }
+
+            Appliance appliance = applianceRepository.findById(applianceId)
+                    .orElseThrow(() -> new ApplianceNotFound("Appliance not found"));
+            if (!appliance.getUser().getUser_id().equals(userId)) {
+                throw new ApplianceNotFound("Appliance does not belong to user");
+            }
+
+            appliance.setIsRecurring(false);
+            applianceRepository.save(appliance);
+
+            List<ApplianceUsageLog> futureLogs =
+                    applianceUsageLogRepository.findScheduledFromByApplianceId(applianceId, now.minusHours(1));
+            for (ApplianceUsageLog future : futureLogs) {
+                future.setStatus("CANCELLED");
+                future.setDecisionReason("Recurring rule deactivated by user");
+                applianceUsageLogRepository.save(future);
+            }
+            return;
+        }
+
+        throw new IllegalArgumentException("Unsupported scope: " + dto.getScope());
+    }
+
+    private void cancelOneRecurringDay(Integer userId, RecurringCancelRequestDTO dto, ZoneId zone) {
+        ApplianceUsageLog log = null;
+        if (dto.getLogId() != null) {
+            log = applianceUsageLogRepository.findById(dto.getLogId())
+                    .orElseThrow(() -> new ApplianceNotFound("Scheduled task not found"));
+            if (!log.getAppliance().getUser().getUser_id().equals(userId)) {
+                throw new ApplianceNotFound("Task does not belong to user");
+            }
+            log.setStatus("CANCELLED");
+            log.setDecisionReason("Cancelled for selected day only — recurring rule kept");
+            applianceUsageLogRepository.save(log);
+            return;
+        }
+
+        if (dto.getApplianceId() == null || dto.getDate() == null || dto.getDate().isBlank()) {
+            throw new IllegalArgumentException("applianceId and date are required when logId is absent");
+        }
+
+        Appliance appliance = applianceRepository.findById(dto.getApplianceId())
+                .orElseThrow(() -> new ApplianceNotFound("Appliance not found"));
+        if (!appliance.getUser().getUser_id().equals(userId)) {
+            throw new ApplianceNotFound("Appliance does not belong to user");
+        }
+
+        LocalDate targetDate = LocalDate.parse(dto.getDate());
+        String startStr = appliance.getTimeWindowStart() != null ? appliance.getTimeWindowStart() : "00:00";
+        LocalTime startTime = LocalTime.parse(startStr);
+        LocalDateTime markerStart = targetDate.atTime(startTime);
+
+        ApplianceUsageLog skip = new ApplianceUsageLog();
+        skip.setAppliance(appliance);
+        skip.setStartTime(markerStart);
+        skip.setDurationMinutes(
+                (appliance.getPreferredDuration() != null ? appliance.getPreferredDuration() : 2) * 60
+        );
+        skip.setStatus("CANCELLED");
+        skip.setDecisionReason("Skipped " + targetDate + " — recurring rule kept for future days");
+        skip.setIsRecurringExecution(true);
+        skip.setSavedCo2Grams(0.0);
+        skip.setSavedMoneyRon(0.0);
+        applianceUsageLogRepository.save(skip);
     }
 
     public EcoAnalyticsDTO getUserEcoAnalytics(Integer userId) {
@@ -502,6 +637,30 @@ public class ApplianceService {
                 Math.round(treeEquiv * 10.0) / 10.0,
                 history
         );
+    }
+
+    /**
+     * Parse frontend/API datetimes that may arrive as {@code yyyy-MM-dd'T'HH:mm},
+     * {@code yyyy-MM-dd HH:mm:ss}, or with a trailing Z. Falls back to {@code fallback}
+     * when the value is null/blank/unparseable.
+     */
+    private LocalDateTime parseFlexibleDateTime(String value, LocalDateTime fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        String normalized = value.trim().replace(" ", "T");
+        if (normalized.endsWith("Z")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        try {
+            if (normalized.length() == 16) {
+                // yyyy-MM-dd'T'HH:mm
+                return LocalDateTime.parse(normalized, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+            }
+            return LocalDateTime.parse(normalized);
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private Integer parsePreferredDuration(String preferredDuration) {

@@ -1,4 +1,5 @@
 import datetime
+import math
 import os
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -103,6 +104,7 @@ class PredictionExplanationResponse(BaseModel):
 
 
 def _parse_schedule_time(value: Optional[str], fallback: datetime.datetime) -> datetime.datetime:
+    """Parse ISO datetime and keep minute precision (do NOT floor to the hour)."""
     if not value:
         return fallback
 
@@ -110,14 +112,22 @@ def _parse_schedule_time(value: Optional[str], fallback: datetime.datetime) -> d
         parsed = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=ZoneInfo("Europe/Bucharest"))
+        # Keep HH:MM — only drop seconds/micros so 17:55 stays 17:55, not 17:00
         return parsed.astimezone(ZoneInfo("Europe/Bucharest")).replace(
-            minute=0, second=0, microsecond=0
+            second=0, microsecond=0
         )
     except ValueError as error:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid schedule time: {value}"
         ) from error
+
+
+def _ceil_to_next_hour(dt: datetime.datetime) -> datetime.datetime:
+    floored = dt.replace(minute=0, second=0, microsecond=0)
+    if dt == floored:
+        return floored
+    return floored + datetime.timedelta(hours=1)
 
 
 def estimate_pv_kw(hour_of_day: int, system_kwp: float, tilt: float, azimuth: float) -> float:
@@ -328,23 +338,44 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     if req.power_kw < 0:
         raise HTTPException(status_code=400, detail="power_kw must be >= 0")
 
-    current_time = datetime.datetime.now(ZoneInfo("Europe/Bucharest"))
-    current_time = current_time.replace(minute=0, second=0, microsecond=0)
-    earliest = _parse_schedule_time(req.earliest_start, current_time)
+    now = datetime.datetime.now(ZoneInfo("Europe/Bucharest")).replace(second=0, microsecond=0)
+    requested_earliest = _parse_schedule_time(req.earliest_start, now)
     latest_end = _parse_schedule_time(
-        req.latest_end, current_time + datetime.timedelta(hours=24)
+        req.latest_end, now + datetime.timedelta(hours=24)
     )
-    if earliest < current_time:
-        earliest = current_time
-    if latest_end <= earliest:
+
+    # CRITICAL: never search in the past — effectiveStart = max(requested, now)
+    effective_start = max(requested_earliest, now)
+    if latest_end <= effective_start:
         raise HTTPException(status_code=400, detail="latest_end must be after earliest_start")
 
-    forecast_hours = int((latest_end - earliest).total_seconds() // 3600)
-    if forecast_hours < req.duration_hours:
+    duration = datetime.timedelta(hours=req.duration_hours)
+    if effective_start + duration > latest_end:
         raise HTTPException(
             status_code=400,
             detail="The selected time window is shorter than the appliance duration"
         )
+
+    # Candidate starts: exact effective_start, then clock-aligned hours (never before now)
+    candidate_starts: list[datetime.datetime] = [effective_start]
+    aligned = _ceil_to_next_hour(effective_start)
+    cursor = aligned
+    while cursor + duration <= latest_end:
+        if cursor > effective_start:
+            candidate_starts.append(cursor)
+        cursor += datetime.timedelta(hours=1)
+
+    if not candidate_starts:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid start slots remain after applying the current-time boundary"
+        )
+
+    # Score timeline from effective_start through latest_end (hourly samples)
+    span_hours = max(
+        1,
+        int(math.ceil((latest_end - effective_start).total_seconds() / 3600.0)),
+    )
 
     hourly_energy_scores = []
 
@@ -366,8 +397,8 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     battery_traj = []
     if user_type == "PROSUMER" and has_battery:
         battery_traj = simulate_battery_soc(
-            forecast_hours=forecast_hours,
-            earliest_hour=earliest.hour,
+            forecast_hours=span_hours,
+            earliest_hour=effective_start.hour,
             system_kwp=req.system_kwp or 0.0,
             tilt=req.tilt or 35.0,
             azimuth=req.azimuth or 180.0,
@@ -377,8 +408,9 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             max_discharge_kw=max_discharge,
         )
 
-    for i in range(forecast_hours):
-        hour_of_day = (earliest.hour + i) % 24
+    for i in range(span_hours):
+        slot_time = effective_start + datetime.timedelta(hours=i)
+        hour_of_day = slot_time.hour
 
         price_at_hour = opcom_prices.get(hour_of_day, 0.5)
         price_score = max(0.0, 1.0 - (price_at_hour / 1.5))
@@ -398,7 +430,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             net_available_pv = max(0.0, estimated_pv_power - already_committed)
             clean_power_kw = net_available_pv
 
-            if has_battery and battery_traj:
+            if has_battery and battery_traj and i < len(battery_traj):
                 # Charge midday surplus into the pack; allow evening discharge to cover flexible loads
                 slot = battery_traj[i]
                 if slot["surplus_kw"] > 0:
@@ -422,6 +454,7 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 
         hourly_energy_scores.append({
             "hour_offset": i,
+            "slot_time": slot_time,
             "actual_hour": hour_of_day,
             "score": final_score,
             "price": price_at_hour,
@@ -431,27 +464,90 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             "clean_power_kw": clean_power_kw,
         })
 
-    best_window_start = 0
+    def _score_for_window(window_start: datetime.datetime) -> float:
+        total = 0.0
+        for h in range(req.duration_hours):
+            t = window_start + datetime.timedelta(hours=h)
+            # Match nearest scored slot by clock hour within the horizon
+            match = next(
+                (
+                    item for item in hourly_energy_scores
+                    if item["slot_time"].year == t.year
+                    and item["slot_time"].month == t.month
+                    and item["slot_time"].day == t.day
+                    and item["slot_time"].hour == t.hour
+                ),
+                None,
+            )
+            if match is None:
+                # Fallback: use hour-of-day score from any matching hour sample
+                match = next(
+                    (item for item in hourly_energy_scores if item["actual_hour"] == t.hour),
+                    None,
+                )
+            total += match["score"] if match else 0.0
+        return total
+
+    best_start = None
     max_window_score = -1.0
 
-    for i in range(forecast_hours - req.duration_hours + 1):
-        window_score = sum(item["score"] for item in hourly_energy_scores[i : i + req.duration_hours])
+    for window_start in candidate_starts:
+        # Hard reject any past / pre-effective candidate
+        if window_start < effective_start:
+            continue
+        if window_start + duration > latest_end:
+            continue
+        window_score = _score_for_window(window_start)
         if window_score > max_window_score:
             max_window_score = window_score
-            best_window_start = i
+            best_start = window_start
 
-    start_time = earliest + datetime.timedelta(hours=best_window_start)
-    end_time = start_time + datetime.timedelta(hours=req.duration_hours)
+    if best_start is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No feasible clean window found after the current time"
+        )
+
+    start_time = best_start
+    end_time = start_time + duration
+    best_window_start = next(
+        (
+            item["hour_offset"]
+            for item in hourly_energy_scores
+            if item["slot_time"].year == start_time.year
+            and item["slot_time"].month == start_time.month
+            and item["slot_time"].day == start_time.day
+            and item["slot_time"].hour == start_time.hour
+        ),
+        0,
+    )
 
     avg_coverage = round((max_window_score / req.duration_hours) * 100, 1)
-    selected_hours = hourly_energy_scores[
-        best_window_start:best_window_start + req.duration_hours
-    ]
+    selected_hours = []
+    for h in range(req.duration_hours):
+        t = start_time + datetime.timedelta(hours=h)
+        match = next(
+            (
+                item for item in hourly_energy_scores
+                if item["slot_time"].year == t.year
+                and item["slot_time"].month == t.month
+                and item["slot_time"].day == t.day
+                and item["slot_time"].hour == t.hour
+            ),
+            None,
+        )
+        if match is None and best_window_start + h < len(hourly_energy_scores):
+            match = hourly_energy_scores[best_window_start + h]
+        if match:
+            selected_hours.append(match)
+    if not selected_hours:
+        selected_hours = hourly_energy_scores[: req.duration_hours] or hourly_energy_scores[:1]
+
     rec_carbon_intensity = sum(
         item["carbon_intensity"] for item in selected_hours
-    ) / req.duration_hours
+    ) / max(len(selected_hours), 1)
     battery_supported_share = round(
-        sum(item.get("battery_score", 0.0) for item in selected_hours) / req.duration_hours * 100,
+        sum(item.get("battery_score", 0.0) for item in selected_hours) / max(len(selected_hours), 1) * 100,
         1,
     )
 
@@ -497,13 +593,13 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     )
     baseline_carbon_intensity = round(current_grid_intensity + (fossil_ratio * 180.0) + 100.0, 2)
 
-    recommended_price = sum(item["price"] for item in hourly_energy_scores[best_window_start : best_window_start + req.duration_hours]) / req.duration_hours
+    recommended_price = sum(item["price"] for item in selected_hours) / max(len(selected_hours), 1)
 
     baseline_price = (opcom_prices.get(18, 1.3) + opcom_prices.get(19, 1.5) + opcom_prices.get(20, 1.4) + opcom_prices.get(21, 1.1)) / 4.0
 
     return ScheduleRecommendation(
-        best_start_time=start_time.strftime("%Y-%m-%d %H:00:00"),
-        best_end_time=end_time.strftime("%Y-%m-%d %H:00:00"),
+        best_start_time=start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        best_end_time=end_time.strftime("%Y-%m-%d %H:%M:%S"),
         total_green_energy_score=round(max_window_score, 2),
         recommended_carbon_intensity=round(rec_carbon_intensity, 2),
         baseline_carbon_intensity=baseline_carbon_intensity,

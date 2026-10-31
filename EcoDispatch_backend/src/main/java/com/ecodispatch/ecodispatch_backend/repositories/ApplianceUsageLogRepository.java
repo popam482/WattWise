@@ -42,4 +42,19 @@ public interface ApplianceUsageLogRepository extends JpaRepository<ApplianceUsag
             @Param("dayStart") LocalDateTime dayStart,
             @Param("dayEnd") LocalDateTime dayEnd);
 
+    @Query("SELECT l FROM ApplianceUsageLog l WHERE l.appliance.user.user_id = :userId " +
+            "AND l.status IN :statuses AND l.startTime >= :dayStart AND l.startTime < :dayEnd " +
+            "ORDER BY l.startTime")
+    List<ApplianceUsageLog> findByApplianceUserIdAndStatusInAndStartTimeBetween(
+            @Param("userId") Integer userId,
+            @Param("statuses") List<String> statuses,
+            @Param("dayStart") LocalDateTime dayStart,
+            @Param("dayEnd") LocalDateTime dayEnd);
+
+    @Query("SELECT l FROM ApplianceUsageLog l WHERE l.appliance.id = :applianceId " +
+            "AND l.status = 'SCHEDULED' AND l.startTime >= :from")
+    List<ApplianceUsageLog> findScheduledFromByApplianceId(
+            @Param("applianceId") Integer applianceId,
+            @Param("from") LocalDateTime from);
+
 }

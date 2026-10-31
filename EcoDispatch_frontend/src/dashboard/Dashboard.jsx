@@ -6,8 +6,80 @@ import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 import HabitLearningSettings from '../privacy/HabitLearningSettings';
 import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
 import ConnectProviderModal from "../connectors/ConnectProviderModal.jsx";
-import ApplianceScheduler from './ApplianceScheduler.jsx';
+import ApplianceScheduler, {
+    RecurringApprovalModal,
+    RecurringCancelModal
+} from './ApplianceScheduler.jsx';
 import {useTheme} from '../theme/ThemeContext.jsx';
+
+function pad2(n) {
+    return String(n).padStart(2, '0');
+}
+
+function formatDateLocal(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** Next calendar day matching DAILY / WEEKDAYS / WEEKENDS. */
+function nextRecurrenceDate(recurringDays) {
+    const rule = String(recurringDays || 'DAILY').toUpperCase();
+    const base = new Date();
+    for (let i = 0; i < 8; i++) {
+        const candidate = new Date(base);
+        candidate.setDate(base.getDate() + i);
+        const day = candidate.getDay(); // 0=Sun
+        if (rule === 'DAILY') return candidate;
+        if (rule === 'WEEKDAYS' && day >= 1 && day <= 5) return candidate;
+        if (rule === 'WEEKENDS' && (day === 0 || day === 6)) return candidate;
+    }
+    return base;
+}
+
+function formatLocalDatetimeInput(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** Current local time floored to the minute — for datetime-local min/defaults. */
+function nowLocalDatetimeValue() {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    return formatLocalDatetimeInput(now);
+}
+
+/** Clamp earliest to now; keep latest strictly after earliest. */
+function clampDispatchWindow(earliestStart, latestEnd) {
+    const nowVal = nowLocalDatetimeValue();
+    let earliest = earliestStart && earliestStart >= nowVal ? earliestStart : nowVal;
+    let latest = latestEnd;
+    if (!latest || latest <= earliest) {
+        const end = new Date(earliest.replace('T', ' '));
+        if (Number.isNaN(end.getTime())) {
+            const fallback = new Date();
+            fallback.setDate(fallback.getDate() + 2);
+            fallback.setHours(0, 0, 0, 0);
+            latest = formatLocalDatetimeInput(fallback);
+        } else {
+            end.setHours(end.getHours() + 26);
+            latest = formatLocalDatetimeInput(end);
+        }
+    }
+    return {earliestStart: earliest, latestEnd: latest};
+}
+
+function buildRecurringDispatchWindow(recurringDays, windowStart, windowEnd) {
+    const day = nextRecurrenceDate(recurringDays);
+    const dateStr = formatDateLocal(day);
+    const start = windowStart || '00:00';
+    const end = windowEnd || '23:59';
+    const earliestStart = `${dateStr}T${start}`;
+    let latestEnd = `${dateStr}T${end}`;
+    if (end < start) {
+        const next = new Date(day);
+        next.setDate(next.getDate() + 1);
+        latestEnd = `${formatDateLocal(next)}T${end}`;
+    }
+    return clampDispatchWindow(earliestStart, latestEnd);
+}
 
 const glass = "rounded-2xl border border-emerald-100/80 bg-white shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none dark:backdrop-blur-md";
 const inputCls = "w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-500/50";
@@ -101,6 +173,11 @@ function Dashboard({userId, userName, userType, onLogout}) {
     const [schedulingAppliance, setSchedulingAppliance] = useState(null);
     const [schedulerStep, setSchedulerStep] = useState(null); // 'config' | 'result'
     const [confirmingSchedule, setConfirmingSchedule] = useState(false);
+
+    const [recurringApproval, setRecurringApproval] = useState(null); // { appliance, recommendation, loading }
+    const [approvingRecurring, setApprovingRecurring] = useState(false);
+    const [cancelTarget, setCancelTarget] = useState(null); // { logId?, applianceId, applianceName, date }
+    const [cancelBusy, setCancelBusy] = useState(false);
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
@@ -295,40 +372,47 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const getDispatchWindow = (applianceId) => {
         const existing = dispatchWindow[applianceId];
-        if (existing) return existing;
+        if (existing) {
+            return clampDispatchWindow(existing.earliestStart, existing.latestEnd);
+        }
 
-        const now = new Date();
-
-        const start = new Date(now);
-
+        const start = new Date();
+        start.setSeconds(0, 0);
         const end = new Date(start);
         end.setDate(end.getDate() + 2);
         end.setHours(0, 0, 0, 0);
 
-        const formatLocalDatetime = (d) => {
-            const pad = (n) => String(n).padStart(2, '0');
-            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        };
-
-        return {
-            earliestStart: formatLocalDatetime(start),
-            latestEnd: formatLocalDatetime(end)
-        };
+        return clampDispatchWindow(
+            formatLocalDatetimeInput(start),
+            formatLocalDatetimeInput(end)
+        );
     };
 
     const updateDispatchWindow = (applianceId, field, value) => {
-        setDispatchWindow(prev => ({
-            ...prev,
-            [applianceId]: {
-                ...getDispatchWindow(applianceId),
-                [field]: value
-            }
-        }));
+        setDispatchWindow(prev => {
+            const current = prev[applianceId] || getDispatchWindow(applianceId);
+            const next = { ...current, [field]: value };
+            return {
+                ...prev,
+                [applianceId]: clampDispatchWindow(next.earliestStart, next.latestEnd)
+            };
+        });
+    };
+
+    const resetAddForm = () => {
+        setNewName("");
+        setNewPower("");
+        setNewIsRecurring(false);
+        setNewRecurringDays("DAILY");
+        setNewPreferredDuration("2");
+        setNewWindowStart("22:00");
+        setNewWindowEnd("07:00");
     };
 
     const handleAddAppliance = (e) => {
         e.preventDefault();
         if (!newName || !newPower) return;
+        setError('');
 
         const payload = {
             name: newName,
@@ -349,13 +433,109 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 if (!res.ok) throw new Error('Failed to create appliance');
                 return res.json();
             })
-            .then(() => {
-                setNewName("");
-                setNewPower("");
-                setNewIsRecurring(false);
+            .then(async (created) => {
+                if (!newIsRecurring) {
+                    resetAddForm();
+                    fetchAppliances();
+                    return;
+                }
+
+                // Smart recurring: preview first window before activating in schedules
+                const durationHours = parseInt(newPreferredDuration, 10) || 2;
+                const window = buildRecurringDispatchWindow(
+                    newRecurringDays,
+                    newWindowStart,
+                    newWindowEnd
+                );
+
+                setRecurringApproval({
+                    appliance: created,
+                    recommendation: null,
+                    loading: true
+                });
+                resetAddForm();
                 fetchAppliances();
+
+                const query = new URLSearchParams({
+                    durationHours: String(durationHours),
+                    earliestStart: window.earliestStart,
+                    latestEnd: window.latestEnd
+                });
+
+                try {
+                    const res = await fetch(
+                        `/users/${userId}/appliances/${created.id}/recommendation?${query}`,
+                        { method: 'POST', headers: getAuthHeaders() }
+                    );
+                    if (!res.ok) {
+                        const detail = await res.text();
+                        throw new Error(detail || `Could not preview schedule (${res.status})`);
+                    }
+                    const data = await res.json();
+                    setRecurringApproval({
+                        appliance: created,
+                        recommendation: {
+                            ...data,
+                            durationMinutes: durationHours * 60
+                        },
+                        loading: false
+                    });
+                } catch (err) {
+                    setError(err.message || 'Could not preview automatic schedule');
+                    setRecurringApproval(prev => prev ? {...prev, loading: false} : null);
+                }
             })
             .catch(err => setError(err.message));
+    };
+
+    const discardRecurringApproval = () => {
+        const applianceId = recurringApproval?.appliance?.id;
+        setRecurringApproval(null);
+        if (!applianceId) return;
+        // Cancel / Reconfigure → remove unsaved-style draft appliance
+        fetch(`/users/${userId}/appliances/${applianceId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        })
+            .then(() => fetchAppliances())
+            .catch(() => fetchAppliances());
+    };
+
+    const approveRecurringRule = () => {
+        const appliance = recurringApproval?.appliance;
+        const rec = recurringApproval?.recommendation;
+        if (!appliance?.id || !rec?.best_start_time) {
+            setError('No preview window available. Cancel and try again.');
+            return;
+        }
+
+        setApprovingRecurring(true);
+        const payload = {
+            id: appliance.id,
+            startTime: String(rec.best_start_time).replace(' ', 'T'),
+            durationMinutes: rec.durationMinutes || 120,
+            recommendedCarbonIntensity: rec.recommended_carbon_intensity,
+            baselineCarbonIntensity: rec.baseline_carbon_intensity,
+            recommendedEnergyPrice: rec.recommended_energy_price,
+            baselineEnergyPrice: rec.baseline_energy_price
+        };
+
+        fetch(`/users/${userId}/appliances/schedule`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload)
+        })
+            .then(async res => {
+                if (!res.ok) {
+                    const detail = await res.text();
+                    throw new Error(detail || `Failed to activate schedule (${res.status})`);
+                }
+                setRecurringApproval(null);
+                setScheduledStatus(prev => ({...prev, [appliance.id]: true}));
+                return Promise.all([fetchAppliances(), fetchScheduledTasks()]);
+            })
+            .catch(err => setError(err.message))
+            .finally(() => setApprovingRecurring(false));
     };
 
     const handleDeleteAppliance = (applianceId) => {
@@ -410,10 +590,18 @@ function Dashboard({userId, userName, userType, onLogout}) {
         setError('');
         setSchedulingAppliance(app);
         setSchedulerStep('config');
-        // Ensure default window exists for this appliance
+        // Fresh default: earliest = now (minute precision), latest = +2 days midnight
+        const start = new Date();
+        start.setSeconds(0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 2);
+        end.setHours(0, 0, 0, 0);
         setDispatchWindow(prev => ({
             ...prev,
-            [app.id]: getDispatchWindow(app.id)
+            [app.id]: clampDispatchWindow(
+                formatLocalDatetimeInput(start),
+                formatLocalDatetimeInput(end)
+            )
         }));
         if (!applianceDuration[app.id]) {
             setApplianceDuration(prev => ({...prev, [app.id]: 2}));
@@ -432,7 +620,12 @@ function Dashboard({userId, userName, userType, onLogout}) {
         setSchedulerStep(null); // close Step 1 while scanning
 
         const selectedDuration = applianceDuration[applianceId] || 2;
-        const window = getDispatchWindow(applianceId);
+        const window = clampDispatchWindow(
+            getDispatchWindow(applianceId).earliestStart,
+            getDispatchWindow(applianceId).latestEnd
+        );
+        // Persist clamped values so the picker stays in sync with what we send
+        setDispatchWindow(prev => ({ ...prev, [applianceId]: window }));
         const query = new URLSearchParams({
             durationHours: selectedDuration,
             earliestStart: window.earliestStart,
@@ -505,7 +698,26 @@ function Dashboard({userId, userName, userType, onLogout}) {
             .finally(() => setConfirmingSchedule(false));
     };
 
-    const handleCancelTask = (logId, applianceId) => {
+    const openCancelDialog = ({ logId = null, applianceId, applianceName, date = selectedDate }) => {
+        setCancelTarget({
+            logId,
+            applianceId,
+            applianceName,
+            date: date || selectedDate
+        });
+    };
+
+    const handleCancelTask = (logId, applianceId, isRecurringTask = false, applianceName = '') => {
+        if (isRecurringTask) {
+            openCancelDialog({
+                logId,
+                applianceId,
+                applianceName,
+                date: selectedDate
+            });
+            return;
+        }
+
         fetch(`/users/${userId}/appliances/scheduled/${logId}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
@@ -524,6 +736,36 @@ function Dashboard({userId, userName, userType, onLogout}) {
             .catch(err => setError(err.message));
     };
 
+    const submitRecurringCancel = (scope) => {
+        if (!cancelTarget) return;
+        setCancelBusy(true);
+        setError('');
+
+        fetch(`/users/${userId}/appliances/scheduled/cancel`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                scope,
+                logId: cancelTarget.logId || undefined,
+                applianceId: cancelTarget.applianceId,
+                date: cancelTarget.date
+            })
+        })
+            .then(async res => {
+                if (!res.ok) {
+                    const detail = await res.text();
+                    throw new Error(detail || `Cancel failed (${res.status})`);
+                }
+                if (cancelTarget.applianceId) {
+                    setScheduledStatus(prev => ({ ...prev, [cancelTarget.applianceId]: false }));
+                }
+                setCancelTarget(null);
+                return Promise.all([fetchAppliances(), fetchScheduledTasks()]);
+            })
+            .catch(err => setError(err.message))
+            .finally(() => setCancelBusy(false));
+    };
+
     const isSmartRecurring = (appliance) => {
         const value = appliance?.isRecurring;
         return value === true
@@ -537,6 +779,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const renderTaskCard = (task) => {
         const taskStatus = getTaskStatus(task.startTime, task.durationMinutes);
+        const recurringTask = isSmartTask(task);
         return (
             <div key={task.id} className={`${glass} p-4`}>
                 <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusTone(taskStatus.color)}`}>
@@ -565,7 +808,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     <button
                         type="button"
                         className={`${ghostBtn} mt-3 w-full`}
-                        onClick={() => handleCancelTask(task.id, task.applianceId)}
+                        onClick={() => handleCancelTask(task.id, task.applianceId, recurringTask, task.applianceName)}
                     >
                         Cancel Schedule
                     </button>
@@ -973,6 +1216,25 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                             <div className="flex flex-wrap items-center gap-2">
                                                                 <button className={softText} type="button" onClick={() => startEditing(app)}>Edit</button>
                                                                 <button className={dangerText} type="button" onClick={() => handleDeleteAppliance(app.id)}>Delete</button>
+                                                                {smartRecurringActive && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={ghostBtn}
+                                                                        onClick={() => {
+                                                                            const todaysTask = scheduledTasks.find(
+                                                                                t => t.applianceId === app.id && isSmartTask(t)
+                                                                            );
+                                                                            openCancelDialog({
+                                                                                logId: todaysTask?.id || null,
+                                                                                applianceId: app.id,
+                                                                                applianceName: app.name,
+                                                                                date: selectedDate
+                                                                            });
+                                                                        }}
+                                                                    >
+                                                                        Cancel Schedule
+                                                                    </button>
+                                                                )}
                                                                 {!smartRecurringActive && (
                                                                     <button
                                                                         type="button"
@@ -1113,6 +1375,26 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     }}
                     onDecline={() => setSchedulerStep('config')}
                     onClose={closeScheduler}
+                />
+
+                <RecurringApprovalModal
+                    open={Boolean(recurringApproval)}
+                    appliance={recurringApproval?.appliance}
+                    recommendation={recurringApproval?.recommendation}
+                    loading={Boolean(recurringApproval?.loading)}
+                    confirming={approvingRecurring}
+                    onApprove={approveRecurringRule}
+                    onCancel={discardRecurringApproval}
+                />
+
+                <RecurringCancelModal
+                    open={Boolean(cancelTarget)}
+                    applianceName={cancelTarget?.applianceName}
+                    selectedDateLabel={cancelTarget?.date || selectedDate}
+                    busy={cancelBusy}
+                    onCancelOneDay={() => submitRecurringCancel('ONE_DAY')}
+                    onCancelAllFuture={() => submitRecurringCancel('ALL_FUTURE')}
+                    onClose={() => setCancelTarget(null)}
                 />
             </div>
         </div>
