@@ -1,11 +1,12 @@
 ﻿import {useState, useEffect, useCallback} from 'react';
-import {Sun, Moon, Plug, Zap, Leaf, Cable, LogOut, Plus, Activity} from 'lucide-react';
+import {Sun, Moon, Plug, Zap, Leaf, Cable, LogOut, Plus, Activity, CalendarClock} from 'lucide-react';
 import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 import HabitLearningSettings from '../privacy/HabitLearningSettings';
 import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
 import ConnectProviderModal from "../connectors/ConnectProviderModal.jsx";
+import ApplianceScheduler from './ApplianceScheduler.jsx';
 import {useTheme} from '../theme/ThemeContext.jsx';
 
 const glass = "rounded-2xl border border-emerald-100/80 bg-white shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none dark:backdrop-blur-md";
@@ -95,6 +96,9 @@ function Dashboard({userId, userName, userType, onLogout}) {
         totalSavedMoneyRon: 0
     });
     const [showIntegrations, setShowIntegrations] = useState(false);
+    const [schedulingAppliance, setSchedulingAppliance] = useState(null);
+    const [schedulerStep, setSchedulerStep] = useState(null); // 'config' | 'result'
+    const [confirmingSchedule, setConfirmingSchedule] = useState(false);
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
@@ -216,33 +220,6 @@ function Dashboard({userId, userName, userType, onLogout}) {
     const [selectedDate, setSelectedDate] = useState(getTodayString());
 
     const [error, setError] = useState('');
-
-    const getTransparentScorecard = (rec) => {
-        if (!rec) return null;
-
-        const carbon = rec.recommended_carbon_intensity || 150;
-        const carbonScore = Math.max(0, Math.min(100, Math.round(100 - (carbon / 4.5))));
-
-        const factors = rec.decision_factors || {};
-        const solarCoverage = factors['Direct Solar Coverage'] || factors['Direct_Solar_Coverage'] || 70;
-        const renewableAvailability = Math.round(Math.min(100, Math.max(0, solarCoverage)));
-
-        const recPrice = rec.recommended_energy_price || 0.45;
-        const basePrice = rec.baseline_energy_price || 1.30;
-        const priceScore = Math.max(0, Math.min(100, Math.round((1 - (recPrice / basePrice)) * 100)));
-
-        const gridImpact = factors['External Grid Impact'] || factors['External_Grid_Impact'] || 30;
-        const gridStress = gridImpact < 35 ? 'Low' : gridImpact < 65 ? 'Moderate' : 'High';
-        const confidence = Math.round(Math.min(98, Math.max(70, 100 - (carbon / 10))));
-
-        return {
-            carbonScore,
-            renewableAvailability,
-            priceScore,
-            gridStress,
-            confidence
-        };
-    };
 
     const fetchScheduledTasks = useCallback(() => {
         if (!userId) return;
@@ -425,9 +402,30 @@ function Dashboard({userId, userName, userType, onLogout}) {
         setEditWindowEnd(app.timeWindowEnd || "07:00");
     };
 
+    const openScheduler = (app) => {
+        setError('');
+        setSchedulingAppliance(app);
+        setSchedulerStep('config');
+        // Ensure default window exists for this appliance
+        setDispatchWindow(prev => ({
+            ...prev,
+            [app.id]: getDispatchWindow(app.id)
+        }));
+        if (!applianceDuration[app.id]) {
+            setApplianceDuration(prev => ({...prev, [app.id]: 2}));
+        }
+    };
+
+    const closeScheduler = () => {
+        setSchedulerStep(null);
+        setSchedulingAppliance(null);
+        setConfirmingSchedule(false);
+    };
+
     const handleGetRecommendation = (applianceId) => {
         setLoadingApplianceId(applianceId);
         setScheduledStatus(prev => ({...prev, [applianceId]: false}));
+        setSchedulerStep(null); // close Step 1 while scanning
 
         const selectedDuration = applianceDuration[applianceId] || 2;
         const window = getDispatchWindow(applianceId);
@@ -456,8 +454,12 @@ function Dashboard({userId, userName, userType, onLogout}) {
                         durationMinutes: selectedDuration * 60,
                     }
                 }));
+                setSchedulerStep('result');
             })
-            .catch(err => setError(err.message || 'Could not get recommendation'))
+            .catch(err => {
+                setError(err.message || 'Could not get recommendation');
+                setSchedulerStep('config'); // restore Step 1 on failure
+            })
             .finally(() => setLoadingApplianceId(null));
     };
 
@@ -468,6 +470,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
             return;
         }
 
+        setConfirmingSchedule(true);
         const payload = {
             id: applianceId,
             startTime: String(rec.best_start_time).replace(" ", "T"),
@@ -492,8 +495,10 @@ function Dashboard({userId, userName, userType, onLogout}) {
             })
             .then(() => {
                 setScheduledStatus(prev => ({...prev, [applianceId]: true}));
+                closeScheduler();
             })
-            .catch(err => setError(err.message));
+            .catch(err => setError(err.message))
+            .finally(() => setConfirmingSchedule(false));
     };
 
     const handleCancelTask = (logId, applianceId) => {
@@ -897,28 +902,15 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                         <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{group.title}</h3>
                                         <p className="text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="space-y-2">
                                         {group.appliances.map(app => {
                                             const smartRecurringActive = editingId === app.id
                                                 ? editIsRecurring
                                                 : isSmartRecurring(app);
+                                            const isScheduled = Boolean(scheduledStatus[app.id]);
 
                                             return (
-                                                <div key={app.id} className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none">
-                                                    <div className="mb-3 flex items-start justify-between gap-2">
-                                                        <div>
-                                                            <h3 className="font-semibold text-slate-900 dark:text-slate-100">{app.name}</h3>
-                                                            <span className="text-xs text-slate-500 dark:text-slate-400">{app.powerConsumptionKw} kW flexible load</span>
-                                                        </div>
-                                                        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
-                                                            smartRecurringActive
-                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
-                                                                : 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
-                                                        }`}>
-                                                            {smartRecurringActive ? 'AUTONOMOUS' : 'FLEXIBLE'}
-                                                        </span>
-                                                    </div>
-
+                                                <div key={app.id} className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none">
                                                     {editingId === app.id ? (
                                                         <form onSubmit={e => handleSaveEdit(e, app.id)} className="space-y-2">
                                                             <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required className={inputCls} />
@@ -952,67 +944,45 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                             </div>
                                                         </form>
                                                     ) : (
-                                                        <div className="mb-3 flex gap-3">
-                                                            <button className={softText} type="button" onClick={() => startEditing(app)}>Edit</button>
-                                                            <button className={dangerText} type="button" onClick={() => handleDeleteAppliance(app.id)}>Delete</button>
-                                                        </div>
-                                                    )}
-
-                                                    {!smartRecurringActive && (
-                                                        <div className="space-y-2 border-t border-slate-200 pt-3 dark:border-slate-800">
-                                                            <div className="grid gap-2">
-                                                                <label className="text-xs text-slate-500 dark:text-slate-400" htmlFor={`duration-${app.id}`}>Runtime</label>
-                                                                <select id={`duration-${app.id}`} value={applianceDuration[app.id] || 2} onChange={(e) => handleDurationChange(app.id, e.target.value)} className={selectCls}>
-                                                                    <option value={1}>1 hour</option>
-                                                                    <option value={2}>2 hours</option>
-                                                                    <option value={3}>3 hours</option>
-                                                                    <option value={4}>4 hours</option>
-                                                                </select>
-                                                                <label className="text-xs text-slate-500 dark:text-slate-400" htmlFor={`earliest-${app.id}`}>Earliest start</label>
-                                                                <input id={`earliest-${app.id}`} type="datetime-local" value={getDispatchWindow(app.id).earliestStart} onChange={(e) => updateDispatchWindow(app.id, 'earliestStart', e.target.value)} className={inputCls} />
-                                                                <label className="text-xs text-slate-500 dark:text-slate-400" htmlFor={`latest-${app.id}`}>Must finish by</label>
-                                                                <input id={`latest-${app.id}`} type="datetime-local" value={getDispatchWindow(app.id).latestEnd} onChange={(e) => updateDispatchWindow(app.id, 'latestEnd', e.target.value)} className={inputCls} />
-                                                            </div>
-                                                            <button className={`${primaryBtn} w-full`} type="button" onClick={() => handleGetRecommendation(app.id)} disabled={loadingApplianceId === app.id}>
-                                                                {loadingApplianceId === app.id ? 'Scanning energy windows...' : 'Find cleanest window'}
-                                                            </button>
-                                                        </div>
-                                                    )}
-
-                                                    {recommendations[app.id] && !smartRecurringActive && (() => {
-                                                        const rec = recommendations[app.id];
-                                                        const scores = getTransparentScorecard(rec) || {};
-                                                        const alreadyScheduled = scheduledStatus[app.id];
-                                                        return (
-                                                            <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Transparent Decision Scorecard</h5>
-                                                                    {alreadyScheduled && (
-                                                                        <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300">SCHEDULED</span>
+                                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <h3 className="truncate font-semibold text-emerald-950 dark:text-slate-100">{app.name}</h3>
+                                                                    <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
+                                                                        smartRecurringActive
+                                                                            ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                                                            : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
+                                                                    }`}>
+                                                                        {smartRecurringActive ? 'AUTONOMOUS' : 'FLEXIBLE'}
+                                                                    </span>
+                                                                    {isScheduled && !smartRecurringActive && (
+                                                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                                                            SCHEDULED
+                                                                        </span>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-sm text-slate-600 dark:text-slate-300">
-                                                                    <strong className="text-slate-900 dark:text-slate-100">Best window:</strong>{' '}
-                                                                    {rec.best_start_time || '—'}
-                                                                    {rec.best_end_time ? ` → ${rec.best_end_time}` : ''}
-                                                                </div>
-                                                                {rec.reason && <p className="text-xs text-slate-500 dark:text-slate-400">{rec.reason}</p>}
-                                                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400">
-                                                                    <div>Carbon: <span className="font-semibold text-emerald-700 dark:text-emerald-300">{scores.carbonScore ?? '—'}/100</span></div>
-                                                                    <div>Renewable: <span className="font-semibold text-emerald-700 dark:text-emerald-300">{scores.renewableAvailability ?? '—'}%</span></div>
-                                                                    <div>Price: <span className="font-semibold text-blue-700 dark:text-blue-300">{scores.priceScore ?? '—'}/100</span></div>
-                                                                    <div>Grid stress: <span className="font-semibold text-slate-800 dark:text-slate-200">{scores.gridStress ?? '—'}</span></div>
-                                                                </div>
-                                                                <div className="flex flex-wrap gap-3 text-[11px] text-slate-500 dark:text-slate-500">
-                                                                    <span>AI Confidence: {scores.confidence ?? '—'}%</span>
-                                                                    <span>Multi-factor solar & grid model</span>
-                                                                </div>
-                                                                <button className={`${primaryBtn} w-full`} type="button" onClick={() => handleConfirmSchedule(app.id)} disabled={alreadyScheduled}>
-                                                                    {alreadyScheduled ? 'Scheduled ✓' : 'Confirm Schedule'}
-                                                                </button>
+                                                                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+                                                                    {app.powerConsumptionKw} kW flexible load
+                                                                </p>
                                                             </div>
-                                                        );
-                                                    })()}
+
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <button className={softText} type="button" onClick={() => startEditing(app)}>Edit</button>
+                                                                <button className={dangerText} type="button" onClick={() => handleDeleteAppliance(app.id)}>Delete</button>
+                                                                {!smartRecurringActive && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`${primaryBtn} inline-flex items-center gap-1.5`}
+                                                                        onClick={() => openScheduler(app)}
+                                                                        disabled={loadingApplianceId === app.id}
+                                                                    >
+                                                                        <CalendarClock className="h-4 w-4" />
+                                                                        Schedule
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -1096,6 +1066,39 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     userId={userId}
                     open={showIntegrations}
                     onClose={() => setShowIntegrations(false)}
+                />
+
+                <ApplianceScheduler
+                    appliance={schedulingAppliance}
+                    step={schedulerStep}
+                    durationHours={schedulingAppliance ? (applianceDuration[schedulingAppliance.id] || 2) : 2}
+                    earliestStart={schedulingAppliance ? getDispatchWindow(schedulingAppliance.id).earliestStart : ''}
+                    latestEnd={schedulingAppliance ? getDispatchWindow(schedulingAppliance.id).latestEnd : ''}
+                    loading={Boolean(schedulingAppliance && loadingApplianceId === schedulingAppliance.id)}
+                    confirming={confirmingSchedule}
+                    recommendation={schedulingAppliance ? recommendations[schedulingAppliance.id] : null}
+                    onDurationChange={(hours) => {
+                        if (!schedulingAppliance) return;
+                        handleDurationChange(schedulingAppliance.id, hours);
+                    }}
+                    onEarliestChange={(value) => {
+                        if (!schedulingAppliance) return;
+                        updateDispatchWindow(schedulingAppliance.id, 'earliestStart', value);
+                    }}
+                    onLatestChange={(value) => {
+                        if (!schedulingAppliance) return;
+                        updateDispatchWindow(schedulingAppliance.id, 'latestEnd', value);
+                    }}
+                    onFindCleanestWindow={() => {
+                        if (!schedulingAppliance) return;
+                        handleGetRecommendation(schedulingAppliance.id);
+                    }}
+                    onConfirm={() => {
+                        if (!schedulingAppliance) return;
+                        handleConfirmSchedule(schedulingAppliance.id);
+                    }}
+                    onDecline={() => setSchedulerStep('config')}
+                    onClose={closeScheduler}
                 />
             </div>
         </div>
