@@ -39,18 +39,37 @@ function formatLocalDatetimeInput(d) {
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
-/** Current local time floored to the minute — for datetime-local min/defaults. */
-function nowLocalDatetimeValue() {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    return formatLocalDatetimeInput(now);
+/** Round UP to next :00 / :15 / :30 / :45 (18:38 → 18:45, 18:52 → 19:00). */
+function snapToNext15Min(dateOrValue) {
+    let d;
+    if (dateOrValue instanceof Date) {
+        d = new Date(dateOrValue.getTime());
+    } else {
+        d = new Date(String(dateOrValue || '').replace(' ', 'T'));
+    }
+    if (Number.isNaN(d.getTime())) {
+        d = new Date();
+    }
+    d.setSeconds(0, 0);
+    const remainder = d.getMinutes() % 15;
+    if (remainder !== 0) {
+        d.setMinutes(d.getMinutes() + (15 - remainder));
+    }
+    return formatLocalDatetimeInput(d);
 }
 
-/** Clamp earliest to now; keep latest strictly after earliest. */
+/** Current local time snapped UP to the next 15-minute mark. */
+function nowLocalDatetimeValue() {
+    return snapToNext15Min(new Date());
+}
+
+/** Clamp earliest to now (15-min snapped); keep latest strictly after earliest. */
 function clampDispatchWindow(earliestStart, latestEnd) {
     const nowVal = nowLocalDatetimeValue();
-    let earliest = earliestStart && earliestStart >= nowVal ? earliestStart : nowVal;
-    let latest = latestEnd;
+    let earliest = snapToNext15Min(
+        earliestStart && earliestStart >= nowVal ? earliestStart : nowVal
+    );
+    let latest = latestEnd ? snapToNext15Min(latestEnd) : latestEnd;
     if (!latest || latest <= earliest) {
         const end = new Date(earliest.replace('T', ' '));
         if (Number.isNaN(end.getTime())) {
@@ -60,7 +79,7 @@ function clampDispatchWindow(earliestStart, latestEnd) {
             latest = formatLocalDatetimeInput(fallback);
         } else {
             end.setHours(end.getHours() + 26);
-            latest = formatLocalDatetimeInput(end);
+            latest = snapToNext15Min(end);
         }
     }
     return {earliestStart: earliest, latestEnd: latest};
@@ -590,7 +609,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
         setError('');
         setSchedulingAppliance(app);
         setSchedulerStep('config');
-        // Fresh default: earliest = now (minute precision), latest = +2 days midnight
+        // Fresh default: earliest = next 15-min slot, latest = +2 days midnight
         const start = new Date();
         start.setSeconds(0, 0);
         const end = new Date(start);
@@ -599,7 +618,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
         setDispatchWindow(prev => ({
             ...prev,
             [app.id]: clampDispatchWindow(
-                formatLocalDatetimeInput(start),
+                snapToNext15Min(start),
                 formatLocalDatetimeInput(end)
             )
         }));
@@ -789,7 +808,24 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 <h3 className="mt-3 text-base font-semibold text-slate-900 dark:text-slate-100">{task.applianceName}</h3>
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                     <span className="text-slate-500 dark:text-slate-500">Start:</span>{' '}
-                    {new Date(task.startTime).toLocaleString()}
+                    {(() => {
+                        const start = new Date(task.startTime);
+                        if (Number.isNaN(start.getTime())) return '—';
+                        const snapped = new Date(start.getTime());
+                        snapped.setSeconds(0, 0);
+                        const rem = snapped.getMinutes() % 15;
+                        if (rem !== 0) snapped.setMinutes(snapped.getMinutes() + (15 - rem));
+                        const end = new Date(snapped.getTime() + (Number(task.durationMinutes) || 0) * 60_000);
+                        const today = new Date();
+                        const isToday =
+                            snapped.getFullYear() === today.getFullYear() &&
+                            snapped.getMonth() === today.getMonth() &&
+                            snapped.getDate() === today.getDate();
+                        const day = isToday
+                            ? 'Today'
+                            : snapped.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+                        return `${day}, ${pad2(snapped.getHours())}:${pad2(snapped.getMinutes())} - ${pad2(end.getHours())}:${pad2(end.getMinutes())}`;
+                    })()}
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                     <span className="text-slate-500">Duration:</span> {task.durationMinutes} mins

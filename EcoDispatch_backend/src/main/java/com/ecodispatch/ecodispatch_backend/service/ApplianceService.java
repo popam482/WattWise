@@ -158,10 +158,12 @@ public class ApplianceService {
         if (effectiveEarliest.isBefore(now)) {
             effectiveEarliest = now;
         }
-        LocalDateTime effectiveLatest = parseFlexibleDateTime(
+        effectiveEarliest = snapToNext15Min(effectiveEarliest);
+
+        LocalDateTime effectiveLatest = snapToNext15Min(parseFlexibleDateTime(
                 latestEnd,
                 now.plusHours(24)
-        );
+        ));
         if (!effectiveLatest.isAfter(effectiveEarliest)) {
             effectiveLatest = effectiveEarliest.plusHours(Math.max(durationHours, 2) + 2L);
         }
@@ -372,11 +374,13 @@ public class ApplianceService {
                 latestEnd = latestEnd.plusDays(1);
             }
 
-            // Never optimize into the past for today's recurrence window
+            // Never optimize into the past; snap to next :00/:15/:30/:45
             LocalDateTime nowBucharest = LocalDateTime.now(ZoneId.of("Europe/Bucharest")).withSecond(0).withNano(0);
             if (earliestStart.isBefore(nowBucharest)) {
                 earliestStart = nowBucharest;
             }
+            earliestStart = snapToNext15Min(earliestStart);
+            latestEnd = snapToNext15Min(latestEnd);
             if (!latestEnd.isAfter(earliestStart)) {
                 continue;
             }
@@ -637,6 +641,21 @@ public class ApplianceService {
                 Math.round(treeEquiv * 10.0) / 10.0,
                 history
         );
+    }
+
+    /**
+     * Round UP to the next :00 / :15 / :30 / :45 boundary.
+     * Already-aligned times are unchanged (18:15 stays 18:15).
+     * Examples: 18:02 → 18:15, 18:38 → 18:45, 18:52 → 19:00.
+     */
+    private LocalDateTime snapToNext15Min(LocalDateTime dt) {
+        LocalDateTime clean = dt.withSecond(0).withNano(0);
+        int minute = clean.getMinute();
+        int remainder = minute % 15;
+        if (remainder == 0) {
+            return clean;
+        }
+        return clean.plusMinutes(15L - remainder);
     }
 
     /**

@@ -17,18 +17,36 @@ function parseLocalDateTime(value) {
     return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function pad2(n) {
+    return String(n).padStart(2, '0');
+}
+
+/** Round UP to next :00 / :15 / :30 / :45. */
+export function snapToNext15MinDate(date) {
+    const d = new Date(date.getTime());
+    d.setSeconds(0, 0);
+    const remainder = d.getMinutes() % 15;
+    if (remainder !== 0) {
+        d.setMinutes(d.getMinutes() + (15 - remainder));
+    }
+    return d;
+}
+
 function formatClock(date) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const snapped = snapToNext15MinDate(date);
+    return `${pad2(snapped.getHours())}:${pad2(snapped.getMinutes())}`;
 }
 
 export function formatWindowLabel(rec) {
-    const start = parseLocalDateTime(rec?.best_start_time);
-    if (!start) return '—';
+    const startRaw = parseLocalDateTime(rec?.best_start_time);
+    if (!startRaw) return '—';
+    const start = snapToNext15MinDate(startRaw);
 
-    let end = parseLocalDateTime(rec?.best_end_time);
-    if (!end && rec?.durationMinutes) {
-        end = new Date(start.getTime() + Number(rec.durationMinutes) * 60_000);
+    let endRaw = parseLocalDateTime(rec?.best_end_time);
+    if (!endRaw && rec?.durationMinutes) {
+        endRaw = new Date(start.getTime() + Number(rec.durationMinutes) * 60_000);
     }
+    const end = endRaw ? snapToNext15MinDate(endRaw) : null;
 
     const today = new Date();
     const isToday =
@@ -41,7 +59,7 @@ export function formatWindowLabel(rec) {
         : start.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 
     const endLabel = end ? formatClock(end) : '—';
-    return `${dayLabel}, ${formatClock(start)} – ${endLabel}`;
+    return `${dayLabel}, ${formatClock(start)} - ${endLabel}`;
 }
 
 export function estimateImpact(rec, powerKw) {
@@ -93,10 +111,15 @@ function ImpactCards({ recommendation, powerKw }) {
 
 /** Manual flexible-load schedule wizard (config → result). */
 function nowLocalDatetimeValue() {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const snapped = snapToNext15MinDate(new Date());
+    return `${snapped.getFullYear()}-${pad2(snapped.getMonth() + 1)}-${pad2(snapped.getDate())}T${pad2(snapped.getHours())}:${pad2(snapped.getMinutes())}`;
+}
+
+function snapDatetimeLocalValue(value) {
+    const parsed = parseLocalDateTime(value);
+    if (!parsed) return nowLocalDatetimeValue();
+    const snapped = snapToNext15MinDate(parsed);
+    return `${snapped.getFullYear()}-${pad2(snapped.getMonth() + 1)}-${pad2(snapped.getDate())}T${pad2(snapped.getHours())}:${pad2(snapped.getMinutes())}`;
 }
 
 export default function ApplianceScheduler({
@@ -196,11 +219,12 @@ export default function ApplianceScheduler({
                             <input
                                 id="sched-earliest"
                                 type="datetime-local"
+                                step={900}
                                 value={earliestStart}
                                 min={minEarliest}
                                 onChange={(e) => {
-                                    const next = e.target.value < minEarliest ? minEarliest : e.target.value;
-                                    onEarliestChange(next);
+                                    const raw = e.target.value < minEarliest ? minEarliest : e.target.value;
+                                    onEarliestChange(snapDatetimeLocalValue(raw));
                                 }}
                                 className={inputCls}
                                 required
@@ -213,9 +237,10 @@ export default function ApplianceScheduler({
                             <input
                                 id="sched-latest"
                                 type="datetime-local"
+                                step={900}
                                 value={latestEnd}
                                 min={earliestStart || minEarliest}
-                                onChange={(e) => onLatestChange(e.target.value)}
+                                onChange={(e) => onLatestChange(snapDatetimeLocalValue(e.target.value))}
                                 className={inputCls}
                                 required
                             />

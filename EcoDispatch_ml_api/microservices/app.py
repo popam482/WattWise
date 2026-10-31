@@ -123,11 +123,18 @@ def _parse_schedule_time(value: Optional[str], fallback: datetime.datetime) -> d
         ) from error
 
 
-def _ceil_to_next_hour(dt: datetime.datetime) -> datetime.datetime:
-    floored = dt.replace(minute=0, second=0, microsecond=0)
-    if dt == floored:
-        return floored
-    return floored + datetime.timedelta(hours=1)
+def snap_to_next_15_min(dt: datetime.datetime) -> datetime.datetime:
+    """
+    Round UP to the next :00 / :15 / :30 / :45 boundary.
+    Already-aligned times are unchanged (18:15 -> 18:15).
+    Examples: 18:02 -> 18:15, 18:38 -> 18:45, 18:52 -> 19:00.
+    """
+    clean = dt.replace(second=0, microsecond=0)
+    minute = clean.minute
+    remainder = minute % 15
+    if remainder == 0:
+        return clean
+    return clean + datetime.timedelta(minutes=(15 - remainder))
 
 
 def estimate_pv_kw(hour_of_day: int, system_kwp: float, tilt: float, azimuth: float) -> float:
@@ -340,12 +347,12 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 
     now = datetime.datetime.now(ZoneInfo("Europe/Bucharest")).replace(second=0, microsecond=0)
     requested_earliest = _parse_schedule_time(req.earliest_start, now)
-    latest_end = _parse_schedule_time(
-        req.latest_end, now + datetime.timedelta(hours=24)
+    latest_end = snap_to_next_15_min(
+        _parse_schedule_time(req.latest_end, now + datetime.timedelta(hours=24))
     )
 
-    # CRITICAL: never search in the past — effectiveStart = max(requested, now)
-    effective_start = max(requested_earliest, now)
+    # Never search in the past, then snap UP to the next :00/:15/:30/:45 mark
+    effective_start = snap_to_next_15_min(max(requested_earliest, now))
     if latest_end <= effective_start:
         raise HTTPException(status_code=400, detail="latest_end must be after earliest_start")
 
@@ -356,14 +363,12 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             detail="The selected time window is shorter than the appliance duration"
         )
 
-    # Candidate starts: exact effective_start, then clock-aligned hours (never before now)
-    candidate_starts: list[datetime.datetime] = [effective_start]
-    aligned = _ceil_to_next_hour(effective_start)
-    cursor = aligned
+    # Candidate starts every 15 minutes on clean boundaries (never before effective_start)
+    candidate_starts: list[datetime.datetime] = []
+    cursor = effective_start
     while cursor + duration <= latest_end:
-        if cursor > effective_start:
-            candidate_starts.append(cursor)
-        cursor += datetime.timedelta(hours=1)
+        candidate_starts.append(cursor)
+        cursor += datetime.timedelta(minutes=15)
 
     if not candidate_starts:
         raise HTTPException(
