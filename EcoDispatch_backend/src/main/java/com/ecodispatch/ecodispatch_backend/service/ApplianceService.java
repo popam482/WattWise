@@ -243,6 +243,7 @@ public class ApplianceService {
         applianceRepository.delete(appliance);
     }
 
+    @Transactional
     public ApplianceResponseDTO updateAppliance(Integer userId, Integer applianceId, ApplianceRequestDTO dto) {
 
         validateUserOwnership(userId);
@@ -254,13 +255,49 @@ public class ApplianceService {
             throw new ApplianceNotFound("Appliance does not belong to user");
         }
 
-        appliance.setName(dto.getName());
-        appliance.setPowerConsumptionKw(dto.getPowerConsumptionKw());
-        appliance.setIsRecurring(dto.getIsRecurring() != null ? dto.getIsRecurring() : false);
-        appliance.setRecurringDays(dto.getRecurringDays());
-        appliance.setPreferredDuration(parsePreferredDuration(dto.getPreferredDuration()));
-        appliance.setTimeWindowStart(dto.getTimeWindowStart());
-        appliance.setTimeWindowEnd(dto.getTimeWindowEnd());
+        boolean wasRecurring = Boolean.TRUE.equals(appliance.getIsRecurring());
+        boolean nowRecurring = dto.getIsRecurring() != null && dto.getIsRecurring();
+
+        if (dto.getName() != null && !dto.getName().isBlank()) {
+            appliance.setName(dto.getName());
+        }
+        if (dto.getPowerConsumptionKw() != null) {
+            appliance.setPowerConsumptionKw(dto.getPowerConsumptionKw());
+        }
+
+        appliance.setIsRecurring(nowRecurring);
+
+        if (nowRecurring) {
+            appliance.setRecurringDays(dto.getRecurringDays() != null ? dto.getRecurringDays() : "DAILY");
+            Integer duration = parsePreferredDuration(dto.getPreferredDuration());
+            appliance.setPreferredDuration(duration != null ? duration : 2);
+            appliance.setTimeWindowStart(
+                    dto.getTimeWindowStart() != null && !dto.getTimeWindowStart().isBlank()
+                            ? dto.getTimeWindowStart() : "08:00"
+            );
+            appliance.setTimeWindowEnd(
+                    dto.getTimeWindowEnd() != null && !dto.getTimeWindowEnd().isBlank()
+                            ? dto.getTimeWindowEnd() : "22:00"
+            );
+        } else {
+            // Manual flexible mode — clear recurring template fields
+            appliance.setRecurringDays(null);
+            appliance.setPreferredDuration(null);
+            appliance.setTimeWindowStart(null);
+            appliance.setTimeWindowEnd(null);
+
+            // Deactivate any future auto-generated runs for this appliance
+            if (wasRecurring) {
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Europe/Bucharest")).minusHours(1);
+                List<ApplianceUsageLog> futureLogs =
+                        applianceUsageLogRepository.findScheduledFromByApplianceId(applianceId, now);
+                for (ApplianceUsageLog future : futureLogs) {
+                    future.setStatus("CANCELLED");
+                    future.setDecisionReason("Switched from automatic to manual mode");
+                    applianceUsageLogRepository.save(future);
+                }
+            }
+        }
 
         Appliance updated = applianceRepository.save(appliance);
         return toResponseDTO(updated);

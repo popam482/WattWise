@@ -8,7 +8,8 @@ import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
 import ConnectProviderModal from "../connectors/ConnectProviderModal.jsx";
 import ApplianceScheduler, {
     RecurringApprovalModal,
-    RecurringCancelModal
+    RecurringCancelModal,
+    RecurringModeSwitch
 } from './ApplianceScheduler.jsx';
 import {useTheme} from '../theme/ThemeContext.jsx';
 
@@ -193,10 +194,13 @@ function Dashboard({userId, userName, userType, onLogout}) {
     const [schedulerStep, setSchedulerStep] = useState(null); // 'config' | 'result'
     const [confirmingSchedule, setConfirmingSchedule] = useState(false);
 
-    const [recurringApproval, setRecurringApproval] = useState(null); // { appliance, recommendation, loading }
+    const [recurringApproval, setRecurringApproval] = useState(null); // { appliance, recommendation, loading, source }
     const [approvingRecurring, setApprovingRecurring] = useState(false);
     const [cancelTarget, setCancelTarget] = useState(null); // { logId?, applianceId, applianceName, date }
     const [cancelBusy, setCancelBusy] = useState(false);
+    /** Inline Manual→Automatic config draft on a card (before preview). */
+    const [modeSwitchDraft, setModeSwitchDraft] = useState(null); // { applianceId, recurringDays, preferredDuration, windowStart, windowEnd, busy }
+    const [modeSwitchBusyId, setModeSwitchBusyId] = useState(null);
 
     const getAuthHeaders = () => {
         const token = localStorage.getItem('token');
@@ -467,94 +471,286 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     newWindowEnd
                 );
 
-                setRecurringApproval({
-                    appliance: created,
-                    recommendation: null,
-                    loading: true
-                });
+                await openRecurringPreview(created, {
+                    recurringDays: newRecurringDays,
+                    preferredDuration: durationHours,
+                    windowStart: newWindowStart,
+                    windowEnd: newWindowEnd
+                }, 'create');
                 resetAddForm();
                 fetchAppliances();
-
-                const query = new URLSearchParams({
-                    durationHours: String(durationHours),
-                    earliestStart: window.earliestStart,
-                    latestEnd: window.latestEnd
-                });
-
-                try {
-                    const res = await fetch(
-                        `/users/${userId}/appliances/${created.id}/recommendation?${query}`,
-                        { method: 'POST', headers: getAuthHeaders() }
-                    );
-                    if (!res.ok) {
-                        const detail = await res.text();
-                        throw new Error(detail || `Could not preview schedule (${res.status})`);
-                    }
-                    const data = await res.json();
-                    setRecurringApproval({
-                        appliance: created,
-                        recommendation: {
-                            ...data,
-                            durationMinutes: durationHours * 60
-                        },
-                        loading: false
-                    });
-                } catch (err) {
-                    setError(err.message || 'Could not preview automatic schedule');
-                    setRecurringApproval(prev => prev ? {...prev, loading: false} : null);
-                }
             })
             .catch(err => setError(err.message));
     };
 
-    const discardRecurringApproval = () => {
-        const applianceId = recurringApproval?.appliance?.id;
-        setRecurringApproval(null);
-        if (!applianceId) return;
-        // Cancel / Reconfigure → remove unsaved-style draft appliance
-        fetch(`/users/${userId}/appliances/${applianceId}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        })
-            .then(() => fetchAppliances())
-            .catch(() => fetchAppliances());
+    const normalizeRecommendation = (data, durationHours) => {
+        if (!data || typeof data !== 'object') return null;
+        return {
+            ...data,
+            best_start_time: data.best_start_time ?? data.bestStartTime ?? null,
+            best_end_time: data.best_end_time ?? data.bestEndTime ?? null,
+            recommended_carbon_intensity:
+                data.recommended_carbon_intensity ?? data.recommendedCarbonIntensity ?? null,
+            baseline_carbon_intensity:
+                data.baseline_carbon_intensity ?? data.baselineCarbonIntensity ?? null,
+            recommended_energy_price:
+                data.recommended_energy_price ?? data.recommendedEnergyPrice ?? null,
+            baseline_energy_price:
+                data.baseline_energy_price ?? data.baselineEnergyPrice ?? null,
+            durationMinutes: durationHours * 60
+        };
     };
 
-    const approveRecurringRule = () => {
+    /** Opens the Confirm Automatic Schedule modal and fetches the next clean window. */
+    const openRecurringPreview = async (appliance, config, source = 'create') => {
+        if (!appliance?.id) {
+            setError('Missing appliance id — cannot preview automatic schedule.');
+            return;
+        }
+
+        const pendingConfig = {
+            recurringDays: config.recurringDays || 'DAILY',
+            preferredDuration: String(config.preferredDuration || 2),
+            windowStart: config.windowStart || config.timeWindowStart || '08:00',
+            windowEnd: config.windowEnd || config.timeWindowEnd || '22:00',
+            name: config.name ?? appliance.name,
+            powerConsumptionKw: config.powerConsumptionKw ?? appliance.powerConsumptionKw
+        };
+        const durationHours = parseInt(pendingConfig.preferredDuration, 10) || 2;
+        const window = buildRecurringDispatchWindow(
+            pendingConfig.recurringDays,
+            pendingConfig.windowStart,
+            pendingConfig.windowEnd
+        );
+
+        // Always open the modal first — never wait on persistence.
+        setError('');
+        setEditingId(null);
+        setModeSwitchDraft(null);
+        setRecurringApproval({
+            appliance: {
+                ...appliance,
+                name: pendingConfig.name,
+                powerConsumptionKw: pendingConfig.powerConsumptionKw
+            },
+            recommendation: null,
+            loading: true,
+            source,
+            pendingConfig
+        });
+
+        const query = new URLSearchParams({
+            durationHours: String(durationHours),
+            earliestStart: window.earliestStart,
+            latestEnd: window.latestEnd
+        });
+
+        try {
+            const res = await fetch(
+                `/users/${userId}/appliances/${appliance.id}/recommendation?${query}`,
+                { method: 'POST', headers: getAuthHeaders() }
+            );
+            if (!res.ok) {
+                const detail = await res.text();
+                throw new Error(detail || `Could not preview schedule (${res.status})`);
+            }
+            const data = await res.json();
+            const recommendation = normalizeRecommendation(data, durationHours);
+            setRecurringApproval(prev => prev ? {
+                ...prev,
+                appliance: {
+                    ...appliance,
+                    name: pendingConfig.name,
+                    powerConsumptionKw: pendingConfig.powerConsumptionKw
+                },
+                recommendation,
+                loading: false,
+                source,
+                pendingConfig
+            } : null);
+        } catch (err) {
+            setError(err.message || 'Could not preview automatic schedule');
+            setRecurringApproval(prev => prev ? {...prev, loading: false, recommendation: null} : null);
+        }
+    };
+
+    const updateApplianceMode = (applianceId, payload) => {
+        // PUT is the primary update verb (CORS + existing clients). PATCH kept as backend alias.
+        return fetch(`/users/${userId}/appliances/${applianceId}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload)
+        }).then(async res => {
+            if (!res.ok) {
+                const detail = await res.text();
+                throw new Error(detail || `Failed to update appliance (${res.status})`);
+            }
+            const text = await res.text();
+            if (!text) return { id: applianceId, ...payload };
+            try {
+                return JSON.parse(text);
+            } catch {
+                return { id: applianceId, ...payload };
+            }
+        });
+    };
+
+    const restoreModeSwitchEditor = (appliance, pendingConfig) => {
+        if (!appliance?.id) return;
+        setModeSwitchDraft(null);
+        setEditingId(appliance.id);
+        setEditName(pendingConfig?.name ?? appliance.name ?? '');
+        setEditPower(String(pendingConfig?.powerConsumptionKw ?? appliance.powerConsumptionKw ?? ''));
+        setEditIsRecurring(true);
+        setEditRecurringDays(pendingConfig?.recurringDays || 'DAILY');
+        setEditPreferredDuration(String(pendingConfig?.preferredDuration || 2));
+        setEditWindowStart(pendingConfig?.windowStart || '08:00');
+        setEditWindowEnd(pendingConfig?.windowEnd || '22:00');
+    };
+
+    const discardRecurringApproval = () => {
+        const applianceId = recurringApproval?.appliance?.id;
+        const source = recurringApproval?.source || 'create';
+        const appliance = recurringApproval?.appliance;
+        const pendingConfig = recurringApproval?.pendingConfig;
+        setRecurringApproval(null);
+        if (!applianceId) return;
+
+        if (source === 'create') {
+            // Brand-new draft — remove appliance entirely
+            setModeSwitchDraft(null);
+            fetch(`/users/${userId}/appliances/${applianceId}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            })
+                .then(() => fetchAppliances())
+                .catch(() => fetchAppliances());
+            return;
+        }
+
+        // Mode-switch cancel: nothing was persisted as automatic yet — re-open editor
+        restoreModeSwitchEditor(appliance, pendingConfig);
+    };
+
+    const activateAutomaticFromDraft = (app) => {
+        const draft = modeSwitchDraft;
+        if (!draft || draft.applianceId !== app.id) return;
+
+        setModeSwitchBusyId(app.id);
+        setError('');
+
+        // Preview first — do NOT persist isRecurring until Approve & Activate.
+        openRecurringPreview(app, {
+            recurringDays: draft.recurringDays,
+            preferredDuration: draft.preferredDuration,
+            windowStart: draft.windowStart,
+            windowEnd: draft.windowEnd,
+            name: app.name,
+            powerConsumptionKw: app.powerConsumptionKw
+        }, 'mode-switch')
+            .finally(() => setModeSwitchBusyId(null));
+    };
+
+    const disableAutomaticMode = (app) => {
+        setModeSwitchBusyId(app.id);
+        setError('');
+        setModeSwitchDraft(null);
+
+        updateApplianceMode(app.id, {
+            name: app.name,
+            powerConsumptionKw: app.powerConsumptionKw,
+            isRecurring: false,
+            recurringDays: null,
+            preferredDuration: null,
+            timeWindowStart: null,
+            timeWindowEnd: null
+        })
+            .then(() => Promise.all([fetchAppliances(), fetchScheduledTasks()]))
+            .catch(err => setError(err.message))
+            .finally(() => setModeSwitchBusyId(null));
+    };
+
+    const handleCardModeToggle = (app, enableAutomatic) => {
+        if (enableAutomatic) {
+            setEditingId(null);
+            setModeSwitchDraft({
+                applianceId: app.id,
+                recurringDays: app.recurringDays || 'DAILY',
+                preferredDuration: String(app.preferredDuration || 2),
+                windowStart: app.timeWindowStart || '08:00',
+                windowEnd: app.timeWindowEnd || '22:00',
+                busy: false
+            });
+            return;
+        }
+        // Draft-only toggle off (never persisted) — just collapse the expander
+        if (modeSwitchDraft?.applianceId === app.id && !isSmartRecurring(app)) {
+            setModeSwitchDraft(null);
+            return;
+        }
+        disableAutomaticMode(app);
+    };
+
+    const approveRecurringRule = async () => {
         const appliance = recurringApproval?.appliance;
         const rec = recurringApproval?.recommendation;
-        if (!appliance?.id || !rec?.best_start_time) {
+        const source = recurringApproval?.source || 'create';
+        const pendingConfig = recurringApproval?.pendingConfig;
+        const startTime = rec?.best_start_time;
+        if (!appliance?.id || !startTime) {
             setError('No preview window available. Cancel and try again.');
             return;
         }
 
         setApprovingRecurring(true);
-        const payload = {
-            id: appliance.id,
-            startTime: String(rec.best_start_time).replace(' ', 'T'),
-            durationMinutes: rec.durationMinutes || 120,
-            recommendedCarbonIntensity: rec.recommended_carbon_intensity,
-            baselineCarbonIntensity: rec.baseline_carbon_intensity,
-            recommendedEnergyPrice: rec.recommended_energy_price,
-            baselineEnergyPrice: rec.baseline_energy_price
-        };
+        setError('');
 
-        fetch(`/users/${userId}/appliances/schedule`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload)
-        })
-            .then(async res => {
-                if (!res.ok) {
-                    const detail = await res.text();
-                    throw new Error(detail || `Failed to activate schedule (${res.status})`);
-                }
-                setRecurringApproval(null);
-                setScheduledStatus(prev => ({...prev, [appliance.id]: true}));
-                return Promise.all([fetchAppliances(), fetchScheduledTasks()]);
-            })
-            .catch(err => setError(err.message))
-            .finally(() => setApprovingRecurring(false));
+        try {
+            // Mode-switch: persist Manual → Automatic entity update on approve
+            if (source === 'mode-switch') {
+                await updateApplianceMode(appliance.id, {
+                    name: pendingConfig?.name ?? appliance.name,
+                    powerConsumptionKw: Number(
+                        pendingConfig?.powerConsumptionKw ?? appliance.powerConsumptionKw
+                    ),
+                    isRecurring: true,
+                    recurringDays: pendingConfig?.recurringDays || 'DAILY',
+                    preferredDuration: String(pendingConfig?.preferredDuration || 2),
+                    timeWindowStart: pendingConfig?.windowStart || '08:00',
+                    timeWindowEnd: pendingConfig?.windowEnd || '22:00'
+                });
+            }
+
+            const schedulePayload = {
+                id: appliance.id,
+                startTime: String(startTime).replace(' ', 'T'),
+                durationMinutes: rec.durationMinutes || 120,
+                recommendedCarbonIntensity: rec.recommended_carbon_intensity,
+                baselineCarbonIntensity: rec.baseline_carbon_intensity,
+                recommendedEnergyPrice: rec.recommended_energy_price,
+                baselineEnergyPrice: rec.baseline_energy_price
+            };
+
+            const res = await fetch(`/users/${userId}/appliances/schedule`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(schedulePayload)
+            });
+            if (!res.ok) {
+                const detail = await res.text();
+                throw new Error(detail || `Failed to activate schedule (${res.status})`);
+            }
+
+            setRecurringApproval(null);
+            setModeSwitchDraft(null);
+            setEditingId(null);
+            setScheduledStatus(prev => ({...prev, [appliance.id]: true}));
+            await Promise.all([fetchAppliances(), fetchScheduledTasks()]);
+        } catch (err) {
+            setError(err.message || 'Failed to activate automatic rule');
+        } finally {
+            setApprovingRecurring(false);
+        }
     };
 
     const handleDeleteAppliance = (applianceId) => {
@@ -571,6 +767,28 @@ function Dashboard({userId, userName, userType, onLogout}) {
 
     const handleSaveEdit = (e, applianceId) => {
         e.preventDefault();
+        const previous = userAppliances.find(a => a.id === applianceId);
+        const wasRecurring = isSmartRecurring(previous);
+
+        // Manual → Automatic: intercept Save and open approval preview immediately
+        if (editIsRecurring && !wasRecurring) {
+            const draftAppliance = {
+                ...(previous || {}),
+                id: applianceId,
+                name: editName,
+                powerConsumptionKw: parseFloat(editPower)
+            };
+            openRecurringPreview(draftAppliance, {
+                recurringDays: editRecurringDays,
+                preferredDuration: editPreferredDuration,
+                windowStart: editWindowStart,
+                windowEnd: editWindowEnd,
+                name: editName,
+                powerConsumptionKw: parseFloat(editPower)
+            }, 'mode-switch');
+            return;
+        }
+
         const payload = {
             name: editName,
             powerConsumptionKw: parseFloat(editPower),
@@ -581,26 +799,23 @@ function Dashboard({userId, userName, userType, onLogout}) {
             timeWindowEnd: editIsRecurring ? editWindowEnd : null
         };
 
-        fetch(`/users/${userId}/appliances/${applianceId}`, {
-            method: 'PUT',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload)
-        })
-            .then(res => {
-                if (!res.ok) throw new Error('Failed to update appliance');
+        updateApplianceMode(applianceId, payload)
+            .then(() => {
                 setEditingId(null);
-                fetchAppliances();
+                setModeSwitchDraft(null);
+                return Promise.all([fetchAppliances(), fetchScheduledTasks()]);
             })
             .catch(err => setError(err.message));
     };
 
     const startEditing = (app) => {
+        setModeSwitchDraft(null);
         setEditingId(app.id);
         setEditName(app.name);
         setEditPower(app.powerConsumptionKw);
-        setEditIsRecurring(app.isRecurring || false);
+        setEditIsRecurring(isSmartRecurring(app));
         setEditRecurringDays(app.recurringDays || "DAILY");
-        setEditPreferredDuration(app.preferredDuration || "2");
+        setEditPreferredDuration(String(app.preferredDuration || "2"));
         setEditWindowStart(app.timeWindowStart || "22:00");
         setEditWindowEnd(app.timeWindowEnd || "07:00");
     };
@@ -1195,15 +1410,15 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                             return (
                                                 <div key={app.id} className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none">
                                                     {editingId === app.id ? (
-                                                        <form onSubmit={e => handleSaveEdit(e, app.id)} className="space-y-2">
+                                                        <form onSubmit={e => handleSaveEdit(e, app.id)} className="space-y-3">
                                                             <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required className={inputCls} />
                                                             <input type="number" step="0.1" min="0" value={editPower} onChange={e => setEditPower(e.target.value)} required className={inputCls} />
-                                                            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                                                                <input type="checkbox" checked={editIsRecurring} onChange={e => setEditIsRecurring(e.target.checked)} className="accent-emerald-500" />
-                                                                Smart recurring
-                                                            </label>
+                                                            <RecurringModeSwitch
+                                                                checked={editIsRecurring}
+                                                                onChange={setEditIsRecurring}
+                                                            />
                                                             {editIsRecurring && (
-                                                                <div className="grid gap-2">
+                                                                <div className="grid gap-2 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 dark:border-slate-700 dark:bg-slate-950/40 sm:grid-cols-2">
                                                                     <select value={editRecurringDays} onChange={e => setEditRecurringDays(e.target.value)} className={selectCls}>
                                                                         <option value="DAILY">Every Day</option>
                                                                         <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
@@ -1215,74 +1430,142 @@ function Dashboard({userId, userName, userType, onLogout}) {
                                                                         <option value="3">3 hours</option>
                                                                         <option value="4">4 hours</option>
                                                                     </select>
-                                                                    <div className="grid grid-cols-2 gap-2">
-                                                                        <input type="time" value={editWindowStart} onChange={e => setEditWindowStart(e.target.value)} className={inputCls} />
-                                                                        <input type="time" value={editWindowEnd} onChange={e => setEditWindowEnd(e.target.value)} className={inputCls} />
-                                                                    </div>
+                                                                    <input type="time" step={900} value={editWindowStart} onChange={e => setEditWindowStart(e.target.value)} className={inputCls} />
+                                                                    <input type="time" step={900} value={editWindowEnd} onChange={e => setEditWindowEnd(e.target.value)} className={inputCls} />
                                                                 </div>
                                                             )}
                                                             <div className="flex gap-2">
-                                                                <button type="submit" className={primaryBtn}>Save</button>
+                                                                <button type="submit" className={primaryBtn}>
+                                                                    {editIsRecurring && !isSmartRecurring(app) ? 'Save & Preview' : 'Save'}
+                                                                </button>
                                                                 <button type="button" className={ghostBtn} onClick={() => setEditingId(null)}>Cancel</button>
                                                             </div>
                                                         </form>
                                                     ) : (
-                                                        <div className="flex flex-wrap items-center justify-between gap-3">
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex flex-wrap items-center gap-2">
-                                                                    <h3 className="truncate font-semibold text-emerald-950 dark:text-slate-100">{app.name}</h3>
-                                                                    <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
-                                                                        smartRecurringActive
-                                                                            ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
-                                                                            : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
-                                                                    }`}>
-                                                                        {smartRecurringActive ? 'AUTONOMOUS' : 'FLEXIBLE'}
-                                                                    </span>
-                                                                    {isScheduled && !smartRecurringActive && (
-                                                                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                                                                            SCHEDULED
+                                                        <div className="space-y-3">
+                                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <h3 className="truncate font-semibold text-emerald-950 dark:text-slate-100">{app.name}</h3>
+                                                                        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
+                                                                            smartRecurringActive
+                                                                                ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                                                                : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
+                                                                        }`}>
+                                                                            {smartRecurringActive ? 'AUTONOMOUS' : 'FLEXIBLE'}
                                                                         </span>
+                                                                        {isScheduled && !smartRecurringActive && (
+                                                                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                                                                SCHEDULED
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+                                                                        {app.powerConsumptionKw} kW flexible load
+                                                                    </p>
+                                                                </div>
+
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <button className={softText} type="button" onClick={() => startEditing(app)}>Edit</button>
+                                                                    <button className={dangerText} type="button" onClick={() => handleDeleteAppliance(app.id)}>Delete</button>
+                                                                    {smartRecurringActive && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className={ghostBtn}
+                                                                            onClick={() => {
+                                                                                const todaysTask = scheduledTasks.find(
+                                                                                    t => t.applianceId === app.id && isSmartTask(t)
+                                                                                );
+                                                                                openCancelDialog({
+                                                                                    logId: todaysTask?.id || null,
+                                                                                    applianceId: app.id,
+                                                                                    applianceName: app.name,
+                                                                                    date: selectedDate
+                                                                                });
+                                                                            }}
+                                                                        >
+                                                                            Cancel Schedule
+                                                                        </button>
+                                                                    )}
+                                                                    {!smartRecurringActive && modeSwitchDraft?.applianceId !== app.id && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className={`${primaryBtn} inline-flex items-center gap-1.5`}
+                                                                            onClick={() => openScheduler(app)}
+                                                                            disabled={loadingApplianceId === app.id}
+                                                                        >
+                                                                            <CalendarClock className="h-4 w-4" />
+                                                                            Schedule
+                                                                        </button>
                                                                     )}
                                                                 </div>
-                                                                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                                                                    {app.powerConsumptionKw} kW flexible load
-                                                                </p>
                                                             </div>
 
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                <button className={softText} type="button" onClick={() => startEditing(app)}>Edit</button>
-                                                                <button className={dangerText} type="button" onClick={() => handleDeleteAppliance(app.id)}>Delete</button>
-                                                                {smartRecurringActive && (
-                                                                    <button
-                                                                        type="button"
-                                                                        className={ghostBtn}
-                                                                        onClick={() => {
-                                                                            const todaysTask = scheduledTasks.find(
-                                                                                t => t.applianceId === app.id && isSmartTask(t)
-                                                                            );
-                                                                            openCancelDialog({
-                                                                                logId: todaysTask?.id || null,
-                                                                                applianceId: app.id,
-                                                                                applianceName: app.name,
-                                                                                date: selectedDate
-                                                                            });
-                                                                        }}
-                                                                    >
-                                                                        Cancel Schedule
-                                                                    </button>
-                                                                )}
-                                                                {!smartRecurringActive && (
-                                                                    <button
-                                                                        type="button"
-                                                                        className={`${primaryBtn} inline-flex items-center gap-1.5`}
-                                                                        onClick={() => openScheduler(app)}
-                                                                        disabled={loadingApplianceId === app.id}
-                                                                    >
-                                                                        <CalendarClock className="h-4 w-4" />
-                                                                        Schedule
-                                                                    </button>
-                                                                )}
-                                                            </div>
+                                                            <RecurringModeSwitch
+                                                                checked={smartRecurringActive || modeSwitchDraft?.applianceId === app.id}
+                                                                disabled={modeSwitchBusyId === app.id}
+                                                                onChange={(enable) => handleCardModeToggle(app, enable)}
+                                                            />
+
+                                                            {modeSwitchDraft?.applianceId === app.id && (
+                                                                <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 dark:border-slate-700 dark:bg-slate-950/40">
+                                                                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                                                        Configure the automatic rule, then preview the next clean window.
+                                                                    </p>
+                                                                    <div className="grid gap-2 sm:grid-cols-2">
+                                                                        <select
+                                                                            value={modeSwitchDraft.recurringDays}
+                                                                            onChange={e => setModeSwitchDraft(d => ({...d, recurringDays: e.target.value}))}
+                                                                            className={selectCls}
+                                                                        >
+                                                                            <option value="DAILY">Every Day</option>
+                                                                            <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
+                                                                            <option value="WEEKENDS">Weekends (Sat-Sun)</option>
+                                                                        </select>
+                                                                        <select
+                                                                            value={modeSwitchDraft.preferredDuration}
+                                                                            onChange={e => setModeSwitchDraft(d => ({...d, preferredDuration: e.target.value}))}
+                                                                            className={selectCls}
+                                                                        >
+                                                                            <option value="1">1 hour</option>
+                                                                            <option value="2">2 hours</option>
+                                                                            <option value="3">3 hours</option>
+                                                                            <option value="4">4 hours</option>
+                                                                        </select>
+                                                                        <input
+                                                                            type="time"
+                                                                            step={900}
+                                                                            value={modeSwitchDraft.windowStart}
+                                                                            onChange={e => setModeSwitchDraft(d => ({...d, windowStart: e.target.value}))}
+                                                                            className={inputCls}
+                                                                        />
+                                                                        <input
+                                                                            type="time"
+                                                                            step={900}
+                                                                            value={modeSwitchDraft.windowEnd}
+                                                                            onChange={e => setModeSwitchDraft(d => ({...d, windowEnd: e.target.value}))}
+                                                                            className={inputCls}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            className={primaryBtn}
+                                                                            disabled={modeSwitchBusyId === app.id}
+                                                                            onClick={() => activateAutomaticFromDraft(app)}
+                                                                        >
+                                                                            {modeSwitchBusyId === app.id ? 'Preparing…' : 'Preview & Activate'}
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className={ghostBtn}
+                                                                            onClick={() => setModeSwitchDraft(null)}
+                                                                        >
+                                                                            Cancel
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>

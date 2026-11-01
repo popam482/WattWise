@@ -7,7 +7,7 @@ import lombok.Setter;
 @Setter
 public class ApplianceRequestDTO {
     private String name;
-    private double powerConsumptionKw;
+    private Double powerConsumptionKw;
     private Boolean isRecurring;
     private String recurringDays;
     private String preferredDuration;

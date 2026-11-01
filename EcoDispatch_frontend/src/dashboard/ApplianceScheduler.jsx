@@ -300,7 +300,42 @@ export default function ApplianceScheduler({
     );
 }
 
-/** Immediate approval after creating a smart recurring appliance. */
+/** Shared Manual ↔ Automatic mode toggle (mint / dark aware). */
+export function RecurringModeSwitch({ checked, onChange, disabled = false, label = 'Enable Smart Recurring Rule' }) {
+    return (
+        <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
+            <button
+                type="button"
+                role="switch"
+                aria-checked={checked}
+                disabled={disabled}
+                onClick={() => onChange(!checked)}
+                className={`relative h-6 w-11 shrink-0 rounded-full border transition disabled:opacity-40 ${
+                    checked
+                        ? 'border-emerald-300 bg-emerald-200 dark:border-emerald-500/40 dark:bg-emerald-500/30'
+                        : 'border-slate-300 bg-slate-200 dark:border-slate-600 dark:bg-slate-800'
+                }`}
+            >
+                <span
+                    className={`absolute rounded-full bg-white transition ${
+                        checked ? 'left-5' : 'left-0.5'
+                    }`}
+                    style={{ width: 18, height: 18, top: 3 }}
+                />
+            </button>
+            <span className="font-medium">{label}</span>
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${
+                checked
+                    ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                    : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
+            }`}>
+                {checked ? 'AUTOMATIC' : 'MANUAL'}
+            </span>
+        </label>
+    );
+}
+
+/** Immediate approval after creating / enabling a smart recurring appliance. */
 export function RecurringApprovalModal({
     open,
     appliance,
