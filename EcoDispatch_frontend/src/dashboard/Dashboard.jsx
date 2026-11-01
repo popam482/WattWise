@@ -1361,280 +1361,262 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     </div>
                 </section>
 
-                <section className="grid gap-6 lg:grid-cols-5">
-                    <div className="space-y-6 lg:col-span-3">
-                        <div className={`${glass} p-5`}>
-                            <WeatherSolarWidget
-                                userId={userId}
-                                energyProfile={energyProfile}
-                                latitude={energyProfile?.latitude}
-                                longitude={energyProfile?.longitude}
-                                pvSystemKw={isProsumer ? energyProfile?.pvSystemKw : 0}
-                                isProsumer={isProsumer}
-                                carbonIntensity={carbonIntensity}
-                                greenSharePercent={
-                                    gridSnapshot?.Green_Share_Percent
-                                    ?? gridSnapshot?.greenSharePercent
-                                    ?? null
-                                }
-                            />
-                        </div>
-                        <div className={`${glass} p-5`}>
-                            <NationalGridWidget userId={userId}/>
-                        </div>
+                {/* TOP: Weather + National Grid — full-width two-column row */}
+                <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className={`${glass} p-5`}>
+                        <WeatherSolarWidget
+                            userId={userId}
+                            energyProfile={energyProfile}
+                            latitude={energyProfile?.latitude}
+                            longitude={energyProfile?.longitude}
+                            pvSystemKw={isProsumer ? energyProfile?.pvSystemKw : 0}
+                            isProsumer={isProsumer}
+                            carbonIntensity={carbonIntensity}
+                            greenSharePercent={
+                                gridSnapshot?.Green_Share_Percent
+                                ?? gridSnapshot?.greenSharePercent
+                                ?? null
+                            }
+                        />
+                    </div>
+                    <div className={`${glass} p-5`}>
+                        <NationalGridWidget userId={userId}/>
+                    </div>
+                </section>
+
+                {/* BOTTOM: Autonomous Dispatch — full-width, natural page scroll */}
+                <section className={`${glass} mt-6 w-full p-5 sm:p-6`}>
+                    <div className="mb-5">
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Autonomous Dispatch</h2>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Define the rules. We find the greenest run.</p>
                     </div>
 
-                    <div className={`lg:col-span-2 ${glass} p-5`}>
-                        <div className="mb-4">
-                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Autonomous Dispatch</h2>
-                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Define the rules. We find the greenest run.</p>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        {/* Left 1/3 — add form */}
+                        <div className="lg:col-span-1">
+                            <form onSubmit={handleAddAppliance} className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                                    Add Appliance
+                                </p>
+                                <input type="text" placeholder="Appliance name (e.g. EV Charger)" value={newName} onChange={e => setNewName(e.target.value)} required className={inputCls} />
+                                <input type="number" step="0.1" min="0" placeholder="kW rating" value={newPower} onChange={e => setNewPower(e.target.value)} required className={inputCls} />
+                                <button type="submit" className={`${primaryBtn} inline-flex w-full items-center justify-center gap-1.5`}>
+                                    <Plus className="h-4 w-4" />
+                                    Add Appliance
+                                </button>
+
+                                <RecurringModeSwitch
+                                    checked={newIsRecurring}
+                                    onChange={setNewIsRecurring}
+                                />
+
+                                {newIsRecurring && (
+                                    <div className="grid gap-2">
+                                        <select value={newRecurringDays} onChange={e => setNewRecurringDays(e.target.value)} className={selectCls}>
+                                            <option value="DAILY">Every Day</option>
+                                            <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
+                                            <option value="WEEKENDS">Weekends (Sat-Sun)</option>
+                                        </select>
+                                        <select value={newPreferredDuration} onChange={e => setNewPreferredDuration(e.target.value)} className={selectCls}>
+                                            <option value="1">1 hour</option>
+                                            <option value="2">2 hours</option>
+                                            <option value="3">3 hours</option>
+                                            <option value="4">4 hours</option>
+                                        </select>
+                                        <input type="time" value={newWindowStart} onChange={e => setNewWindowStart(e.target.value)} className={inputCls} />
+                                        <input type="time" value={newWindowEnd} onChange={e => setNewWindowEnd(e.target.value)} className={inputCls} />
+                                    </div>
+                                )}
+                            </form>
                         </div>
 
-                        <form onSubmit={handleAddAppliance} className="mb-6 space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                            <div className="grid gap-2 sm:grid-cols-[1fr_100px_auto]">
-                                <input type="text" placeholder="Appliance name (e.g. EV Charger)" value={newName} onChange={e => setNewName(e.target.value)} required className={inputCls} />
-                                <input type="number" step="0.1" min="0" placeholder="kW" value={newPower} onChange={e => setNewPower(e.target.value)} required className={inputCls} />
-                                <button type="submit" className={`${primaryBtn} inline-flex items-center justify-center gap-1.5`}>
-                                    <Plus className="h-4 w-4" />
-                                    Add
-                                </button>
+                        {/* Right 2/3 — appliance cards grid */}
+                        <div className="lg:col-span-2">
+                            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                    Manual &amp; Automatic Appliances ({userAppliances.length})
+                                </h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    {smartRecurringAppliances.length} recurring · {manualAppliances.length} flexible
+                                </p>
                             </div>
 
-                            <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={newIsRecurring}
-                                    onClick={() => setNewIsRecurring(v => !v)}
-                                    className={`relative h-6 w-11 rounded-full border transition ${
-                                        newIsRecurring
-                                            ? 'border-emerald-300 bg-emerald-200 dark:border-emerald-500/40 dark:bg-emerald-500/30'
-                                            : 'border-slate-300 bg-slate-200 dark:border-slate-600 dark:bg-slate-800'
-                                    }`}
-                                >
-                                    <span className={`absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white transition ${
-                                        newIsRecurring ? 'left-5' : 'left-0.5'
-                                    }`} style={{width: 18, height: 18, top: 3}} />
-                                </button>
-                                Enable Smart Recurring Rule
-                            </label>
+                            {userAppliances.length === 0 ? (
+                                <p className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-400">
+                                    You don&apos;t have any appliance added yet
+                                </p>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    {userAppliances.map(app => {
+                                        const smartRecurringActive = editingId === app.id
+                                            ? editIsRecurring
+                                            : isSmartRecurring(app);
+                                        const isScheduled = Boolean(scheduledStatus[app.id]);
+                                        const draftOpen = modeSwitchDraft?.applianceId === app.id;
 
-                            {newIsRecurring && (
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                    <select value={newRecurringDays} onChange={e => setNewRecurringDays(e.target.value)} className={selectCls}>
-                                        <option value="DAILY">Every Day</option>
-                                        <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
-                                        <option value="WEEKENDS">Weekends (Sat-Sun)</option>
-                                    </select>
-                                    <select value={newPreferredDuration} onChange={e => setNewPreferredDuration(e.target.value)} className={selectCls}>
-                                        <option value="1">1 hour</option>
-                                        <option value="2">2 hours</option>
-                                        <option value="3">3 hours</option>
-                                        <option value="4">4 hours</option>
-                                    </select>
-                                    <input type="time" value={newWindowStart} onChange={e => setNewWindowStart(e.target.value)} className={inputCls} />
-                                    <input type="time" value={newWindowEnd} onChange={e => setNewWindowEnd(e.target.value)} className={inputCls} />
-                                </div>
-                            )}
-                        </form>
+                                        return (
+                                            <div
+                                                key={app.id}
+                                                className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none"
+                                            >
+                                                {editingId === app.id ? (
+                                                    <form onSubmit={e => handleSaveEdit(e, app.id)} className="space-y-2">
+                                                        <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required className={inputCls} />
+                                                        <input type="number" step="0.1" min="0" value={editPower} onChange={e => setEditPower(e.target.value)} required className={inputCls} />
+                                                        <RecurringModeSwitch
+                                                            checked={editIsRecurring}
+                                                            onChange={setEditIsRecurring}
+                                                        />
+                                                        {editIsRecurring && (
+                                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                                <select value={editRecurringDays} onChange={e => setEditRecurringDays(e.target.value)} className={selectCls}>
+                                                                    <option value="DAILY">Every Day</option>
+                                                                    <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
+                                                                    <option value="WEEKENDS">Weekends (Sat-Sun)</option>
+                                                                </select>
+                                                                <select value={editPreferredDuration} onChange={e => setEditPreferredDuration(e.target.value)} className={selectCls}>
+                                                                    <option value="1">1 hour</option>
+                                                                    <option value="2">2 hours</option>
+                                                                    <option value="3">3 hours</option>
+                                                                    <option value="4">4 hours</option>
+                                                                </select>
+                                                                <input type="time" step={900} value={editWindowStart} onChange={e => setEditWindowStart(e.target.value)} className={inputCls} />
+                                                                <input type="time" step={900} value={editWindowEnd} onChange={e => setEditWindowEnd(e.target.value)} className={inputCls} />
+                                                            </div>
+                                                        )}
+                                                        <div className="flex gap-2">
+                                                            <button type="submit" className={primaryBtn}>
+                                                                {editIsRecurring && !isSmartRecurring(app) ? 'Save & Preview' : 'Save'}
+                                                            </button>
+                                                            <button type="button" className={ghostBtn} onClick={() => setEditingId(null)}>Cancel</button>
+                                                        </div>
+                                                    </form>
+                                                ) : (
+                                                    <div className="space-y-2.5">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <h3 className="truncate font-semibold text-emerald-950 dark:text-slate-100">{app.name}</h3>
+                                                            <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                                                                {app.powerConsumptionKw} kW
+                                                            </span>
+                                                            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${
+                                                                smartRecurringActive
+                                                                    ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                                                    : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
+                                                            }`}>
+                                                                {smartRecurringActive ? 'RECURRING' : 'FLEXIBLE'}
+                                                            </span>
+                                                            {isScheduled && !smartRecurringActive && (
+                                                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                                                    SCHEDULED
+                                                                </span>
+                                                            )}
+                                                        </div>
 
-                        {userAppliances.length === 0 ? (
-                            <p className="text-sm text-slate-500">You don't have any appliance added yet</p>
-                        ) : (
-                            [
-                                {
-                                    key: 'smart-recurring',
-                                    title: 'Automatic appliances',
-                                    description: 'Runs automatically according to the saved recurring rule.',
-                                    appliances: smartRecurringAppliances
-                                },
-                                {
-                                    key: 'manual-dispatch',
-                                    title: 'Manual appliances',
-                                    description: 'Find a clean energy window whenever you want to run the appliance.',
-                                    appliances: manualAppliances
-                                }
-                            ].map(group => group.appliances.length > 0 && (
-                                <section className="mb-6 last:mb-0" key={group.key}>
-                                    <div className="mb-3">
-                                        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{group.title}</h3>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">{group.description}</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        {group.appliances.map(app => {
-                                            const smartRecurringActive = editingId === app.id
-                                                ? editIsRecurring
-                                                : isSmartRecurring(app);
-                                            const isScheduled = Boolean(scheduledStatus[app.id]);
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <button className={softText} type="button" onClick={() => startEditing(app)}>Edit</button>
+                                                            <button className={dangerText} type="button" onClick={() => handleDeleteAppliance(app.id)}>Delete</button>
+                                                            {smartRecurringActive ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className={`${ghostBtn} inline-flex items-center gap-1.5`}
+                                                                    onClick={() => {
+                                                                        const todaysTask = scheduledTasks.find(
+                                                                            t => t.applianceId === app.id && isSmartTask(t)
+                                                                        );
+                                                                        openCancelDialog({
+                                                                            logId: todaysTask?.id || null,
+                                                                            applianceId: app.id,
+                                                                            applianceName: app.name,
+                                                                            date: selectedDate
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    <Zap className="h-3.5 w-3.5" />
+                                                                    Auto Active
+                                                                </button>
+                                                            ) : !draftOpen && (
+                                                                <button
+                                                                    type="button"
+                                                                    className={`${primaryBtn} inline-flex items-center gap-1.5`}
+                                                                    onClick={() => openScheduler(app)}
+                                                                    disabled={loadingApplianceId === app.id}
+                                                                >
+                                                                    <CalendarClock className="h-3.5 w-3.5" />
+                                                                    Schedule
+                                                                </button>
+                                                            )}
+                                                        </div>
 
-                                            return (
-                                                <div key={app.id} className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none">
-                                                    {editingId === app.id ? (
-                                                        <form onSubmit={e => handleSaveEdit(e, app.id)} className="space-y-3">
-                                                            <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required className={inputCls} />
-                                                            <input type="number" step="0.1" min="0" value={editPower} onChange={e => setEditPower(e.target.value)} required className={inputCls} />
-                                                            <RecurringModeSwitch
-                                                                checked={editIsRecurring}
-                                                                onChange={setEditIsRecurring}
-                                                            />
-                                                            {editIsRecurring && (
-                                                                <div className="grid gap-2 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 dark:border-slate-700 dark:bg-slate-950/40 sm:grid-cols-2">
-                                                                    <select value={editRecurringDays} onChange={e => setEditRecurringDays(e.target.value)} className={selectCls}>
+                                                        <RecurringModeSwitch
+                                                            checked={smartRecurringActive || draftOpen}
+                                                            disabled={modeSwitchBusyId === app.id}
+                                                            onChange={(enable) => handleCardModeToggle(app, enable)}
+                                                        />
+
+                                                        {draftOpen && (
+                                                            <div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50/50 p-2.5 dark:border-slate-700 dark:bg-slate-950/40">
+                                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                                    <select
+                                                                        value={modeSwitchDraft.recurringDays}
+                                                                        onChange={e => setModeSwitchDraft(d => ({...d, recurringDays: e.target.value}))}
+                                                                        className={selectCls}
+                                                                    >
                                                                         <option value="DAILY">Every Day</option>
-                                                                        <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
-                                                                        <option value="WEEKENDS">Weekends (Sat-Sun)</option>
+                                                                        <option value="WEEKDAYS">Weekdays</option>
+                                                                        <option value="WEEKENDS">Weekends</option>
                                                                     </select>
-                                                                    <select value={editPreferredDuration} onChange={e => setEditPreferredDuration(e.target.value)} className={selectCls}>
+                                                                    <select
+                                                                        value={modeSwitchDraft.preferredDuration}
+                                                                        onChange={e => setModeSwitchDraft(d => ({...d, preferredDuration: e.target.value}))}
+                                                                        className={selectCls}
+                                                                    >
                                                                         <option value="1">1 hour</option>
                                                                         <option value="2">2 hours</option>
                                                                         <option value="3">3 hours</option>
                                                                         <option value="4">4 hours</option>
                                                                     </select>
-                                                                    <input type="time" step={900} value={editWindowStart} onChange={e => setEditWindowStart(e.target.value)} className={inputCls} />
-                                                                    <input type="time" step={900} value={editWindowEnd} onChange={e => setEditWindowEnd(e.target.value)} className={inputCls} />
+                                                                    <input
+                                                                        type="time"
+                                                                        step={900}
+                                                                        value={modeSwitchDraft.windowStart}
+                                                                        onChange={e => setModeSwitchDraft(d => ({...d, windowStart: e.target.value}))}
+                                                                        className={inputCls}
+                                                                    />
+                                                                    <input
+                                                                        type="time"
+                                                                        step={900}
+                                                                        value={modeSwitchDraft.windowEnd}
+                                                                        onChange={e => setModeSwitchDraft(d => ({...d, windowEnd: e.target.value}))}
+                                                                        className={inputCls}
+                                                                    />
                                                                 </div>
-                                                            )}
-                                                            <div className="flex gap-2">
-                                                                <button type="submit" className={primaryBtn}>
-                                                                    {editIsRecurring && !isSmartRecurring(app) ? 'Save & Preview' : 'Save'}
-                                                                </button>
-                                                                <button type="button" className={ghostBtn} onClick={() => setEditingId(null)}>Cancel</button>
-                                                            </div>
-                                                        </form>
-                                                    ) : (
-                                                        <div className="space-y-3">
-                                                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                                                <div className="min-w-0 flex-1">
-                                                                    <div className="flex flex-wrap items-center gap-2">
-                                                                        <h3 className="truncate font-semibold text-emerald-950 dark:text-slate-100">{app.name}</h3>
-                                                                        <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${
-                                                                            smartRecurringActive
-                                                                                ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
-                                                                                : 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300'
-                                                                        }`}>
-                                                                            {smartRecurringActive ? 'AUTONOMOUS' : 'FLEXIBLE'}
-                                                                        </span>
-                                                                        {isScheduled && !smartRecurringActive && (
-                                                                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                                                                                SCHEDULED
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
-                                                                        {app.powerConsumptionKw} kW flexible load
-                                                                    </p>
-                                                                </div>
-
-                                                                <div className="flex flex-wrap items-center gap-2">
-                                                                    <button className={softText} type="button" onClick={() => startEditing(app)}>Edit</button>
-                                                                    <button className={dangerText} type="button" onClick={() => handleDeleteAppliance(app.id)}>Delete</button>
-                                                                    {smartRecurringActive && (
-                                                                        <button
-                                                                            type="button"
-                                                                            className={ghostBtn}
-                                                                            onClick={() => {
-                                                                                const todaysTask = scheduledTasks.find(
-                                                                                    t => t.applianceId === app.id && isSmartTask(t)
-                                                                                );
-                                                                                openCancelDialog({
-                                                                                    logId: todaysTask?.id || null,
-                                                                                    applianceId: app.id,
-                                                                                    applianceName: app.name,
-                                                                                    date: selectedDate
-                                                                                });
-                                                                            }}
-                                                                        >
-                                                                            Cancel Schedule
-                                                                        </button>
-                                                                    )}
-                                                                    {!smartRecurringActive && modeSwitchDraft?.applianceId !== app.id && (
-                                                                        <button
-                                                                            type="button"
-                                                                            className={`${primaryBtn} inline-flex items-center gap-1.5`}
-                                                                            onClick={() => openScheduler(app)}
-                                                                            disabled={loadingApplianceId === app.id}
-                                                                        >
-                                                                            <CalendarClock className="h-4 w-4" />
-                                                                            Schedule
-                                                                        </button>
-                                                                    )}
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        className={primaryBtn}
+                                                                        disabled={modeSwitchBusyId === app.id}
+                                                                        onClick={() => activateAutomaticFromDraft(app)}
+                                                                    >
+                                                                        {modeSwitchBusyId === app.id ? 'Preparing…' : 'Preview & Activate'}
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={ghostBtn}
+                                                                        onClick={() => setModeSwitchDraft(null)}
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
                                                                 </div>
                                                             </div>
-
-                                                            <RecurringModeSwitch
-                                                                checked={smartRecurringActive || modeSwitchDraft?.applianceId === app.id}
-                                                                disabled={modeSwitchBusyId === app.id}
-                                                                onChange={(enable) => handleCardModeToggle(app, enable)}
-                                                            />
-
-                                                            {modeSwitchDraft?.applianceId === app.id && (
-                                                                <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 dark:border-slate-700 dark:bg-slate-950/40">
-                                                                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                                                                        Configure the automatic rule, then preview the next clean window.
-                                                                    </p>
-                                                                    <div className="grid gap-2 sm:grid-cols-2">
-                                                                        <select
-                                                                            value={modeSwitchDraft.recurringDays}
-                                                                            onChange={e => setModeSwitchDraft(d => ({...d, recurringDays: e.target.value}))}
-                                                                            className={selectCls}
-                                                                        >
-                                                                            <option value="DAILY">Every Day</option>
-                                                                            <option value="WEEKDAYS">Weekdays (Mon-Fri)</option>
-                                                                            <option value="WEEKENDS">Weekends (Sat-Sun)</option>
-                                                                        </select>
-                                                                        <select
-                                                                            value={modeSwitchDraft.preferredDuration}
-                                                                            onChange={e => setModeSwitchDraft(d => ({...d, preferredDuration: e.target.value}))}
-                                                                            className={selectCls}
-                                                                        >
-                                                                            <option value="1">1 hour</option>
-                                                                            <option value="2">2 hours</option>
-                                                                            <option value="3">3 hours</option>
-                                                                            <option value="4">4 hours</option>
-                                                                        </select>
-                                                                        <input
-                                                                            type="time"
-                                                                            step={900}
-                                                                            value={modeSwitchDraft.windowStart}
-                                                                            onChange={e => setModeSwitchDraft(d => ({...d, windowStart: e.target.value}))}
-                                                                            className={inputCls}
-                                                                        />
-                                                                        <input
-                                                                            type="time"
-                                                                            step={900}
-                                                                            value={modeSwitchDraft.windowEnd}
-                                                                            onChange={e => setModeSwitchDraft(d => ({...d, windowEnd: e.target.value}))}
-                                                                            className={inputCls}
-                                                                        />
-                                                                    </div>
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        <button
-                                                                            type="button"
-                                                                            className={primaryBtn}
-                                                                            disabled={modeSwitchBusyId === app.id}
-                                                                            onClick={() => activateAutomaticFromDraft(app)}
-                                                                        >
-                                                                            {modeSwitchBusyId === app.id ? 'Preparing…' : 'Preview & Activate'}
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            className={ghostBtn}
-                                                                            onClick={() => setModeSwitchDraft(null)}
-                                                                        >
-                                                                            Cancel
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-                            ))
-                        )}
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </section>
 
