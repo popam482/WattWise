@@ -1,4 +1,5 @@
-import { CalendarClock, Leaf, Wallet, X, Ban, RefreshCw, Zap } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { CalendarClock, Leaf, Wallet, X, Ban, RefreshCw, Zap, Info } from 'lucide-react';
 
 const overlay =
     'fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 p-4 backdrop-blur-sm dark:bg-slate-950/70';
@@ -126,10 +127,21 @@ export function estimateImpact(rec, powerKw) {
     const showPeakDelta = co2Basis === 'evening_peak' && co2Kg >= 0.01;
     const showAbsoluteFootprint = isAlreadyOptimal && co2Kg < 0.01;
 
+    const serverBaselineCost = Number(rec?.baseline_run_cost_ron ?? rec?.baselineRunCostRon);
+    const serverOptimalCost = Number(rec?.optimal_run_cost_ron ?? rec?.optimalRunCostRon);
+    const baselineCost = Number.isFinite(serverBaselineCost)
+        ? Math.max(0, serverBaselineCost)
+        : Math.max(0, Number(rec?.baseline_energy_price ?? 1.3) * energyKwh);
+    const optimalCost = Number.isFinite(serverOptimalCost)
+        ? Math.max(0, serverOptimalCost)
+        : Math.max(0, Number(rec?.recommended_energy_price ?? 0.45) * energyKwh);
+
     return {
         co2Kg: Number.isFinite(co2Kg) ? co2Kg : 0,
         runCo2Kg: Number.isFinite(runCo2Kg) ? runCo2Kg : 0,
         savingsRon: Number.isFinite(savingsRon) ? savingsRon : 0,
+        baselineCost,
+        optimalCost,
         renewableShare: Number.isFinite(renewableShare) ? renewableShare : null,
         isFixedTariff,
         isAlreadyOptimal,
@@ -140,6 +152,74 @@ export function estimateImpact(rec, powerKw) {
             ? co2Kg / KG_CO2_PER_TREE_PER_MONTH
             : (Number.isFinite(runCo2Kg) ? 0 : 0)
     };
+}
+
+/** Hover/click info popover for the RunCost savings formula. */
+function SavingsBreakdownTip({ baselineCost, optimalCost }) {
+    const [open, setOpen] = useState(false);
+    const tipId = useId();
+    const rootRef = useRef(null);
+    const net = Math.max(0, baselineCost - optimalCost);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onPointerDown = (event) => {
+            if (rootRef.current && !rootRef.current.contains(event.target)) {
+                setOpen(false);
+            }
+        };
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', onPointerDown);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+    }, [open]);
+
+    return (
+        <span
+            ref={rootRef}
+            className="relative inline-flex"
+            onMouseEnter={() => setOpen(true)}
+            onMouseLeave={() => setOpen(false)}
+        >
+            <button
+                type="button"
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-600 transition hover:bg-blue-50 dark:border-blue-500/40 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-slate-900"
+                aria-label="Financial savings calculation breakdown"
+                aria-describedby={open ? tipId : undefined}
+                aria-expanded={open}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    setOpen((prev) => !prev);
+                }}
+            >
+                <Info className="h-2.5 w-2.5" strokeWidth={2.5} />
+            </button>
+            {open && (
+                <div
+                    id={tipId}
+                    role="tooltip"
+                    className="absolute left-0 top-full z-[60] mt-2 w-64 rounded-xl border border-emerald-100 bg-white p-3 text-left shadow-lg shadow-emerald-900/10 dark:border-slate-700 dark:bg-slate-900 dark:shadow-none sm:left-auto sm:right-0"
+                >
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">
+                        Calculation Breakdown
+                    </p>
+                    <ul className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+                        <li>• Baseline Cost (Immediate Start): {baselineCost.toFixed(2)} RON</li>
+                        <li>• Optimized Window Cost: {optimalCost.toFixed(2)} RON</li>
+                        <li>• Net Opportunity Savings: {net.toFixed(2)} RON</li>
+                    </ul>
+                    <p className="mt-2 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+                        (For Prosumers: Solar self-consumption accounts for avoided grid import minus lost export feed-in tariff).
+                    </p>
+                </div>
+            )}
+        </span>
+    );
 }
 
 function shortImpactSummary(recommendation) {
@@ -165,6 +245,10 @@ function ImpactCards({ recommendation, powerKw, isRecurring = false, recurringDa
                 <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
                     <Wallet className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                     Est. Savings
+                    <SavingsBreakdownTip
+                        baselineCost={impact.baselineCost}
+                        optimalCost={impact.optimalCost}
+                    />
                 </div>
                 <p className="text-lg font-bold tabular-nums text-blue-800 dark:text-blue-300">
                     {impact.savingsRon.toFixed(2)}

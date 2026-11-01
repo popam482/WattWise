@@ -535,6 +535,10 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 data.is_already_optimal ?? data.isAlreadyOptimal ?? false
             ),
             peak_run_co2_kg: data.peak_run_co2_kg ?? data.peakRunCo2Kg ?? null,
+            baseline_run_cost_ron:
+                data.baseline_run_cost_ron ?? data.baselineRunCostRon ?? null,
+            optimal_run_cost_ron:
+                data.optimal_run_cost_ron ?? data.optimalRunCostRon ?? null,
             durationMinutes: durationHours * 60
         };
     };
