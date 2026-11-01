@@ -346,12 +346,18 @@ function Dashboard({userId, userName, userType, onLogout}) {
     };
 
     const getTodayString = () => formatLocalDate(new Date());
+    const getTomorrowString = () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return formatLocalDate(tomorrow);
+    };
     const [selectedDate, setSelectedDate] = useState(getTodayString());
+    const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
 
     const [error, setError] = useState('');
 
     const fetchScheduledTasks = useCallback(() => {
-        if (!userId) return;
+        if (!userId) return Promise.resolve([]);
         return fetch(`/users/${userId}/appliances/scheduled?date=${selectedDate}`, {
             headers: getAuthHeaders()
         })
@@ -396,8 +402,31 @@ function Dashboard({userId, userName, userType, onLogout}) {
             .catch(err => setError(err.message));
     }, [userId]);
 
+    /** Today / Tomorrow / date-picker — show skeleton while schedules reload. */
+    const selectScheduleDate = (nextDate) => {
+        if (!nextDate || nextDate === selectedDate) return;
+        setIsLoadingSchedule(true);
+        setSelectedDate(nextDate);
+    };
+
     useEffect(() => {
-        fetchScheduledTasks();
+        let cancelled = false;
+        const startedAt = Date.now();
+
+        (async () => {
+            await fetchScheduledTasks();
+            if (cancelled) return;
+            const elapsed = Date.now() - startedAt;
+            const wait = Math.max(0, 280 - elapsed);
+            if (wait > 0) {
+                await new Promise(resolve => setTimeout(resolve, wait));
+            }
+            if (!cancelled) setIsLoadingSchedule(false);
+        })();
+
+        return () => {
+            cancelled = true;
+        };
     }, [fetchScheduledTasks]);
 
     useEffect(() => {
@@ -1631,48 +1660,85 @@ function Dashboard({userId, userName, userType, onLogout}) {
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            <button type="button" className={ghostBtn} onClick={() => setSelectedDate(getTodayString())}>Today</button>
                             <button
                                 type="button"
-                                className={ghostBtn}
-                                onClick={() => {
-                                    const tomorrow = new Date();
-                                    tomorrow.setDate(tomorrow.getDate() + 1);
-                                    setSelectedDate(formatLocalDate(tomorrow));
-                                }}
+                                className={`${ghostBtn} ${selectedDate === getTodayString() ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300' : ''}`}
+                                onClick={() => selectScheduleDate(getTodayString())}
+                                disabled={isLoadingSchedule}
+                            >
+                                Today
+                            </button>
+                            <button
+                                type="button"
+                                className={`${ghostBtn} ${selectedDate === getTomorrowString() ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300' : ''}`}
+                                onClick={() => selectScheduleDate(getTomorrowString())}
+                                disabled={isLoadingSchedule}
                             >
                                 Tomorrow
                             </button>
-                            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className={inputCls} />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => selectScheduleDate(e.target.value)}
+                                className={inputCls}
+                                disabled={isLoadingSchedule}
+                            />
                         </div>
                     </div>
 
-                    {scheduledTasks.length === 0 ? (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">No active eco-schedules for {selectedDate}.</p>
-                    ) : (
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Smart Recurring Rules (automatic)</h3>
-                                {smartTasks.length === 0 ? (
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">No automatic dispatches for {selectedDate}.</p>
-                                ) : (
-                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                        {smartTasks.map(renderTaskCard)}
-                                    </div>
-                                )}
+                    <div className="min-h-[160px]">
+                        {isLoadingSchedule ? (
+                            <div className="space-y-4" aria-busy="true" aria-live="polite">
+                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                                    Loading dispatches for{' '}
+                                    {selectedDate === getTodayString()
+                                        ? 'Today'
+                                        : selectedDate === getTomorrowString()
+                                            ? 'Tomorrow'
+                                            : selectedDate}
+                                    …
+                                </p>
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                    {[0, 1, 2].map((slot) => (
+                                        <div
+                                            key={slot}
+                                            className="animate-pulse rounded-2xl border border-emerald-100/80 bg-emerald-50/60 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+                                        >
+                                            <div className="mb-3 h-5 w-24 rounded-full bg-emerald-200/70 dark:bg-slate-700" />
+                                            <div className="mb-2 h-4 w-3/4 rounded bg-emerald-100 dark:bg-slate-800" />
+                                            <div className="h-3 w-1/2 rounded bg-emerald-100/80 dark:bg-slate-800/80" />
+                                            <div className="mt-4 h-8 w-full rounded-xl bg-emerald-100/60 dark:bg-slate-800/60" />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Manual schedules</h3>
-                                {manualTasks.length === 0 ? (
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">No manual schedules for {selectedDate}.</p>
-                                ) : (
-                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                        {manualTasks.map(renderTaskCard)}
-                                    </div>
-                                )}
+                        ) : scheduledTasks.length === 0 ? (
+                            <p className="text-sm text-slate-500 dark:text-slate-400">No active eco-schedules for {selectedDate}.</p>
+                        ) : (
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Smart Recurring Rules (automatic)</h3>
+                                    {smartTasks.length === 0 ? (
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">No automatic dispatches for {selectedDate}.</p>
+                                    ) : (
+                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                            {smartTasks.map(renderTaskCard)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Manual schedules</h3>
+                                    {manualTasks.length === 0 ? (
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">No manual schedules for {selectedDate}.</p>
+                                    ) : (
+                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                            {manualTasks.map(renderTaskCard)}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </section>
 
                 <section className={`${glass} p-5 sm:p-6`}>
