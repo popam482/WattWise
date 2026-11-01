@@ -1,9 +1,9 @@
-import { CalendarClock, Leaf, Wallet, X, Ban, RefreshCw } from 'lucide-react';
+import { CalendarClock, Leaf, Wallet, X, Ban, RefreshCw, Zap } from 'lucide-react';
 
 const overlay =
     'fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 p-4 backdrop-blur-sm dark:bg-slate-950/70';
 const panel =
-    'w-full max-w-lg rounded-2xl border border-emerald-100 bg-white p-6 shadow-2xl shadow-emerald-900/10 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900 dark:shadow-none';
+    'w-full max-w-xl rounded-2xl border border-emerald-100 bg-white p-5 shadow-2xl shadow-emerald-900/10 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-6';
 const inputCls =
     'w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-500/50';
 const ghostBtn =
@@ -62,47 +62,145 @@ export function formatWindowLabel(rec) {
     return `${dayLabel}, ${formatClock(start)} - ${endLabel}`;
 }
 
+/** 1 tree ≈ 1.75 kg CO₂ absorbed / month. */
+export const KG_CO2_PER_TREE_PER_MONTH = 1.75;
+
+/** Honest annual run counts for recurring rules. */
+export function runsPerYear(recurringDays) {
+    const rule = String(recurringDays || 'DAILY').toUpperCase();
+    if (rule === 'WEEKDAYS') return 250;
+    if (rule === 'WEEKENDS') return 104;
+    if (rule === 'DAILY') return 365;
+    return 250;
+}
+
+/**
+ * Prefer server-side RunCost / CO₂ delta; fall back to intensity×energy only when absent.
+ * Handles already-optimal (near-now) windows via evening-peak comparison + absolute footprint.
+ */
 export function estimateImpact(rec, powerKw) {
     const hours = Number(rec?.durationMinutes || 120) / 60;
     const power = Number(powerKw) || 0;
     const energyKwh = hours * power;
 
-    const baseCarbon = Number(rec?.baseline_carbon_intensity ?? 420);
-    const recCarbon = Number(rec?.recommended_carbon_intensity ?? 180);
-    const co2Kg = Math.max(0, ((baseCarbon - recCarbon) * energyKwh) / 1000);
+    const serverCo2 = Number(rec?.co2_avoided_kg ?? rec?.co2AvoidedKg);
+    const co2Kg = Number.isFinite(serverCo2)
+        ? Math.max(0, serverCo2)
+        : Math.max(
+            0,
+            ((Number(rec?.baseline_carbon_intensity ?? 420) -
+                Number(rec?.recommended_carbon_intensity ?? 180)) *
+                energyKwh) /
+                1000
+        );
 
-    const basePrice = Number(rec?.baseline_energy_price ?? 1.3);
-    const recPrice = Number(rec?.recommended_energy_price ?? 0.45);
-    const savingsRon = Math.max(0, (basePrice - recPrice) * energyKwh);
+    const serverRunCo2 = Number(rec?.run_co2_kg ?? rec?.runCo2Kg);
+    const runCo2Kg = Number.isFinite(serverRunCo2)
+        ? Math.max(0, serverRunCo2)
+        : Math.max(0, (Number(rec?.recommended_carbon_intensity ?? 180) * energyKwh) / 1000);
+
+    const serverSavings = Number(rec?.single_run_savings_ron ?? rec?.singleRunSavingsRon);
+    const savingsRon = Number.isFinite(serverSavings)
+        ? Math.max(0, serverSavings)
+        : Math.max(
+            0,
+            (Number(rec?.baseline_energy_price ?? 1.3) -
+                Number(rec?.recommended_energy_price ?? 0.45)) *
+                energyKwh
+        );
+
+    let renewableShare = Number(
+        rec?.renewable_share_percent ?? rec?.renewableSharePercent ?? NaN
+    );
+    // Never display a dead 0% when decision factors carry a live SEN mix
+    const senFromFactors = Number(rec?.decision_factors?.['SEN Renewable Mix %']);
+    if ((!Number.isFinite(renewableShare) || renewableShare < 1) && Number.isFinite(senFromFactors) && senFromFactors >= 1) {
+        renewableShare = senFromFactors;
+    }
+
+    const isFixedTariff = Boolean(
+        rec?.is_fixed_tariff ?? rec?.isFixedTariff ?? (Number.isFinite(savingsRon) && savingsRon < 0.05)
+    );
+    const isAlreadyOptimal = Boolean(rec?.is_already_optimal ?? rec?.isAlreadyOptimal);
+    const co2Basis = String(rec?.co2_comparison_basis ?? rec?.co2ComparisonBasis ?? 'immediate');
+    const showPeakDelta = co2Basis === 'evening_peak' && co2Kg >= 0.01;
+    const showAbsoluteFootprint = isAlreadyOptimal && co2Kg < 0.01;
 
     return {
         co2Kg: Number.isFinite(co2Kg) ? co2Kg : 0,
-        savingsRon: Number.isFinite(savingsRon) ? savingsRon : 0
+        runCo2Kg: Number.isFinite(runCo2Kg) ? runCo2Kg : 0,
+        savingsRon: Number.isFinite(savingsRon) ? savingsRon : 0,
+        renewableShare: Number.isFinite(renewableShare) ? renewableShare : null,
+        isFixedTariff,
+        isAlreadyOptimal,
+        co2Basis,
+        showPeakDelta,
+        showAbsoluteFootprint,
+        treesMonth: Number.isFinite(co2Kg) && co2Kg > 0
+            ? co2Kg / KG_CO2_PER_TREE_PER_MONTH
+            : (Number.isFinite(runCo2Kg) ? 0 : 0)
     };
 }
 
-function ImpactCards({ recommendation, powerKw }) {
+function shortImpactSummary(recommendation) {
+    const hours = Math.max(1, Math.round(Number(recommendation?.durationMinutes || 60) / 60));
+    const raw = String(recommendation?.reason || '').trim();
+    if (raw) {
+        const first = raw.split(/(?<=\.)\s+/)[0].trim();
+        if (first.length > 0 && first.length <= 110) return first;
+        if (first.length > 110) return `${first.slice(0, 107).trim()}…`;
+    }
+    return `Selected the lowest-carbon & cost-effective ${hours}-hour window.`;
+}
+
+/** Compact 3-metric strip: Savings · CO₂ · Renewable — always all three. */
+function ImpactCards({ recommendation, powerKw, isRecurring = false, recurringDays = 'DAILY' }) {
     const impact = estimateImpact(recommendation, powerKw);
+    const annualRon = isRecurring ? impact.savingsRon * runsPerYear(recurringDays) : null;
+    const co2Value = impact.showAbsoluteFootprint ? impact.runCo2Kg : impact.co2Kg;
+
     return (
-        <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-emerald-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/50">
-                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
-                    <Leaf className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    CO₂ avoided
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-blue-100 bg-sky-50/60 p-3 dark:border-blue-500/20 dark:bg-blue-500/5">
+                <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                    <Wallet className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    Est. Savings
                 </div>
-                <p className="text-xl font-bold text-emerald-800 dark:text-emerald-300">
-                    {impact.co2Kg.toFixed(2)}
-                    <span className="ml-1 text-sm font-medium text-slate-500">kg</span>
+                <p className="text-lg font-bold tabular-nums text-blue-800 dark:text-blue-300">
+                    {impact.savingsRon.toFixed(2)}
+                    <span className="ml-1 text-xs font-medium text-slate-500">RON</span>
+                </p>
+                {isRecurring && annualRon != null && annualRon > 0 && (
+                    <span className="mt-1 inline-block rounded-md border border-blue-200 bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:border-blue-500/30 dark:bg-slate-950/40 dark:text-blue-300">
+                        ~{Math.round(annualRon)} RON/yr
+                    </span>
+                )}
+                {impact.isFixedTariff && impact.savingsRon < 0.05 && (
+                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Fixed tariff</p>
+                )}
+            </div>
+
+            <div className="rounded-xl border border-emerald-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/50">
+                <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                    <Leaf className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    {impact.showPeakDelta ? 'CO₂ vs Peak' : 'CO₂ Impact'}
+                </div>
+                <p className="text-lg font-bold tabular-nums text-emerald-800 dark:text-emerald-300">
+                    {co2Value.toFixed(2)}
+                    <span className="ml-1 text-xs font-medium text-slate-500">kg CO₂</span>
                 </p>
             </div>
-            <div className="rounded-xl border border-blue-100 bg-sky-50/60 p-3 dark:border-blue-500/20 dark:bg-blue-500/5">
-                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">
-                    <Wallet className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                    Financial savings
+
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+                <div className="mb-1 flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                    <Zap className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    Renewable
                 </div>
-                <p className="text-xl font-bold text-blue-800 dark:text-blue-300">
-                    {impact.savingsRon.toFixed(2)}
-                    <span className="ml-1 text-sm font-medium text-slate-500">RON</span>
+                <p className="text-lg font-bold tabular-nums text-emerald-800 dark:text-emerald-300">
+                    {impact.renewableShare != null && impact.renewableShare >= 1
+                        ? impact.renewableShare.toFixed(0)
+                        : '—'}
+                    <span className="ml-1 text-xs font-medium text-slate-500">%</span>
                 </p>
             </div>
         </div>
@@ -259,21 +357,20 @@ export default function ApplianceScheduler({
 
                 {step === 'result' && (
                     <div className="space-y-4">
-                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
-                                Scheduled time range
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-emerald-950 dark:text-slate-100">
+                        <div>
+                            <p className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
                                 {formatWindowLabel(recommendation)}
                             </p>
-                            {recommendation?.reason && (
-                                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                                    {recommendation.reason}
-                                </p>
-                            )}
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                                {shortImpactSummary(recommendation)}
+                            </p>
                         </div>
 
-                        <ImpactCards recommendation={recommendation} powerKw={powerKw} />
+                        <ImpactCards
+                            recommendation={recommendation}
+                            powerKw={powerKw}
+                            isRecurring={false}
+                        />
 
                         <div className="flex flex-col gap-2 sm:flex-row-reverse">
                             <button
@@ -343,9 +440,12 @@ export function RecurringApprovalModal({
     loading,
     confirming,
     onApprove,
-    onCancel
+    onCancel,
+    recurringDays = 'DAILY'
 }) {
     if (!open || !appliance) return null;
+
+    const windowLabel = formatWindowLabel(recommendation);
 
     return (
         <div
@@ -356,48 +456,43 @@ export function RecurringApprovalModal({
             onClick={onCancel}
         >
             <div className={panel} onClick={(e) => e.stopPropagation()}>
-                <div className="mb-5 flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
-                            <RefreshCw className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <h2 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
-                                Confirm Automatic Schedule for {appliance.name}
+                <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <RefreshCw className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <h2 className="truncate text-base font-semibold text-emerald-950 dark:text-slate-100 sm:text-lg">
+                                {appliance.name}
                             </h2>
-                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                                Review the first optimized window before activating the recurring rule.
-                            </p>
                         </div>
+                        {!loading && (
+                            <p className="mt-1 text-lg font-semibold tabular-nums text-emerald-800 dark:text-emerald-300">
+                                {windowLabel}
+                            </p>
+                        )}
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                            {loading
+                                ? 'Calculating the cleanest upcoming window…'
+                                : shortImpactSummary(recommendation)}
+                        </p>
                     </div>
                     <button type="button" className={ghostBtn} onClick={onCancel} aria-label="Close">
                         <X className="h-4 w-4" />
                     </button>
                 </div>
 
-                {loading && (
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Calculating the cleanest upcoming window…
-                    </p>
-                )}
-
                 {!loading && (
                     <div className="space-y-4">
-                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
-                                Next run scheduled for
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-emerald-950 dark:text-slate-100">
-                                {formatWindowLabel(recommendation)}
-                            </p>
-                            {recommendation?.reason && (
-                                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
-                                    {recommendation.reason}
-                                </p>
-                            )}
-                        </div>
-
-                        <ImpactCards recommendation={recommendation} powerKw={appliance.powerConsumptionKw} />
+                        <ImpactCards
+                            recommendation={recommendation}
+                            powerKw={appliance.powerConsumptionKw}
+                            isRecurring
+                            recurringDays={
+                                recurringDays
+                                || recommendation?.pendingConfig?.recurringDays
+                                || appliance?.recurringDays
+                                || 'DAILY'
+                            }
+                        />
 
                         <div className="flex flex-col gap-2 sm:flex-row-reverse">
                             <button

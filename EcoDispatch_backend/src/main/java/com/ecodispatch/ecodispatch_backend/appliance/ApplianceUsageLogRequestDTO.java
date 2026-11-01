@@ -16,4 +16,8 @@ public class ApplianceUsageLogRequestDTO {
     private Double baselineCarbonIntensity;
     private Double baselineEnergyPrice;
     private Double recommendedEnergyPrice;
+    /** Rigorous single-run savings from ML RunCost delta (optional). */
+    private Double savedMoneyRon;
+    /** Rigorous CO₂ avoided in kg from ML grid-carbon delta (optional). */
+    private Double savedCo2Kg;
 }

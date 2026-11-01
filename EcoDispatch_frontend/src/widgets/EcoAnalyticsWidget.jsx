@@ -106,10 +106,11 @@ function EcoAnalyticsWidget({userId, onAnalyticsLoaded}) {
             <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
                 <h3 className="mb-2 text-sm font-medium text-slate-800 dark:text-slate-200">How is this calculated?</h3>
                 <p>
-                    WattWise compares your scheduled run times against a
-                    counterfactual baseline (peak-hour grid carbon intensity)
-                    using real-time SEN data and IPCC lifecycle emission
-                    factors. Monetary savings use ANRE-aligned energy price deltas.
+                    WattWise compares each optimized run against an immediate-start
+                    baseline using hour-level grid imports, all-in import tariffs,
+                    and export opportunity cost for self-consumed PV. CO₂ avoided is
+                    the grid-carbon delta only. Tree equivalence uses 1.75&nbsp;kg
+                    CO₂ absorbed per tree per month.
                 </p>
             </div>
         </div>

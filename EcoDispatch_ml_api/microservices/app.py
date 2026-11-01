@@ -20,6 +20,7 @@ except ImportError:
 from energy_model.sen_realtime import get_current_hourly_sen_data, calculate_grid_carbon_intensity
 from energy_model.opcom_realtime import get_day_ahead_prices
 from ai_chatbot.ai_router import router as ai_router
+from microservices.dispatch_accounting import compute_dispatch_delta, synthesize_grid_profiles
 
 app = FastAPI(title="WattWise ML API")
 app.add_middleware(
@@ -95,6 +96,17 @@ class ScheduleRecommendation(BaseModel):
     decision_factors: dict[str, float]
     battery_supported_share: Optional[float] = None
     strategy: Optional[str] = None
+    # Rigorous energy accounting (RunCost delta + CO₂ delta)
+    single_run_savings_ron: float = 0.0
+    co2_avoided_kg: float = 0.0
+    renewable_share_percent: float = 0.0
+    is_fixed_tariff: bool = False
+    baseline_run_cost_ron: float = 0.0
+    optimal_run_cost_ron: float = 0.0
+    run_co2_kg: float = 0.0
+    co2_comparison_basis: str = "immediate"  # immediate | evening_peak
+    is_already_optimal: bool = False
+    peak_run_co2_kg: float = 0.0
 
 
 class PredictionExplanationResponse(BaseModel):
@@ -135,6 +147,19 @@ def snap_to_next_15_min(dt: datetime.datetime) -> datetime.datetime:
     if remainder == 0:
         return clean
     return clean + datetime.timedelta(minutes=(15 - remainder))
+
+
+def snap_to_previous_15_min(dt: datetime.datetime) -> datetime.datetime:
+    """
+    Round DOWN to the previous :00 / :15 / :30 / :45 boundary (hard deadlines).
+    Already-aligned times are unchanged (10:00 -> 10:00).
+    """
+    clean = dt.replace(second=0, microsecond=0)
+    minute = clean.minute
+    remainder = minute % 15
+    if remainder == 0:
+        return clean
+    return clean - datetime.timedelta(minutes=remainder)
 
 
 def estimate_pv_kw(hour_of_day: int, system_kwp: float, tilt: float, azimuth: float) -> float:
@@ -347,33 +372,53 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
 
     now = datetime.datetime.now(ZoneInfo("Europe/Bucharest")).replace(second=0, microsecond=0)
     requested_earliest = _parse_schedule_time(req.earliest_start, now)
-    latest_end = snap_to_next_15_min(
+    # Hard deadline: snap DOWN so we never extend mustFinishBy past the user limit
+    must_finish_by = snap_to_previous_15_min(
         _parse_schedule_time(req.latest_end, now + datetime.timedelta(hours=24))
     )
 
     # Never search in the past, then snap UP to the next :00/:15/:30/:45 mark
     effective_start = snap_to_next_15_min(max(requested_earliest, now))
-    if latest_end <= effective_start:
-        raise HTTPException(status_code=400, detail="latest_end must be after earliest_start")
-
-    duration = datetime.timedelta(hours=req.duration_hours)
-    if effective_start + duration > latest_end:
+    if must_finish_by <= effective_start:
         raise HTTPException(
             status_code=400,
-            detail="The selected time window is shorter than the appliance duration"
+            detail="Must finish by must be after earliest start (after applying the current-time boundary).",
         )
 
-    # Candidate starts every 15 minutes on clean boundaries (never before effective_start)
+    duration = datetime.timedelta(hours=req.duration_hours)
+    latest_end = must_finish_by  # alias: window end is a hard finish deadline
+    available_hours = max(0.0, (latest_end - effective_start).total_seconds() / 3600.0)
+    # Strict: (T_start + D) <= mustFinishBy  ⟺  T_start <= mustFinishBy - D
+    latest_allowed_start = latest_end - duration
+    if latest_allowed_start < effective_start:
+        avail_label = (
+            f"{available_hours:.0f}h"
+            if abs(available_hours - round(available_hours)) < 1e-9
+            else f"{available_hours:.1f}h"
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Requested runtime ({req.duration_hours}h) exceeds the available time window "
+                f"({avail_label}). Please expand 'Must finish by' deadline."
+            ),
+        )
+
+    # Candidate starts every 15 minutes; end must fall strictly on/before mustFinishBy
     candidate_starts: list[datetime.datetime] = []
     cursor = effective_start
-    while cursor + duration <= latest_end:
-        candidate_starts.append(cursor)
+    while cursor <= latest_allowed_start:
+        if cursor >= effective_start and (cursor + duration) <= latest_end:
+            candidate_starts.append(cursor)
         cursor += datetime.timedelta(minutes=15)
 
     if not candidate_starts:
         raise HTTPException(
             status_code=400,
-            detail="No valid start slots remain after applying the current-time boundary"
+            detail=(
+                f"Requested runtime ({req.duration_hours}h) exceeds the available time window "
+                f"({available_hours:.0f}h). Please expand 'Must finish by' deadline."
+            ),
         )
 
     # Score timeline from effective_start through latest_end (hourly samples)
@@ -497,10 +542,10 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     max_window_score = -1.0
 
     for window_start in candidate_starts:
-        # Hard reject any past / pre-effective candidate
+        # Hard reject: T_start >= earliest AND (T_start + D) <= mustFinishBy
         if window_start < effective_start:
             continue
-        if window_start + duration > latest_end:
+        if (window_start + duration) > latest_end:
             continue
         window_score = _score_for_window(window_start)
         if window_score > max_window_score:
@@ -510,11 +555,19 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
     if best_start is None:
         raise HTTPException(
             status_code=400,
-            detail="No feasible clean window found after the current time"
+            detail=(
+                f"Requested runtime ({req.duration_hours}h) exceeds the available time window "
+                f"({available_hours:.0f}h). Please expand 'Must finish by' deadline."
+            ),
         )
 
     start_time = best_start
     end_time = start_time + duration
+    if end_time > latest_end:
+        raise HTTPException(
+            status_code=400,
+            detail="Optimized window violates must-finish-by deadline; no valid slot remains.",
+        )
     best_window_start = next(
         (
             item["hour_offset"]
@@ -590,17 +643,91 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
             "National Grid Green Energy Share": avg_coverage,
             "Avoidance of Fossil-Fuel Peak Hours": round(min(avg_coverage * 0.8, 100.0), 1)
         }
-    production_mw = realtime_sen.get("production_mw", 0) if realtime_sen else 0
-    fossil_ratio = (
-        realtime_sen.get("total_fossil_mw", 0) / production_mw
-        if realtime_sen and production_mw > 0
-        else 0.4
+
+    # ---- Rigorous RunCost / CO₂ delta (immediate, with evening-peak fallback) ----
+    scored_carbon: dict[int, float] = {}
+    solar_kw_by_hour: dict[int, float] = {}
+    for item in hourly_energy_scores:
+        h = int(item["actual_hour"])
+        scored_carbon[h] = float(item["carbon_intensity"])
+        solar_kw_by_hour[h] = max(
+            solar_kw_by_hour.get(h, 0.0), float(item.get("clean_power_kw") or 0.0)
+        )
+
+    live_green_pct = round(float(green_share) * 100.0, 2) if green_share is not None else 45.0
+    if live_green_pct < 1.0 and realtime_sen:
+        # SEN returned renewables in MW but share parsed oddly — recompute from mix
+        prod = float(realtime_sen.get("production_mw") or 0)
+        green_mw = float(realtime_sen.get("total_green_mw") or 0)
+        if prod > 0 and green_mw > 0:
+            live_green_pct = round(green_mw / prod * 100.0, 2)
+
+    carbon_by_hour, green_share_by_hour = synthesize_grid_profiles(
+        current_carbon_g=float(current_grid_intensity),
+        current_green_share_percent=live_green_pct,
+        scored_carbon_by_hour=scored_carbon,
     )
-    baseline_carbon_intensity = round(current_grid_intensity + (fossil_ratio * 180.0) + 100.0, 2)
 
-    recommended_price = sum(item["price"] for item in selected_hours) / max(len(selected_hours), 1)
+    for h in range(24):
+        if user_type == "PROSUMER" and h not in solar_kw_by_hour:
+            solar_kw_by_hour[h] = estimate_pv_kw(
+                h, req.system_kwp or 0.0, req.tilt or 35.0, req.azimuth or 180.0
+            )
+        else:
+            solar_kw_by_hour.setdefault(h, 0.0)
 
-    baseline_price = (opcom_prices.get(18, 1.3) + opcom_prices.get(19, 1.5) + opcom_prices.get(20, 1.4) + opcom_prices.get(21, 1.1)) / 4.0
+    baseline_start = effective_start  # counterfactual: start as soon as allowed
+    delta = compute_dispatch_delta(
+        baseline_start=baseline_start,
+        optimal_start=start_time,
+        duration_hours=req.duration_hours,
+        power_kw=req.power_kw,
+        user_type=user_type,
+        wholesale_by_hour=opcom_prices,
+        carbon_by_hour=carbon_by_hour,
+        solar_kw_by_hour=solar_kw_by_hour,
+        green_share_by_hour=green_share_by_hour,
+    )
+
+    # Surface SEN renewable mix on decision factors for transparency
+    decision_factors = {
+        **decision_factors,
+        "SEN Renewable Mix %": round(delta.renewable_share_percent, 1),
+    }
+
+    baseline_carbon_intensity = round(
+        (delta.baseline.co2_grams / delta.baseline.grid_kwh_total)
+        if delta.baseline.grid_kwh_total > 0
+        else current_grid_intensity,
+        2,
+    )
+    recommended_price = round(
+        sum(
+            delta.import_tariff_all_in[(start_time + datetime.timedelta(hours=h)).hour]
+            for h in range(req.duration_hours)
+        )
+        / max(req.duration_hours, 1),
+        3,
+    )
+    baseline_price = round(
+        sum(
+            delta.import_tariff_all_in[(baseline_start + datetime.timedelta(hours=h)).hour]
+            for h in range(req.duration_hours)
+        )
+        / max(req.duration_hours, 1),
+        3,
+    )
+
+    if delta.is_fixed_tariff and "Fixed Rate" not in reason:
+        reason = (
+            f"{reason} Fixed-rate tariff accounting: monetary delta is not material — "
+            f"optimization prioritizes CO₂ avoided and renewable self-consumption."
+        )
+    if delta.is_already_optimal and delta.co2_comparison_basis == "evening_peak":
+        reason = (
+            f"{reason} Window already matches the earliest feasible start — "
+            f"CO₂ benefit is reported versus this evening's peak (19:00)."
+        )
 
     return ScheduleRecommendation(
         best_start_time=start_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -608,12 +735,22 @@ def get_best_time_for_appliance(req: ApplianceScheduleRequest):
         total_green_energy_score=round(max_window_score, 2),
         recommended_carbon_intensity=round(rec_carbon_intensity, 2),
         baseline_carbon_intensity=baseline_carbon_intensity,
-        recommended_energy_price=round(recommended_price, 3),
-        baseline_energy_price=round(baseline_price, 3),
+        recommended_energy_price=recommended_price,
+        baseline_energy_price=baseline_price,
         reason=reason,
         decision_factors=decision_factors,
         battery_supported_share=battery_supported_share if has_battery else None,
         strategy=strategy,
+        single_run_savings_ron=round(delta.single_run_savings_ron, 2),
+        co2_avoided_kg=round(delta.co2_avoided_kg, 3),
+        renewable_share_percent=round(delta.renewable_share_percent, 1),
+        is_fixed_tariff=delta.is_fixed_tariff,
+        baseline_run_cost_ron=round(delta.baseline.run_cost_ron, 2),
+        optimal_run_cost_ron=round(delta.optimal.run_cost_ron, 2),
+        run_co2_kg=round(delta.run_co2_kg, 3),
+        co2_comparison_basis=delta.co2_comparison_basis,
+        is_already_optimal=delta.is_already_optimal,
+        peak_run_co2_kg=round(delta.peak_run_co2_kg, 3),
     )
 
 @app.get("/api/grid/status")

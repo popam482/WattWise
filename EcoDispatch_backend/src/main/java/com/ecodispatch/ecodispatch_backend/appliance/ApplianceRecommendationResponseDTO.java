@@ -36,4 +36,34 @@ public class ApplianceRecommendationResponseDTO {
 
     @JsonProperty("baseline_energy_price")
     private Double baselineEnergyPrice;
+
+    @JsonProperty("single_run_savings_ron")
+    private Double singleRunSavingsRon;
+
+    @JsonProperty("co2_avoided_kg")
+    private Double co2AvoidedKg;
+
+    @JsonProperty("renewable_share_percent")
+    private Double renewableSharePercent;
+
+    @JsonProperty("is_fixed_tariff")
+    private Boolean isFixedTariff;
+
+    @JsonProperty("baseline_run_cost_ron")
+    private Double baselineRunCostRon;
+
+    @JsonProperty("optimal_run_cost_ron")
+    private Double optimalRunCostRon;
+
+    @JsonProperty("run_co2_kg")
+    private Double runCo2Kg;
+
+    @JsonProperty("co2_comparison_basis")
+    private String co2ComparisonBasis;
+
+    @JsonProperty("is_already_optimal")
+    private Boolean isAlreadyOptimal;
+
+    @JsonProperty("peak_run_co2_kg")
+    private Double peakRunCo2Kg;
 }

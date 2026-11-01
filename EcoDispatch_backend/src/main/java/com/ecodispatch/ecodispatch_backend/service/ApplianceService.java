@@ -149,7 +149,7 @@ public class ApplianceService {
             throw new ApplianceNotFound("Appliance does not belong to user");
         }
 
-        // Time-boundary guard: never ask ML to search before "now"
+        // Hard deadline: T_start >= earliest AND (T_start + D) <= mustFinishBy — never expand the deadline
         ZoneId bucharest = ZoneId.of("Europe/Bucharest");
         LocalDateTime now = LocalDateTime.now(bucharest).withSecond(0).withNano(0);
         DateTimeFormatter isoMinute = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
@@ -160,12 +160,32 @@ public class ApplianceService {
         }
         effectiveEarliest = snapToNext15Min(effectiveEarliest);
 
-        LocalDateTime effectiveLatest = snapToNext15Min(parseFlexibleDateTime(
-                latestEnd,
-                now.plusHours(24)
-        ));
+        // Deadline snaps DOWN so we never push mustFinishBy past the user's hard limit
+        boolean latestProvided = latestEnd != null && !latestEnd.isBlank();
+        LocalDateTime effectiveLatest = latestProvided
+                ? snapToPrevious15Min(parseFlexibleDateTime(latestEnd, now.plusHours(24)))
+                : snapToNext15Min(now.plusHours(24));
+
         if (!effectiveLatest.isAfter(effectiveEarliest)) {
-            effectiveLatest = effectiveEarliest.plusHours(Math.max(durationHours, 2) + 2L);
+            throw new IllegalArgumentException(
+                    "Must finish by must be after earliest start (after applying the current-time boundary)."
+            );
+        }
+
+        LocalDateTime latestAllowedStart = effectiveLatest.minusHours(durationHours);
+        if (latestAllowedStart.isBefore(effectiveEarliest)) {
+            double availableHours = Math.max(
+                    0.0,
+                    java.time.Duration.between(effectiveEarliest, effectiveLatest).toMinutes() / 60.0
+            );
+            String availableLabel = availableHours == Math.rint(availableHours)
+                    ? String.format("%.0fh", availableHours)
+                    : String.format("%.1fh", availableHours);
+            throw new IllegalArgumentException(String.format(
+                    "Requested runtime (%dh) exceeds the available time window (%s). Please expand 'Must finish by' deadline.",
+                    durationHours,
+                    availableLabel
+            ));
         }
 
         ApplianceRecommendationRequestDTO request = new ApplianceRecommendationRequestDTO();
@@ -337,9 +357,15 @@ public class ApplianceService {
 
         log.setRecommendedCarbonIntensity(recommendedCarbon);
         log.setBaselineCarbonIntensity(baselineCarbon);
-        double emissionsRecommended = totalKwh * recommendedCarbon;
-        double emissionsBaseline = totalKwh * baselineCarbon;
-        log.setSavedCo2Grams(Math.max(0.0, emissionsBaseline - emissionsRecommended));
+
+        // Prefer rigorous ML deltas when provided; else intensity × energy fallback
+        if (dto.getSavedCo2Kg() != null) {
+            log.setSavedCo2Grams(Math.max(0.0, dto.getSavedCo2Kg() * 1000.0));
+        } else {
+            double emissionsRecommended = totalKwh * recommendedCarbon;
+            double emissionsBaseline = totalKwh * baselineCarbon;
+            log.setSavedCo2Grams(Math.max(0.0, emissionsBaseline - emissionsRecommended));
+        }
 
         double basePrice = dto.getBaselineEnergyPrice() != null ? dto.getBaselineEnergyPrice() : 1.30;
         double recPrice = dto.getRecommendedEnergyPrice() != null ? dto.getRecommendedEnergyPrice() : 0.45;
@@ -347,9 +373,13 @@ public class ApplianceService {
         log.setRecommendedEnergyPrice(recPrice);
         log.setBaselineEnergyPrice(basePrice);
 
-        double costBaseline = totalKwh * basePrice;
-        double costRecommended = totalKwh * recPrice;
-        log.setSavedMoneyRon(Math.max(0.0, costBaseline - costRecommended));
+        if (dto.getSavedMoneyRon() != null) {
+            log.setSavedMoneyRon(Math.max(0.0, dto.getSavedMoneyRon()));
+        } else {
+            double costBaseline = totalKwh * basePrice;
+            double costRecommended = totalKwh * recPrice;
+            log.setSavedMoneyRon(Math.max(0.0, costBaseline - costRecommended));
+        }
 
         applianceUsageLogRepository.save(log);
     }
@@ -417,9 +447,13 @@ public class ApplianceService {
                 earliestStart = nowBucharest;
             }
             earliestStart = snapToNext15Min(earliestStart);
-            latestEnd = snapToNext15Min(latestEnd);
+            latestEnd = snapToPrevious15Min(latestEnd);
             if (!latestEnd.isAfter(earliestStart)) {
                 continue;
+            }
+            int durationHours = app.getPreferredDuration() != null ? app.getPreferredDuration() : 2;
+            if (earliestStart.plusHours(durationHours).isAfter(latestEnd)) {
+                continue; // runtime cannot finish before hard deadline
             }
 
             final LocalDateTime recurrenceWindowStart = targetDate.atTime(startTime);
@@ -436,8 +470,6 @@ public class ApplianceService {
             if (existingLog != null && "CANCELLED".equalsIgnoreCase(existingLog.getStatus())) {
                 continue;
             }
-
-            int durationHours = app.getPreferredDuration() != null ? app.getPreferredDuration() : 2;
 
             ApplianceRecommendationResponseDTO rec = null;
             try {
@@ -467,13 +499,21 @@ public class ApplianceService {
                     double baseCarbon = rec.getBaselineCarbonIntensity() != null ? rec.getBaselineCarbonIntensity() : 450.0;
                     newLog.setRecommendedCarbonIntensity(recCarbon);
                     newLog.setBaselineCarbonIntensity(baseCarbon);
-                    newLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
+                    if (rec.getCo2AvoidedKg() != null) {
+                        newLog.setSavedCo2Grams(Math.max(0.0, rec.getCo2AvoidedKg() * 1000.0));
+                    } else {
+                        newLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
+                    }
 
                     double basePrice = rec.getBaselineEnergyPrice() != null ? rec.getBaselineEnergyPrice() : 1.30;
                     double recPrice = rec.getRecommendedEnergyPrice() != null ? rec.getRecommendedEnergyPrice() : 0.45;
                     newLog.setRecommendedEnergyPrice(recPrice);
                     newLog.setBaselineEnergyPrice(basePrice);
-                    newLog.setSavedMoneyRon(Math.max(0.0, (totalKwh * basePrice) - (totalKwh * recPrice)));
+                    if (rec.getSingleRunSavingsRon() != null) {
+                        newLog.setSavedMoneyRon(Math.max(0.0, rec.getSingleRunSavingsRon()));
+                    } else {
+                        newLog.setSavedMoneyRon(Math.max(0.0, (totalKwh * basePrice) - (totalKwh * recPrice)));
+                    }
 
                     newLog = applianceUsageLogRepository.save(newLog);
                     recentLogs.add(newLog);
@@ -487,7 +527,14 @@ public class ApplianceService {
                         double totalKwh = powerKw * durationHours;
                         double recCarbon = rec.getRecommendedCarbonIntensity() != null ? rec.getRecommendedCarbonIntensity() : 90.0;
                         double baseCarbon = rec.getBaselineCarbonIntensity() != null ? rec.getBaselineCarbonIntensity() : 450.0;
-                        existingLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
+                        if (rec.getCo2AvoidedKg() != null) {
+                            existingLog.setSavedCo2Grams(Math.max(0.0, rec.getCo2AvoidedKg() * 1000.0));
+                        } else {
+                            existingLog.setSavedCo2Grams(Math.max(0.0, (totalKwh * baseCarbon) - (totalKwh * recCarbon)));
+                        }
+                        if (rec.getSingleRunSavingsRon() != null) {
+                            existingLog.setSavedMoneyRon(Math.max(0.0, rec.getSingleRunSavingsRon()));
+                        }
 
                         applianceUsageLogRepository.save(existingLog);
                         System.out.println("Re-optimized schedule for " + app.getName() + " to " + newBestStart);
@@ -651,7 +698,8 @@ public class ApplianceService {
         double totalSavedKg = totalSavedGrams / 1000.0;
 
         double kmEquiv = totalSavedKg / 0.12;
-        double treeEquiv = totalSavedKg / 1.83;
+        // 1 tree ≈ 1.75 kg CO₂ absorbed per month
+        double treeEquiv = totalSavedKg / 1.75;
 
         Map<String, DoubleSummaryStatistics> dailyStats = logs.stream()
                 .filter(log -> log.getStartTime() != null)
@@ -693,6 +741,21 @@ public class ApplianceService {
             return clean;
         }
         return clean.plusMinutes(15L - remainder);
+    }
+
+    /**
+     * Round DOWN to the previous :00 / :15 / :30 / :45 boundary (hard deadlines).
+     * Already-aligned times are unchanged (10:00 stays 10:00).
+     * Examples: 10:07 → 10:00, 10:00 → 10:00.
+     */
+    private LocalDateTime snapToPrevious15Min(LocalDateTime dt) {
+        LocalDateTime clean = dt.withSecond(0).withNano(0);
+        int minute = clean.getMinute();
+        int remainder = minute % 15;
+        if (remainder == 0) {
+            return clean;
+        }
+        return clean.minusMinutes(remainder);
     }
 
     /**

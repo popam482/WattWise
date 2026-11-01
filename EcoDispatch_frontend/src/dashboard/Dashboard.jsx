@@ -64,25 +64,50 @@ function nowLocalDatetimeValue() {
     return snapToNext15Min(new Date());
 }
 
-/** Clamp earliest to now (15-min snapped); keep latest strictly after earliest. */
-function clampDispatchWindow(earliestStart, latestEnd) {
+/** Snap hard deadlines DOWN so we never push mustFinishBy past the user limit. */
+function snapToPrevious15MinValue(value) {
+    const parsed = parseLocalDateTimeFlexible(value);
+    if (!parsed) return value;
+    parsed.setSeconds(0, 0);
+    const remainder = parsed.getMinutes() % 15;
+    if (remainder !== 0) parsed.setMinutes(parsed.getMinutes() - remainder);
+    return formatLocalDatetimeInput(parsed);
+}
+
+function parseLocalDateTimeFlexible(value) {
+    if (!value) return null;
+    const date = new Date(String(value).replace(' ', 'T'));
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Clamp earliest to now (snap up). Preserve must-finish-by as a hard deadline (snap down).
+ * Never silently expand a user deadline — that caused starts AT the deadline (e.g. 10:00–12:00).
+ */
+function clampDispatchWindow(earliestStart, latestEnd, { allowExpandMissingLatest = false } = {}) {
     const nowVal = nowLocalDatetimeValue();
     let earliest = snapToNext15Min(
         earliestStart && earliestStart >= nowVal ? earliestStart : nowVal
     );
-    let latest = latestEnd ? snapToNext15Min(latestEnd) : latestEnd;
-    if (!latest || latest <= earliest) {
-        const end = new Date(earliest.replace('T', ' '));
-        if (Number.isNaN(end.getTime())) {
-            const fallback = new Date();
-            fallback.setDate(fallback.getDate() + 2);
-            fallback.setHours(0, 0, 0, 0);
-            latest = formatLocalDatetimeInput(fallback);
-        } else {
-            end.setHours(end.getHours() + 26);
-            latest = snapToNext15Min(end);
+    let latest = latestEnd ? snapToPrevious15MinValue(latestEnd) : latestEnd;
+
+    if (!latest) {
+        if (allowExpandMissingLatest) {
+            const end = new Date(earliest.replace('T', ' '));
+            if (Number.isNaN(end.getTime())) {
+                const fallback = new Date();
+                fallback.setDate(fallback.getDate() + 2);
+                fallback.setHours(0, 0, 0, 0);
+                latest = formatLocalDatetimeInput(fallback);
+            } else {
+                end.setHours(end.getHours() + 26);
+                latest = snapToNext15Min(end);
+            }
         }
+        return {earliestStart: earliest, latestEnd: latest};
     }
+
+    // Do not auto-extend a provided deadline when it falls before earliest
     return {earliestStart: earliest, latestEnd: latest};
 }
 
@@ -497,6 +522,19 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 data.recommended_energy_price ?? data.recommendedEnergyPrice ?? null,
             baseline_energy_price:
                 data.baseline_energy_price ?? data.baselineEnergyPrice ?? null,
+            single_run_savings_ron:
+                data.single_run_savings_ron ?? data.singleRunSavingsRon ?? null,
+            co2_avoided_kg: data.co2_avoided_kg ?? data.co2AvoidedKg ?? null,
+            renewable_share_percent:
+                data.renewable_share_percent ?? data.renewableSharePercent ?? null,
+            is_fixed_tariff: Boolean(data.is_fixed_tariff ?? data.isFixedTariff ?? false),
+            run_co2_kg: data.run_co2_kg ?? data.runCo2Kg ?? null,
+            co2_comparison_basis:
+                data.co2_comparison_basis ?? data.co2ComparisonBasis ?? 'immediate',
+            is_already_optimal: Boolean(
+                data.is_already_optimal ?? data.isAlreadyOptimal ?? false
+            ),
+            peak_run_co2_kg: data.peak_run_co2_kg ?? data.peakRunCo2Kg ?? null,
             durationMinutes: durationHours * 60
         };
     };
@@ -728,7 +766,9 @@ function Dashboard({userId, userName, userType, onLogout}) {
                 recommendedCarbonIntensity: rec.recommended_carbon_intensity,
                 baselineCarbonIntensity: rec.baseline_carbon_intensity,
                 recommendedEnergyPrice: rec.recommended_energy_price,
-                baselineEnergyPrice: rec.baseline_energy_price
+                baselineEnergyPrice: rec.baseline_energy_price,
+                savedMoneyRon: rec.single_run_savings_ron ?? undefined,
+                savedCo2Kg: rec.co2_avoided_kg ?? undefined
             };
 
             const res = await fetch(`/users/${userId}/appliances/schedule`, {
@@ -849,17 +889,34 @@ function Dashboard({userId, userName, userType, onLogout}) {
     };
 
     const handleGetRecommendation = (applianceId) => {
-        setLoadingApplianceId(applianceId);
-        setScheduledStatus(prev => ({...prev, [applianceId]: false}));
-        setSchedulerStep(null); // close Step 1 while scanning
-
         const selectedDuration = applianceDuration[applianceId] || 2;
         const window = clampDispatchWindow(
             getDispatchWindow(applianceId).earliestStart,
             getDispatchWindow(applianceId).latestEnd
         );
-        // Persist clamped values so the picker stays in sync with what we send
         setDispatchWindow(prev => ({ ...prev, [applianceId]: window }));
+
+        // Strict client check: (T_start + D) must fit before mustFinishBy
+        const earliestMs = new Date(String(window.earliestStart).replace(' ', 'T')).getTime();
+        const latestMs = new Date(String(window.latestEnd).replace(' ', 'T')).getTime();
+        const availableHours = Number.isFinite(earliestMs) && Number.isFinite(latestMs)
+            ? Math.max(0, (latestMs - earliestMs) / 3_600_000)
+            : 0;
+        if (!window.latestEnd || latestMs <= earliestMs || availableHours + 1e-9 < selectedDuration) {
+            const availLabel = Number.isInteger(availableHours)
+                ? `${availableHours}h`
+                : `${availableHours.toFixed(1)}h`;
+            setError(
+                `Requested runtime (${selectedDuration}h) exceeds the available time window (${availLabel}). Please expand 'Must finish by' deadline.`
+            );
+            setSchedulerStep('config');
+            return;
+        }
+
+        setLoadingApplianceId(applianceId);
+        setScheduledStatus(prev => ({...prev, [applianceId]: false}));
+        setSchedulerStep(null); // close Step 1 while scanning
+
         const query = new URLSearchParams({
             durationHours: selectedDuration,
             earliestStart: window.earliestStart,
@@ -880,10 +937,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
             .then(data => {
                 setRecommendations(prev => ({
                     ...prev,
-                    [applianceId]: {
-                        ...data,
-                        durationMinutes: selectedDuration * 60,
-                    }
+                    [applianceId]: normalizeRecommendation(data, selectedDuration)
                 }));
                 setSchedulerStep('result');
             })
@@ -909,7 +963,9 @@ function Dashboard({userId, userName, userType, onLogout}) {
             recommendedCarbonIntensity: rec.recommended_carbon_intensity,
             baselineCarbonIntensity: rec.baseline_carbon_intensity,
             recommendedEnergyPrice: rec.recommended_energy_price,
-            baselineEnergyPrice: rec.baseline_energy_price
+            baselineEnergyPrice: rec.baseline_energy_price,
+            savedMoneyRon: rec.single_run_savings_ron ?? undefined,
+            savedCo2Kg: rec.co2_avoided_kg ?? undefined
         };
 
         fetch(`/users/${userId}/appliances/schedule`, {
@@ -1702,6 +1758,7 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     recommendation={recurringApproval?.recommendation}
                     loading={Boolean(recurringApproval?.loading)}
                     confirming={approvingRecurring}
+                    recurringDays={recurringApproval?.pendingConfig?.recurringDays || 'DAILY'}
                     onApprove={approveRecurringRule}
                     onCancel={discardRecurringApproval}
                 />
