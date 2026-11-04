@@ -34,6 +34,7 @@ public class EnergyProfileService {
     private final EnergyProfileRepository energyRepository;
     private final RestTemplate restTemplate;
     private final OwnershipGuard ownershipGuard;
+    private final LocationNameResolver locationNameResolver;
 
     @Value("${PYTHON_API_URL:http://localhost:8000}")
     private String pythonApiBaseUrl;
@@ -41,18 +42,22 @@ public class EnergyProfileService {
     public EnergyProfileService(UserRepository userRepository,
                                 EnergyProfileRepository energyRepository,
                                 RestTemplate restTemplate,
-                                OwnershipGuard ownershipGuard) {
+                                OwnershipGuard ownershipGuard,
+                                LocationNameResolver locationNameResolver) {
         this.userRepository = userRepository;
         this.energyRepository = energyRepository;
         this.restTemplate = restTemplate;
         this.ownershipGuard = ownershipGuard;
+        this.locationNameResolver = locationNameResolver;
     }
 
     private EnergyProfileResponseDTO toResponseDTO(EnergyProfile energyProfile) {
+        ensureLocationName(energyProfile);
         EnergyProfileResponseDTO dto = new EnergyProfileResponseDTO();
         dto.setId(energyProfile.getId());
         dto.setLatitude(energyProfile.getLatitude());
         dto.setLongitude(energyProfile.getLongitude());
+        dto.setLocationName(energyProfile.getLocationName());
         dto.setPvSystemKw(energyProfile.getPvSystemKw());
         dto.setAzimuth(energyProfile.getAzimuth());
         dto.setTilt(energyProfile.getTilt());
@@ -69,6 +74,25 @@ public class EnergyProfileService {
             dto.setUser(userDto);
         }
         return dto;
+    }
+
+    private void ensureLocationName(EnergyProfile profile) {
+        if (profile == null) return;
+        if (profile.getLocationName() != null && !profile.getLocationName().isBlank()) {
+            return;
+        }
+        String resolved = locationNameResolver.resolve(profile.getLatitude(), profile.getLongitude());
+        profile.setLocationName(resolved);
+        try {
+            energyRepository.save(profile);
+        } catch (Exception ignored) {
+            // Still return the resolved label even if persistence fails
+        }
+    }
+
+    private void refreshLocationName(EnergyProfile profile) {
+        profile.setLocationName(
+                locationNameResolver.resolve(profile.getLatitude(), profile.getLongitude()));
     }
 
     private void applyBatteryFields(EnergyProfile profile, EnergyProfileRequestDTO dto) {
@@ -125,6 +149,7 @@ public class EnergyProfileService {
         EnergyProfile profile = new EnergyProfile();
         profile.setLatitude(latitude);
         profile.setLongitude(longitude);
+        refreshLocationName(profile);
         profile.setPvSystemKw(isConsumer ? 0.0 : requestedPv);
         profile.setAzimuth(isConsumer ? null : dto.getAzimuth());
         profile.setTilt(isConsumer ? null : dto.getTilt());
@@ -146,8 +171,18 @@ public class EnergyProfileService {
         EnergyProfile profile = energyRepository.findByUserId(userId)
                 .orElseThrow(() -> new EnergyProfileNotFound("Energy profile not found for user id: " + userId));
 
-        if (dto.getLatitude() != null) profile.setLatitude(dto.getLatitude());
-        if (dto.getLongitude() != null) profile.setLongitude(dto.getLongitude());
+        boolean coordsChanged = false;
+        if (dto.getLatitude() != null) {
+            profile.setLatitude(dto.getLatitude());
+            coordsChanged = true;
+        }
+        if (dto.getLongitude() != null) {
+            profile.setLongitude(dto.getLongitude());
+            coordsChanged = true;
+        }
+        if (coordsChanged || profile.getLocationName() == null || profile.getLocationName().isBlank()) {
+            refreshLocationName(profile);
+        }
 
         if (user.getUserType() == UserType.CONSUMER) {
             // Keep consumers location-capable without exposing PV generation fields

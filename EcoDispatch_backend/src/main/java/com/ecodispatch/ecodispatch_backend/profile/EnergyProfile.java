@@ -19,6 +19,10 @@ public class EnergyProfile {
     private Double latitude;
     private Double longitude;
 
+    /** Human-readable locality resolved from coordinates (e.g. "Sibiu, Romania"). */
+    @Column(length = 128)
+    private String locationName;
+
     private Double tilt;
     private Double azimuth;
 

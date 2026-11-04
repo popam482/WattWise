@@ -11,6 +11,8 @@ public class EnergyProfileResponseDTO {
     private Double pvSystemKw;
     private Double latitude;
     private Double longitude;
+    /** Resolved city/locality label for UI (e.g. "Sibiu, Romania"). */
+    private String locationName;
     private Double tilt;
     private Double azimuth;
     private boolean hasBattery;

@@ -1,6 +1,7 @@
 import {useState, useEffect, useMemo} from 'react';
-import {CloudSun, Sun, Activity} from 'lucide-react';
+import {CloudSun, Sun, Activity, MapPin} from 'lucide-react';
 import EnergyForecastWidget from './EnergyForecastWidget.jsx';
+import {LOCATION_FALLBACK, resolveLocationName, resolveLocationNameLocal} from '../utils/locationName.js';
 
 const SIBIU_LAT = 45.7983;
 const SIBIU_LON = 24.1256;
@@ -24,6 +25,7 @@ function WeatherSolarWidget({
     const [forecastData, setForecastData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [degraded, setDegraded] = useState(false);
+    const [locationLabel, setLocationLabel] = useState(LOCATION_FALLBACK);
 
     const resolvedLat = useMemo(() => {
         const value = latitude ?? energyProfile?.latitude ?? energyProfile?.lat;
@@ -46,6 +48,22 @@ function WeatherSolarWidget({
         Number.isFinite(Number(latitude ?? energyProfile?.latitude ?? energyProfile?.lat)) &&
         Number.isFinite(Number(longitude ?? energyProfile?.longitude ?? energyProfile?.lon))
     );
+
+    useEffect(() => {
+        let cancelled = false;
+        const preferred = energyProfile?.locationName || energyProfile?.location_name;
+        setLocationLabel(
+            preferred?.trim()
+                || resolveLocationNameLocal(resolvedLat, resolvedLon)
+                || LOCATION_FALLBACK
+        );
+        resolveLocationName(resolvedLat, resolvedLon, preferred).then((name) => {
+            if (!cancelled && name) setLocationLabel(name);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [resolvedLat, resolvedLon, energyProfile?.locationName, energyProfile?.location_name]);
 
     useEffect(() => {
         let cancelled = false;
@@ -223,9 +241,11 @@ function WeatherSolarWidget({
                         </div>
                         <div>
                             <p className="text-slate-600 dark:text-slate-400">Location</p>
-                            <p className="font-semibold text-emerald-950 dark:text-slate-100">
-                                {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
-                                {usingFallbackLocation ? ' (Sibiu)' : ''}
+                            <p className="inline-flex items-center gap-1 font-semibold text-emerald-950 dark:text-slate-100">
+                                <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                {usingFallbackLocation && !energyProfile?.locationName
+                                    ? 'Sibiu, Romania'
+                                    : locationLabel}
                             </p>
                         </div>
                     </div>
@@ -239,13 +259,16 @@ function WeatherSolarWidget({
                             <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                             Local Weather & Grid Outlook
                         </div>
-                        <span className="rounded-full border border-blue-200 bg-blue-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
-                            {usingFallbackLocation ? 'Sibiu default' : 'Profile coords'}
+                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
+                            <MapPin className="h-3 w-3" />
+                            {usingFallbackLocation && !energyProfile?.locationName
+                                ? 'Sibiu, Romania'
+                                : locationLabel}
                         </span>
                     </div>
                     <p className="mb-3 text-xs text-slate-600 dark:text-slate-400">
-                        Home location: {resolvedLat.toFixed(4)}°, {resolvedLon.toFixed(4)}°
-                        {usingFallbackLocation ? ' (Sibiu default)' : ''}
+                        Home location: {locationLabel}
+                        {usingFallbackLocation && !energyProfile?.locationName ? ' (default until profile loads)' : ''}
                     </p>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                         {weatherMetrics.map(metric => (
