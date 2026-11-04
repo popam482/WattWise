@@ -20,4 +20,6 @@ public class ApplianceUsageLogRequestDTO {
     private Double savedMoneyRon;
     /** Rigorous CO₂ avoided in kg from ML grid-carbon delta (optional). */
     private Double savedCo2Kg;
+    /** Human-readable justification from the recommendation engine (optional). */
+    private String decisionReason;
 }

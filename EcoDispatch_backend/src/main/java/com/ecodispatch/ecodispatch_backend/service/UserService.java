@@ -38,12 +38,23 @@ public class UserService {
         return dto;
     }
 
+    private static String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
+    }
+
     private User toEntity(UserRequestDTO dto) {
         User user = new User();
-        user.setName(dto.getName());
+        user.setName(dto.getName() != null ? dto.getName().trim() : null);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        user.setEmail(dto.getEmail());
+        user.setEmail(normalizeEmail(dto.getEmail()));
         user.setUserType(dto.getUserType());
+        user.setNotificationsEnabled(false);
+        user.setEmailNotificationsEnabled(true);
+        user.setTelegramNotificationsEnabled(false);
+        user.setConsentGiven(false);
+        user.setConsentTimestamp(null);
+        user.setPreferredNotificationChannel(
+                com.ecodispatch.ecodispatch_backend.notification.NotificationChannel.EMAIL);
         return user;
     }
 
@@ -55,7 +66,11 @@ public class UserService {
     }
 
     public UserResponseDTO createUser(UserRequestDTO dto) {
-        if (userRepository.existsByEmail(dto.getEmail())) {
+        String email = normalizeEmail(dto.getEmail());
+        if (email == null || email.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email cannot be blank");
+        }
+        if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use!");
         }
 
@@ -65,10 +80,13 @@ public class UserService {
     }
 
     public LoginResponseDTO login(LoginRequestDTO loginRequest) {
-        User user = userRepository.findByEmail(loginRequest.getEmail())
+        String email = normalizeEmail(loginRequest.getEmail());
+        String password = loginRequest.getPassword() != null ? loginRequest.getPassword() : "";
+
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(InvalidCredentials::new);
 
-        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new InvalidCredentials();
         }
 

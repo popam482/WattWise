@@ -15,12 +15,17 @@ function Login({ onLoginSuccess, switchToRegister }) {
         fetch('/users/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email: email.trim(), password })
         })
             .then(async (res) => {
                 if (!res.ok) {
                     const errData = await res.json().catch(() => ({}));
-                    throw new Error(errData.message || 'Invalid email or password');
+                    throw new Error(
+                        errData.error ||
+                        errData.message ||
+                        errData.detail ||
+                        'Invalid email or password'
+                    );
                 }
                 return res.json();
             })

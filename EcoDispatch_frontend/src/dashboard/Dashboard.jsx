@@ -4,6 +4,7 @@ import WeatherSolarWidget from '../widgets/WeatherSolarWidget';
 import NationalGridWidget from "../widgets/NationalGridWidget";
 import EcoAnalyticsWidget from '../widgets/EcoAnalyticsWidget';
 import HabitLearningSettings from '../privacy/HabitLearningSettings';
+import NotificationSettings from '../settings/NotificationSettings';
 import EcoChatWidget from "../widgets/EcoChatWidget.jsx";
 import ConnectProviderModal from "../connectors/ConnectProviderModal.jsx";
 import ApplianceScheduler, {
@@ -1755,7 +1756,10 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     />
                 </section>
 
-                <HabitLearningSettings userId={userId}/>
+                <div className="grid gap-5 lg:grid-cols-2">
+                    <NotificationSettings />
+                    <HabitLearningSettings userId={userId}/>
+                </div>
 
                 <EcoChatWidget
                     userId={userId}

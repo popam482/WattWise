@@ -1,11 +1,14 @@
 package com.ecodispatch.ecodispatch_backend.user;
 
+import com.ecodispatch.ecodispatch_backend.notification.NotificationChannel;
 import com.ecodispatch.ecodispatch_backend.profile.EnergyProfile;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -30,6 +33,39 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private UserType userType;
+
+    /** Telegram chat id from the WattWise bot (/start). */
+    @Column(length = 64)
+    private String telegramChatId;
+
+    /** Optional phone for future SMS / WhatsApp sandbox. */
+    @Column(length = 32)
+    private String phoneNumber;
+
+    /** Optional override; falls back to account email when null. */
+    @Email
+    @Column(length = 255)
+    private String notificationEmail;
+
+    /** Legacy preferred channel; new channel toggles take precedence when set. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 32)
+    private NotificationChannel preferredNotificationChannel = NotificationChannel.EMAIL;
+
+    /** Master switch — requires consent before alerts are dispatched. Default off. */
+    @Column
+    private Boolean notificationsEnabled = false;
+
+    @Column
+    private Boolean emailNotificationsEnabled = true;
+
+    @Column
+    private Boolean telegramNotificationsEnabled = false;
+
+    @Column
+    private Boolean consentGiven = false;
+
+    private LocalDateTime consentTimestamp;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private EnergyProfile energyProfile;

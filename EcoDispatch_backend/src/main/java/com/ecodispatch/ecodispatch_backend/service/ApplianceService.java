@@ -3,6 +3,9 @@ package com.ecodispatch.ecodispatch_backend.service;
 import com.ecodispatch.ecodispatch_backend.appliance.*;
 import com.ecodispatch.ecodispatch_backend.errors.ApplianceNotFound;
 import com.ecodispatch.ecodispatch_backend.errors.UserNotFound;
+import com.ecodispatch.ecodispatch_backend.notification.ApplianceMode;
+import com.ecodispatch.ecodispatch_backend.notification.NotificationDispatcher;
+import com.ecodispatch.ecodispatch_backend.notification.NotificationPayload;
 import com.ecodispatch.ecodispatch_backend.repositories.ApplianceUsageLogRepository;
 import com.ecodispatch.ecodispatch_backend.analytics.EcoAnalyticsDTO;
 import com.ecodispatch.ecodispatch_backend.user.User;
@@ -35,19 +38,22 @@ public class ApplianceService {
     private final RestTemplate restTemplate;
     private final HabitLearningService habitLearningService;
     private final OwnershipGuard ownershipGuard;
+    private final NotificationDispatcher notificationDispatcher;
 
     @Value("${PYTHON_API_URL:http://localhost:8000}")
     private String pythonApiBaseUrl;
 
     public ApplianceService(ApplianceRepository applianceRepository, UserRepository userRepository,
                             ApplianceUsageLogRepository applianceUsageLogRepository, RestTemplate restTemplate,
-                            HabitLearningService habitLearningService, OwnershipGuard ownershipGuard) {
+                            HabitLearningService habitLearningService, OwnershipGuard ownershipGuard,
+                            NotificationDispatcher notificationDispatcher) {
         this.applianceRepository = applianceRepository;
         this.userRepository = userRepository;
         this.applianceUsageLogRepository = applianceUsageLogRepository;
         this.restTemplate = restTemplate;
         this.habitLearningService = habitLearningService;
         this.ownershipGuard = ownershipGuard;
+        this.notificationDispatcher = notificationDispatcher;
     }
 
     private void validateUserOwnership(Integer pathUserId) {
@@ -346,6 +352,9 @@ public class ApplianceService {
         log.setStartTime(dto.getStartTime());
         log.setDurationMinutes(dto.getDurationMinutes());
         log.setStatus("SCHEDULED");
+        if (dto.getDecisionReason() != null && !dto.getDecisionReason().isBlank()) {
+            log.setDecisionReason(dto.getDecisionReason().trim());
+        }
 
         double powerKw = appliance.getPowerConsumptionKw() != null ? appliance.getPowerConsumptionKw() : 1.0;
         double durationHours = dto.getDurationMinutes() / 60.0;
@@ -382,6 +391,67 @@ public class ApplianceService {
         }
 
         applianceUsageLogRepository.save(log);
+
+        boolean automatic = Boolean.TRUE.equals(appliance.getIsRecurring());
+        dispatchScheduleNotification(
+                userId,
+                appliance.getName(),
+                automatic ? ApplianceMode.AUTOMATIC : ApplianceMode.MANUAL,
+                dto.getDurationMinutes(),
+                buildNotificationReason(dto.getDecisionReason(), log.getSavedMoneyRon(), log.getSavedCo2Grams())
+        );
+    }
+
+    private void dispatchScheduleNotification(
+            Integer userId,
+            String applianceName,
+            ApplianceMode mode,
+            Integer durationMinutes,
+            String reason) {
+        try {
+            notificationDispatcher.dispatch(NotificationPayload.builder()
+                    .userId(userId)
+                    .applianceName(applianceName)
+                    .applianceMode(mode)
+                    .action(mode == ApplianceMode.AUTOMATIC ? "Started" : "Start")
+                    .durationLabel(formatDurationLabel(durationMinutes))
+                    .reason(reason)
+                    .build());
+        } catch (Exception ex) {
+            System.err.println("Notification dispatch failed for appliance " + applianceName + ": " + ex.getMessage());
+        }
+    }
+
+    private static String formatDurationLabel(Integer durationMinutes) {
+        if (durationMinutes == null || durationMinutes <= 0) {
+            return "—";
+        }
+        if (durationMinutes % 60 == 0) {
+            int hours = durationMinutes / 60;
+            return hours == 1 ? "1 Hour" : hours + " Hours";
+        }
+        if (durationMinutes > 60) {
+            int hours = durationMinutes / 60;
+            int mins = durationMinutes % 60;
+            return hours + "h " + mins + "m";
+        }
+        return durationMinutes + " Minutes";
+    }
+
+    private static String buildNotificationReason(String decisionReason, Double savedMoneyRon, Double savedCo2Grams) {
+        StringBuilder reason = new StringBuilder();
+        if (decisionReason != null && !decisionReason.isBlank()) {
+            reason.append(decisionReason.trim());
+        } else {
+            reason.append("Optimal energy window detected");
+        }
+        if (savedMoneyRon != null && savedMoneyRon > 0.01) {
+            reason.append(String.format(" — saves ~%.0f RON", savedMoneyRon));
+        }
+        if (savedCo2Grams != null && savedCo2Grams > 1.0) {
+            reason.append(String.format(" (%.2f kg CO₂ avoided)", savedCo2Grams / 1000.0));
+        }
+        return reason.toString();
     }
 
     private boolean matchesRecurrence(String recurringDays, LocalDate targetDate) {
@@ -517,6 +587,13 @@ public class ApplianceService {
 
                     newLog = applianceUsageLogRepository.save(newLog);
                     recentLogs.add(newLog);
+                    dispatchScheduleNotification(
+                            userId,
+                            app.getName(),
+                            ApplianceMode.AUTOMATIC,
+                            durationHours * 60,
+                            buildNotificationReason(rec.getReason(), newLog.getSavedMoneyRon(), newLog.getSavedCo2Grams())
+                    );
                 } else {
                     long minuteDiff = Math.abs(Duration.between(existingLog.getStartTime(), newBestStart).toMinutes());
                     if (minuteDiff > 30) {
