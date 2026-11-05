@@ -150,27 +150,31 @@ function EcoChatWidget({
     return (
         <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
             {isOpen && (
-                <div className="flex h-[480px] w-[min(100vw-2rem,400px)] flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-2xl shadow-emerald-900/10 dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-emerald-950/40 dark:backdrop-blur-md">
-                    <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-sky-50 px-4 py-3 dark:border-slate-800 dark:from-emerald-950/50 dark:to-blue-950/40">
-                        <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300">
-                                <Zap className="h-4 w-4" />
+                <div className="flex h-[500px] w-[min(100vw-2rem,400px)] flex-col overflow-hidden rounded-[2rem] border border-white/30 bg-white/70 shadow-2xl shadow-emerald-950/20 backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/40">
+                    <div className="relative overflow-hidden border-b border-white/20 px-4 py-3.5 dark:border-white/10">
+                        <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-lime-300/15 via-transparent to-emerald-400/10" />
+                        <div className="relative flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-lime-300 text-emerald-950 shadow-[0_0_20px_rgba(190,242,100,0.45)]">
+                                    <Zap className="h-4 w-4" />
+                                    <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-lime-200 shadow-[0_0_8px_rgba(190,242,100,0.9)]" />
+                                </div>
+                                <div>
+                                    <p className="font-display text-sm font-semibold tracking-tight text-slate-900 dark:text-white">WattAssistant</p>
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                        Energy co-pilot · multi-lingual
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm font-semibold text-emerald-950 dark:text-slate-100">WattAssistant</p>
-                                <p className="text-xs text-slate-600 dark:text-slate-400">
-                                    Energy co-pilot · multi-lingual
-                                </p>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsOpen(false)}
+                                className="rounded-full border border-white/25 p-1.5 text-slate-500 transition hover:bg-white/50 hover:text-emerald-800 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-100"
+                                aria-label="Close chat"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setIsOpen(false)}
-                            className="rounded-lg border border-emerald-100 p-1.5 text-slate-600 hover:bg-emerald-50 hover:text-emerald-950 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                            aria-label="Close chat"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
                     </div>
 
                     <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
@@ -180,10 +184,10 @@ function EcoChatWidget({
                             return (
                                 <div
                                     key={idx}
-                                    className={`max-w-[92%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                                    className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm transition ${
                                         m.sender === 'user'
-                                            ? 'ml-auto border border-blue-200 bg-blue-100 text-blue-900 dark:border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-100'
-                                            : 'border border-emerald-100 bg-emerald-50/60 text-slate-800 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-200'
+                                            ? 'ml-auto bg-gradient-to-br from-cyan-500/15 to-emerald-500/10 text-slate-800 dark:from-cyan-400/20 dark:to-emerald-500/10 dark:text-slate-100'
+                                            : 'border border-emerald-500/10 bg-white/70 text-slate-800 dark:border-white/10 dark:bg-white/5 dark:text-slate-200'
                                     }`}
                                 >
                                     <p className="whitespace-pre-wrap">{m.text}</p>
@@ -195,7 +199,7 @@ function EcoChatWidget({
                                                 </p>
                                             )}
                                             {m.scheduleState === 'done' ? (
-                                                <div className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-100 px-2 py-1.5 text-xs font-medium text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                                <div className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-100 px-2 py-1.5 text-xs font-medium text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
                                                     <CheckCircle2 className="h-3.5 w-3.5" />
                                                     Scheduled {action.applianceName} at {action.time}
                                                 </div>
@@ -203,7 +207,7 @@ function EcoChatWidget({
                                                 <button
                                                     type="button"
                                                     disabled={busy}
-                                                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-transparent bg-emerald-600 px-2 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
+                                                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-lime-300 px-2 py-1.5 text-xs font-semibold text-emerald-950 shadow-md shadow-lime-300/25 transition hover:scale-[1.01] hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-50"
                                                     onClick={() => handleAutoSchedule(idx, action)}
                                                 >
                                                     {busy ? (
@@ -227,20 +231,20 @@ function EcoChatWidget({
                             );
                         })}
                         {loading && (
-                            <div className="inline-flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <div className="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500" />
                                 WattAssistant is thinking…
                             </div>
                         )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2 border-t border-emerald-100 px-3 py-2 dark:border-slate-800">
+                    <div className="flex flex-wrap gap-2 border-t border-emerald-500/10 px-3 py-2 dark:border-white/10">
                         {quickPrompts.map((prompt) => (
                             <button
                                 key={prompt.label}
                                 type="button"
                                 onClick={() => handleSend(prompt.text)}
-                                className="rounded-full border border-emerald-100 bg-white px-2.5 py-1 text-[11px] text-slate-700 hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300 dark:hover:bg-slate-800"
+                                className="rounded-full border border-emerald-500/15 bg-white/70 px-2.5 py-1 text-[11px] text-slate-600 transition hover:scale-[1.02] hover:bg-emerald-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-emerald-500/10"
                             >
                                 {prompt.label}
                             </button>
@@ -249,19 +253,19 @@ function EcoChatWidget({
 
                     <form
                         onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                        className="flex gap-2 border-t border-emerald-100 p-3 dark:border-slate-800"
+                        className="flex gap-2 border-t border-emerald-500/10 p-3 dark:border-white/10"
                     >
                         <input
                             type="text"
                             placeholder="Ask in any language about green windows…"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            className="flex-1 rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-500/50"
+                            className="flex-1 rounded-full border border-white/25 bg-white/60 px-4 py-2 text-sm text-slate-900 placeholder:text-slate-400 backdrop-blur-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100 dark:placeholder:text-slate-500"
                         />
                         <button
                             type="submit"
                             disabled={loading}
-                            className="rounded-xl border border-transparent bg-emerald-600 px-3 text-white hover:bg-emerald-700 disabled:opacity-50 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
+                            className="rounded-full bg-lime-300 px-3.5 text-emerald-950 shadow-lg shadow-lime-300/25 transition hover:scale-[1.03] hover:bg-lime-200 disabled:opacity-50"
                             aria-label="Send"
                         >
                             <Send className="h-4 w-4" />
@@ -274,7 +278,7 @@ function EcoChatWidget({
                 <button
                     type="button"
                     onClick={() => setIsOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full border border-transparent bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/20 hover:bg-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300 dark:shadow-emerald-950/50 dark:backdrop-blur-md dark:hover:bg-emerald-500/25"
+                    className="inline-flex items-center gap-2 rounded-full border border-lime-300/40 bg-lime-300 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-xl shadow-lime-300/30 transition-all duration-200 hover:scale-[1.03] hover:bg-lime-200"
                 >
                     <MessageCircle className="h-4 w-4" />
                     Ask WattAssistant

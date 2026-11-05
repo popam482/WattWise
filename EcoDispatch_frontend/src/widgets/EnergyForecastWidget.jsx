@@ -327,9 +327,9 @@ function EnergyForecastWidget({
     const Icon = activeMeta.icon;
 
     return (
-        <div className="space-y-4 rounded-xl border border-emerald-100/80 bg-emerald-50/40 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="space-y-5 rounded-3xl border border-white/25 bg-white/30 p-5 shadow-lg shadow-emerald-950/5 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04] dark:shadow-black/20">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-1 rounded-xl border border-emerald-100 bg-white p-1 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none">
+                <div className="flex flex-wrap gap-1 rounded-full border border-white/25 bg-white/40 p-1 backdrop-blur-md dark:border-white/10 dark:bg-white/5">
                     {TABS.map((tab) => {
                         const selected = activeTab === tab.id;
                         return (
@@ -337,10 +337,10 @@ function EnergyForecastWidget({
                                 key={tab.id}
                                 type="button"
                                 onClick={() => selectTab(tab.id)}
-                                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:text-[13px] ${
+                                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition sm:text-[13px] ${
                                     selected
-                                        ? 'border border-transparent bg-emerald-600 text-white dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300'
-                                        : 'border border-transparent text-slate-600 hover:bg-emerald-50 hover:text-emerald-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                                        ? 'bg-lime-300 text-emerald-950 shadow-md shadow-lime-300/30'
+                                        : 'text-slate-600 hover:bg-white/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200'
                                 }`}
                             >
                                 {tab.label}
@@ -366,12 +366,12 @@ function EnergyForecastWidget({
 
             <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-100 bg-white dark:border-slate-700 dark:bg-slate-900/80 ${activeMeta.accent}`}>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-white/40 backdrop-blur-md dark:border-white/10 dark:bg-white/5 ${activeMeta.accent}`}>
                         <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-semibold text-emerald-950 dark:text-slate-100">{activeMeta.title}</h4>
-                        <p className="text-xs text-slate-600 dark:text-slate-400">{activeMeta.subtitle}</p>
+                        <h4 className="font-display text-sm font-semibold text-slate-900 dark:text-white">{activeMeta.title}</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{activeMeta.subtitle}</p>
                     </div>
                 </div>
                 {activeTab === 'price' && (
@@ -397,8 +397,8 @@ function EnergyForecastWidget({
                         : `${row.value}% renewable`}
                     maxFallback={isProsumer ? 0.1 : 100}
                     barClass={isProsumer
-                        ? 'bg-gradient-to-b from-emerald-400 to-emerald-700'
-                        : 'bg-gradient-to-b from-blue-400 to-blue-700'}
+                        ? 'eco-bar bg-gradient-to-b from-lime-300 via-emerald-400 to-emerald-700'
+                        : 'eco-bar bg-gradient-to-b from-sky-300 via-teal-400 to-emerald-700'}
                     footer={isProsumer
                         ? 'Schedule flexible loads when your rooftop PV peaks.'
                         : 'Favor appliance runs when SEN renewable share is highest — no rooftop solar assumed.'}
@@ -412,7 +412,7 @@ function EnergyForecastWidget({
                     getLabel={(row) => row.hourLabel}
                     getTitle={(row) => `${row.ronPerKwh.toFixed(3)} RON/kWh${row.eurPerMwh != null ? ` · ${row.eurPerMwh} EUR/MWh` : ''}`}
                     maxFallback={0.5}
-                    barClass="bg-gradient-to-b from-amber-300 to-amber-600"
+                    barClass="eco-bar-amber bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700"
                     footer={
                         priceStatus === 'live'
                             ? 'Source: Energy-Charts.info (RO) · converted EUR/MWh → RON/kWh · cached locally for 1 hour.'
@@ -468,12 +468,12 @@ function ForecastBars({
                         <div key={row.Time || getLabel(row)} className="text-center">
                             <div
                                 title={getTitle(row)}
-                                className={`mx-auto mb-1.5 w-full max-w-[18px] rounded-t-md ${
-                                    tone ? `bg-gradient-to-b ${tone}` : barClass
+                                className={`mx-auto mb-1.5 w-full max-w-[20px] rounded-t-2xl ${
+                                    tone ? `eco-bar bg-gradient-to-b ${tone}` : barClass
                                 }`}
                                 style={{height: `${height}px`}}
                             />
-                            <div className="text-[10px] text-slate-600 dark:text-slate-400">{getLabel(row)}</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400">{getLabel(row)}</div>
                         </div>
                     );
                 })}

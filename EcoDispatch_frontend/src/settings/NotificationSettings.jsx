@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import {Bell, Info} from 'lucide-react';
+import {glass, ghostBtn, inputCls as ecoInput, primaryBtn} from '../ui/ecoStyles.js';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -9,18 +10,18 @@ const getAuthHeaders = () => {
     };
 };
 
-const panel =
-    'rounded-2xl border border-emerald-100/80 bg-white p-6 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none dark:backdrop-blur-md';
+const panel = `${glass} p-6 sm:p-8`;
 
-const inputCls =
-    'mt-1.5 w-full rounded-xl border border-emerald-100 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder-slate-500';
+const inputCls = `mt-1.5 ${ecoInput} disabled:cursor-not-allowed disabled:opacity-50`;
+const iconBubble =
+    'flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-white/40 text-emerald-700 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-emerald-300';
 
 function Toggle({checked, onChange, disabled, label, description}) {
     return (
-        <label className={`flex items-start justify-between gap-4 rounded-xl border px-4 py-3 ${
+        <label className={`flex items-start justify-between gap-4 rounded-3xl border px-4 py-3.5 backdrop-blur-md ${
             disabled
-                ? 'border-slate-100 bg-slate-50/80 opacity-60 dark:border-slate-800 dark:bg-slate-950/40'
-                : 'border-emerald-100/80 bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-950/50'
+                ? 'border-white/15 bg-white/20 opacity-60 dark:border-white/10 dark:bg-white/[0.03]'
+                : 'border-white/25 bg-white/35 dark:border-white/10 dark:bg-white/[0.04]'
         }`}>
             <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{label}</p>
@@ -48,7 +49,7 @@ function Toggle({checked, onChange, disabled, label, description}) {
     );
 }
 
-function NotificationSettings() {
+function NotificationSettings({embedded = false}) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
@@ -186,18 +187,22 @@ function NotificationSettings() {
             .finally(() => setTesting(false));
     };
 
+    const shellClass = embedded ? 'space-y-5' : panel;
+
     if (loading) {
         return (
-            <section className={panel}>
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
-                        <Bell className="h-5 w-5" />
+            <section className={shellClass}>
+                {!embedded && (
+                    <div className="flex items-center gap-3">
+                        <div className={iconBubble}>
+                            <Bell className="h-5 w-5" />
+                        </div>
+                        <h2 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Notification Settings</h2>
                     </div>
-                    <h2 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">Notification Settings</h2>
-                </div>
+                )}
                 {error
                     ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>
-                    : <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">Loading notification preferences...</p>}
+                    : <p className={`${embedded ? '' : 'mt-3 '}text-sm text-slate-600 dark:text-slate-400`}>Loading notification preferences...</p>}
             </section>
         );
     }
@@ -205,30 +210,34 @@ function NotificationSettings() {
     const formEnabled = consentGiven;
 
     return (
-        <section className={panel}>
+        <section className={shellClass}>
             <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300">
-                        <Bell className="h-5 w-5" />
-                    </div>
+                    {!embedded && (
+                        <div className={iconBubble}>
+                            <Bell className="h-5 w-5" />
+                        </div>
+                    )}
                     <div>
-                        <h2 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">Notification Settings</h2>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                        <h2 className={`font-display font-semibold tracking-tight text-slate-900 dark:text-white ${embedded ? 'text-lg' : 'text-xl'}`}>
+                            Notification Preferences
+                        </h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
                             Choose how WattWise alerts you when an optimal energy window opens.
                         </p>
                     </div>
                 </div>
-                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                <span className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-md ${
                     consentGiven
-                        ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300'
-                        : 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400'
+                        ? 'border-lime-300/40 bg-lime-300/20 text-emerald-900 dark:border-lime-300/30 dark:bg-lime-300/15 dark:text-lime-200'
+                        : 'border-white/25 bg-white/30 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400'
                 }`}>
                     {consentGiven ? 'CONSENT ON' : 'CONSENT OFF'}
                 </span>
             </div>
 
             <form onSubmit={handleSave} className="space-y-5">
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-100/80 bg-emerald-50/50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/50">
+                <label className="flex cursor-pointer items-start gap-3 rounded-3xl border border-white/25 bg-white/35 px-4 py-3.5 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]">
                     <input
                         type="checkbox"
                         checked={consentGiven}
@@ -250,7 +259,7 @@ function NotificationSettings() {
                         <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                             Account email
                         </p>
-                        <p className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
+                        <p className="rounded-full border border-white/25 bg-white/40 px-4 py-2.5 text-sm text-slate-700 backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300">
                             {accountEmail || '—'}
                         </p>
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -323,7 +332,7 @@ function NotificationSettings() {
                     <button
                         type="submit"
                         disabled={saving || !consentGiven}
-                        className="rounded-xl border border-transparent bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+                        className={`${primaryBtn} disabled:cursor-not-allowed disabled:opacity-40`}
                     >
                         {saving ? 'Saving...' : 'Save preferences'}
                     </button>
@@ -331,7 +340,7 @@ function NotificationSettings() {
                         type="button"
                         onClick={handleTest}
                         disabled={testing || !consentGiven}
-                        className="rounded-xl border border-emerald-100 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-300 dark:hover:bg-slate-800"
+                        className={`${ghostBtn} disabled:cursor-not-allowed disabled:opacity-40`}
                     >
                         {testing ? 'Sending...' : 'Send test alert'}
                     </button>
@@ -339,7 +348,7 @@ function NotificationSettings() {
                         type="button"
                         onClick={handleRevoke}
                         disabled={saving || !consentTimestamp}
-                        className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                        className="rounded-full border border-rose-200/80 bg-rose-50/80 px-4 py-2 text-sm text-rose-700 backdrop-blur-sm hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
                     >
                         Revoke consent
                     </button>

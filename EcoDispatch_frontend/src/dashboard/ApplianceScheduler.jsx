@@ -1,16 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { CalendarClock, Leaf, Wallet, X, Ban, RefreshCw, Zap, Info } from 'lucide-react';
 
+import {ghostBtn, inputCls, primaryBtn} from '../ui/ecoStyles.js';
+
 const overlay =
-    'fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 p-4 backdrop-blur-sm dark:bg-slate-950/70';
+    'fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/45 p-4 backdrop-blur-md dark:bg-slate-950/75';
 const panel =
-    'w-full max-w-xl rounded-2xl border border-emerald-100 bg-white p-5 shadow-2xl shadow-emerald-900/10 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-6';
-const inputCls =
-    'w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-500/50';
-const ghostBtn =
-    'rounded-xl border border-emerald-100 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-emerald-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:bg-slate-800';
-const primaryBtn =
-    'rounded-xl border border-transparent bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25';
+    'w-full max-w-xl rounded-[2rem] border border-white/30 bg-white/70 p-6 shadow-2xl shadow-emerald-950/20 backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/40 sm:p-7';
 function parseLocalDateTime(value) {
     if (!value) return null;
     const normalized = String(value).replace(' ', 'T');

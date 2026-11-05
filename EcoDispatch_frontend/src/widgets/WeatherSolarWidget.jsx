@@ -2,16 +2,18 @@ import {useState, useEffect, useMemo} from 'react';
 import {CloudSun, Sun, Activity, MapPin} from 'lucide-react';
 import EnergyForecastWidget from './EnergyForecastWidget.jsx';
 import {LOCATION_FALLBACK, resolveLocationName, resolveLocationNameLocal} from '../utils/locationName.js';
+import {metricChip} from '../ui/ecoStyles.js';
 
 const SIBIU_LAT = 45.7983;
 const SIBIU_LON = 24.1256;
 const DEFAULT_KWP = 5;
 const PERFORMANCE_FACTOR = 0.8;
 
-const metricCard =
-    'rounded-xl border border-emerald-100/80 bg-white p-3 shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none';
-const labelCls = 'text-xs text-slate-600 dark:text-slate-400';
-const valueBase = 'mt-1 text-xl font-bold';
+const metricCard = metricChip;
+const labelCls = 'text-xs text-slate-500 dark:text-slate-400';
+const valueBase = 'mt-1 font-display text-xl font-semibold tracking-tight';
+const iconBubble =
+    'flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-white/40 text-emerald-700 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-emerald-300';
 
 function WeatherSolarWidget({
     energyProfile,
@@ -156,10 +158,10 @@ function WeatherSolarWidget({
         return (
             <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
+                    <div className={iconBubble}>
                         <CloudSun className="h-5 w-5" />
                     </div>
-                    <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
+                    <h3 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
                         {isProsumer ? 'Solar & Weather Overview' : 'Local Weather & Grid Outlook'}
                     </h3>
                 </div>
@@ -192,26 +194,22 @@ function WeatherSolarWidget({
         <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
-                        isProsumer
-                            ? 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400'
-                            : 'border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400'
-                    }`}>
+                    <div className={`${iconBubble} ${isProsumer ? 'text-emerald-700 dark:text-emerald-300' : 'text-sky-700 dark:text-sky-300'}`}>
                         {isProsumer ? <Sun className="h-5 w-5" /> : <CloudSun className="h-5 w-5" />}
                     </div>
                     <div>
-                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
+                        <h3 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
                             {isProsumer ? 'Solar & Weather Overview' : 'Local Weather & Grid Outlook'}
                         </h3>
                         {!isProsumer && (
-                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Temperature & cloud coverage for energy-aware scheduling — no PV capacity shown
                             </p>
                         )}
                     </div>
                 </div>
                 {(degraded || usingFallbackLocation) && (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
+                    <span className="rounded-full border border-white/25 bg-white/40 px-3 py-1 text-xs font-medium text-slate-600 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                         {degraded
                             ? 'Using local weather estimate'
                             : 'Sibiu fallback until profile loads'}
@@ -220,8 +218,8 @@ function WeatherSolarWidget({
             </div>
 
             {isProsumer && (
-                <div className="rounded-xl border border-emerald-100/80 bg-emerald-50/50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                    <h4 className="mb-3 text-sm font-medium text-slate-800 dark:text-slate-300">PV System Profile</h4>
+                <div className="rounded-3xl border border-white/25 bg-white/30 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04]">
+                    <h4 className="mb-3 text-sm font-medium text-slate-700 dark:text-slate-300">PV System Profile</h4>
                     <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                         <div>
                             <p className="text-slate-600 dark:text-slate-400">Capacity</p>
@@ -253,13 +251,13 @@ function WeatherSolarWidget({
             )}
 
             {!isProsumer && (
-                <div className="rounded-xl border border-sky-200/80 bg-gradient-to-r from-sky-50/80 to-emerald-50/60 p-4 dark:border-blue-500/20 dark:from-blue-950/40 dark:to-emerald-950/30">
+                <div className="rounded-3xl border border-sky-300/30 bg-gradient-to-r from-sky-400/10 to-emerald-400/10 p-5 backdrop-blur-xl dark:border-sky-400/20 dark:from-sky-500/10 dark:to-emerald-500/10">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-emerald-950 dark:text-slate-100">
-                            <Activity className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                            <Activity className="h-4 w-4 text-sky-600 dark:text-sky-400" />
                             Local Weather & Grid Outlook
                         </div>
-                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/40 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
                             <MapPin className="h-3 w-3" />
                             {usingFallbackLocation && !energyProfile?.locationName
                                 ? 'Sibiu, Romania'

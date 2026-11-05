@@ -4,8 +4,27 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --color-slate-850: #0f172a;
+  --animate-pulse-slow: pulse-slow 5s ease-in-out infinite;
+  --animate-pulse-slower: pulse-slower 7s ease-in-out infinite;
+  --animate-fade-up: fade-up 0.55s ease-out both;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.06); }
+}
+
+@keyframes pulse-slower {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.65; transform: scale(1.08); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 html,
@@ -19,17 +38,39 @@ body {
   font-family: var(--font-sans);
 }
 
+.font-display {
+  font-family: var(--font-display);
+}
+
 html.dark body,
 html.dark {
-  background: #020617;
+  background:
+    radial-gradient(ellipse 70% 45% at 8% 0%, rgba(16, 185, 129, 0.18), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 95% 15%, rgba(251, 191, 36, 0.08), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 50% 100%, rgba(16, 185, 129, 0.1), transparent 55%),
+    linear-gradient(165deg, #020617 0%, #0a1f1a 48%, #020617 100%);
+  background-attachment: fixed;
   color: #f1f5f9;
 }
 
 html.light body,
 html:not(.dark) body {
-  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 45%, #f1f5f9 100%);
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(16, 185, 129, 0.18), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(251, 191, 36, 0.12), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 70% 90%, rgba(52, 211, 153, 0.12), transparent 55%),
+    linear-gradient(165deg, #f8fafc 0%, #ecfdf5 42%, #f1f5f9 100%);
   background-attachment: fixed;
   color: #0f172a;
+}
+
+/* Soft glowing forecast bars */
+.eco-bar {
+  box-shadow: 0 0 18px rgb(16 185 129 / 0.35);
+}
+
+.eco-bar-amber {
+  box-shadow: 0 0 18px rgb(245 158 11 / 0.35);
 }
 
 /* Leaflet map contrast — follows global theme */
@@ -43,7 +84,6 @@ html.dark .leaflet-container {
   background: #0f172a;
 }
 
-/* Free OSM tiles → deep slate-navy (filter tiles only; markers stay vibrant) */
 .map-tiles-dark .leaflet-tile-container img {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
 }
@@ -72,7 +112,6 @@ html.dark .leaflet-control-zoom a:hover {
   background: #1e293b !important;
 }
 
-/* Thin mint scrollbar for constrained appliance lists */
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgb(16 185 129 / 0.25) transparent;

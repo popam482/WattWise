@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Zap } from 'lucide-react';
+import { authCard, authShell, inputCls, primaryBtn } from '../ui/ecoStyles.js';
 
 function Login({ onLoginSuccess, switchToRegister }) {
     const [email, setEmail] = useState('');
@@ -40,33 +41,40 @@ function Login({ onLoginSuccess, switchToRegister }) {
             });
     };
 
-    const inputCls =
-        'w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500';
-
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50/50 via-teal-50/20 to-slate-100 px-4 py-8 dark:bg-slate-950 dark:bg-none">
-            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.14),_transparent_55%),radial-gradient(ellipse_at_bottom_right,_rgba(45,212,191,0.10),_transparent_45%)]" />
+        <div className={authShell}>
+            <div aria-hidden className="pointer-events-none absolute inset-0">
+                <img
+                    src="/images/eco-hero.jpg"
+                    alt=""
+                    className="h-full w-full object-cover object-[center_35%] opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/85 via-slate-950/60 to-amber-950/50" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(163,230,53,0.22),transparent_45%),radial-gradient(ellipse_at_80%_80%,rgba(16,185,129,0.2),transparent_50%)]" />
+            </div>
 
-            <div className="relative mx-auto w-full max-w-md rounded-2xl border border-emerald-100/80 bg-white p-8 shadow-2xl shadow-emerald-900/10 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none dark:backdrop-blur-xl">
-                <div className="mb-8 flex flex-col items-center text-center sm:flex-row sm:items-center sm:text-left">
-                    <div className="mb-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-100 text-emerald-700 shadow-sm sm:mb-0 sm:mr-4 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400 dark:shadow-[0_0_28px_rgba(16,185,129,0.4)]">
-                        <Zap className="h-6 w-6" />
+            <div className={`${authCard} max-w-md`}>
+                <div className="mb-8 flex flex-col items-center text-center">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-lime-300 text-emerald-950 shadow-[0_0_32px_rgba(190,242,100,0.45)]">
+                        <Zap className="h-7 w-7" />
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-emerald-950 dark:text-slate-100">WattWise</h1>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Sign in to your CleanTech energy cockpit</p>
-                    </div>
+                    <h1 className="font-display text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                        WattWise
+                    </h1>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                        Sign in to your personal clean energy future
+                    </p>
                 </div>
 
                 {error && (
-                    <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                    <div className="mb-5 rounded-3xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 backdrop-blur-sm dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
                         {error}
                     </div>
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-1.5">
-                        <label htmlFor="login-email" className="block text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                        <label htmlFor="login-email" className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                             Email
                         </label>
                         <input
@@ -81,7 +89,7 @@ function Login({ onLoginSuccess, switchToRegister }) {
                         />
                     </div>
                     <div className="space-y-1.5">
-                        <label htmlFor="login-password" className="block text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                        <label htmlFor="login-password" className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
                             Password
                         </label>
                         <input
@@ -98,17 +106,17 @@ function Login({ onLoginSuccess, switchToRegister }) {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="mt-2 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gradient-to-r dark:from-emerald-500 dark:to-teal-600 dark:text-slate-950 dark:shadow-emerald-500/20 dark:hover:from-emerald-400 dark:hover:to-teal-500"
+                        className={`${primaryBtn} mt-2 w-full py-3`}
                     >
                         {loading ? 'Signing in...' : 'Sign in'}
                     </button>
                 </form>
 
                 <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
-                    Don't have an account?{' '}
+                    Don&apos;t have an account?{' '}
                     <button
                         type="button"
-                        className="font-semibold text-emerald-700 transition hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                        className="font-semibold text-emerald-700 transition hover:text-emerald-800 dark:text-lime-300 dark:hover:text-lime-200"
                         onClick={switchToRegister}
                     >
                         Sign up

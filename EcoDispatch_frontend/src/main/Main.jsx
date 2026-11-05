@@ -62,6 +62,7 @@ function App() {
                 userId={user.id}
                 userType={user.userType}
                 userName={user.name}
+                userEmail={user.email}
                 onLogout={handleLogout}
             />
         );

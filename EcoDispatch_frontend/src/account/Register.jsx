@@ -1,15 +1,11 @@
 import {useState} from 'react';
 import {Zap} from 'lucide-react';
 import LocationPicker from './LocationPicker.jsx';
+import {authCard, authShell, ghostBtn, inputCls, primaryBtn} from '../ui/ecoStyles.js';
 
 const SIBIU = {latitude: 45.7983, longitude: 24.1256};
 
-const inputCls =
-    'mb-2 w-full rounded-xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500';
-const ghostBtn =
-    'rounded-xl border border-emerald-100 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-slate-800';
-const primaryBtn =
-    'rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/15 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gradient-to-r dark:from-emerald-500 dark:to-teal-600 dark:text-slate-950 dark:shadow-emerald-500/20 dark:hover:from-emerald-400 dark:hover:to-teal-500';
+const fieldCls = `${inputCls} mb-2`;
 
 function Register({ switchToLogin }) {
     const [step, setStep] = useState(1);
@@ -179,44 +175,55 @@ function Register({ switchToLogin }) {
     }
 
     return (
-        <div className="flex min-h-screen items-start justify-center bg-gradient-to-br from-emerald-50/50 via-teal-50/20 to-slate-100 px-4 py-8 text-slate-900 sm:py-10 dark:bg-slate-950 dark:bg-none dark:text-slate-100">
-            <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(16,185,129,0.12),_transparent_50%)]" />
-            <div className="relative mx-auto w-full max-w-2xl rounded-2xl border border-emerald-100/80 bg-white p-6 shadow-2xl shadow-emerald-900/10 dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none dark:backdrop-blur-xl sm:p-8">
+        <div className={`${authShell} items-start py-10 sm:py-12`}>
+            <div aria-hidden className="pointer-events-none absolute inset-0">
+                <img
+                    src="/images/eco-hero.jpg"
+                    alt=""
+                    className="h-full w-full object-cover object-[center_40%] opacity-90"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/88 via-slate-950/65 to-amber-950/55" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_15%,rgba(163,230,53,0.2),transparent_45%),radial-gradient(ellipse_at_85%_75%,rgba(16,185,129,0.18),transparent_50%)]" />
+            </div>
+
+            <div className={`${authCard} mx-auto max-w-2xl p-6 sm:p-8`}>
                 <div className="mb-6 flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-100 text-emerald-700 shadow-sm dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-400 dark:shadow-[0_0_24px_rgba(16,185,129,0.35)]">
-                        <Zap className="h-5 w-5" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-lime-300 text-emerald-950 shadow-[0_0_28px_rgba(190,242,100,0.4)]">
+                        <Zap className="h-6 w-6" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-950 dark:text-slate-100">Sign up to WattWise</h1>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Step {step} of 4</p>
+                        <h1 className="font-display text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                            Sign up to WattWise
+                        </h1>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Step {step} of 4 — grow your clean energy profile</p>
                     </div>
                 </div>
 
                 {error && (
-                    <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                    <div className="mb-4 rounded-3xl border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm text-rose-700 backdrop-blur-sm dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
                         {error}
                     </div>
                 )}
 
                 {step === 1 && (
                     <form onSubmit={handleNextStep} className="space-y-1">
-                        <input type="text" placeholder="Name" value={name} onChange={e => setName(e.target.value)} className={inputCls} />
-                        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} />
-                        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
-                        <button className={`${primaryBtn} mt-3 w-full`} type="submit">Continue</button>
+                        <input type="text" placeholder="Name" value={name} onChange={e => setName(e.target.value)} className={fieldCls} />
+                        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className={fieldCls} />
+                        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className={fieldCls} />
+                        <button className={`${primaryBtn} mt-3 w-full py-3`} type="submit">Continue</button>
                     </form>
                 )}
 
                 {step === 2 && (
                     <form onSubmit={handleNextStep} className="space-y-4">
-                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">Are you a prosumer or consumer?</h3>
-                        <div className="grid grid-cols-2 gap-2">
+                        <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-white">Are you a prosumer or consumer?</h3>
+                        <div className="grid grid-cols-2 gap-3">
                             <button
                                 type="button"
-                                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                                className={`rounded-3xl border px-3 py-4 text-sm font-semibold backdrop-blur-md transition ${
                                     userType === 'CONSUMER'
-                                        ? 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/40 dark:bg-blue-500/15 dark:text-blue-300'
-                                        : 'border-emerald-100 bg-white text-slate-600 hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400 dark:hover:bg-slate-800'
+                                        ? 'border-sky-300/50 bg-sky-400/20 text-sky-900 dark:border-sky-400/40 dark:bg-sky-500/20 dark:text-sky-200'
+                                        : 'border-white/25 bg-white/40 text-slate-600 hover:bg-white/60 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-400 dark:hover:bg-white/10'
                                 }`}
                                 onClick={() => setUserType('CONSUMER')}
                             >
@@ -224,10 +231,10 @@ function Register({ switchToLogin }) {
                             </button>
                             <button
                                 type="button"
-                                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                                className={`rounded-3xl border px-3 py-4 text-sm font-semibold backdrop-blur-md transition ${
                                     userType === 'PROSUMER'
-                                        ? 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300'
-                                        : 'border-emerald-100 bg-white text-slate-600 hover:bg-emerald-50 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400 dark:hover:bg-slate-800'
+                                        ? 'border-lime-300/60 bg-lime-300/25 text-emerald-950 dark:border-lime-300/40 dark:bg-lime-300/20 dark:text-lime-100'
+                                        : 'border-white/25 bg-white/40 text-slate-600 hover:bg-white/60 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-400 dark:hover:bg-white/10'
                                 }`}
                                 onClick={() => setUserType('PROSUMER')}
                             >
@@ -244,7 +251,7 @@ function Register({ switchToLogin }) {
                                 placeholder="Photovoltaics capacity (kWp)"
                                 value={pvSystemKw}
                                 onChange={e => setPvSystemKw(e.target.value)}
-                                className={inputCls}
+                                className={fieldCls}
                             />
                         )}
 
@@ -257,7 +264,7 @@ function Register({ switchToLogin }) {
 
                 {step === 3 && (
                     <form onSubmit={handleNextStep} className="space-y-4">
-                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">
+                        <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-white">
                             {userType === 'PROSUMER' ? 'Location & PV details' : 'Your home location'}
                         </h3>
                         <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -284,7 +291,7 @@ function Register({ switchToLogin }) {
                                     <select
                                         value={azimuth}
                                         onChange={e => setAzimuth(e.target.value)}
-                                        className={inputCls}
+                                        className={fieldCls}
                                         required
                                     >
                                         <option value={90}>East (Morning Sun)</option>
@@ -305,7 +312,7 @@ function Register({ switchToLogin }) {
                                         max="90"
                                         value={tilt}
                                         onChange={e => setTilt(e.target.value)}
-                                        className={inputCls}
+                                        className={fieldCls}
                                         required
                                     />
                                 </div>
@@ -322,10 +329,10 @@ function Register({ switchToLogin }) {
 
                                 {hasBattery && (
                                     <div className="grid gap-2 sm:grid-cols-2">
-                                        <input type="number" min="0.5" step="0.1" placeholder="Battery capacity (kWh)" value={batteryCapacityKwh} onChange={e => setBatteryCapacityKwh(e.target.value)} className={inputCls} />
-                                        <input type="number" min="0.1" step="0.1" placeholder="Max charge rate (kW)" value={batteryMaxChargeKw} onChange={e => setBatteryMaxChargeKw(e.target.value)} className={inputCls} />
-                                        <input type="number" min="0.1" step="0.1" placeholder="Max discharge rate (kW)" value={batteryMaxDischargeKw} onChange={e => setBatteryMaxDischargeKw(e.target.value)} className={inputCls} />
-                                        <select value={batteryType} onChange={e => setBatteryType(e.target.value)} className={inputCls}>
+                                        <input type="number" min="0.5" step="0.1" placeholder="Battery capacity (kWh)" value={batteryCapacityKwh} onChange={e => setBatteryCapacityKwh(e.target.value)} className={fieldCls} />
+                                        <input type="number" min="0.1" step="0.1" placeholder="Max charge rate (kW)" value={batteryMaxChargeKw} onChange={e => setBatteryMaxChargeKw(e.target.value)} className={fieldCls} />
+                                        <input type="number" min="0.1" step="0.1" placeholder="Max discharge rate (kW)" value={batteryMaxDischargeKw} onChange={e => setBatteryMaxDischargeKw(e.target.value)} className={fieldCls} />
+                                        <select value={batteryType} onChange={e => setBatteryType(e.target.value)} className={fieldCls}>
                                             <option value="LFP">LFP (LiFePO4)</option>
                                             <option value="LITHIUM_ION">Lithium-ion</option>
                                             <option value="LEAD_ACID">Lead-acid</option>
@@ -346,16 +353,16 @@ function Register({ switchToLogin }) {
 
                 {step === 4 && (
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">Add Appliances</h3>
+                        <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-white">Add Appliances</h3>
                         <div className="flex flex-col gap-2 sm:flex-row">
-                            <input type="text" placeholder="Appliance name (e.g. Boiler)" value={applianceName} onChange={e => setApplianceName(e.target.value)} className={`${inputCls} mb-0 sm:flex-1`} />
-                            <input type="number" step="0.1" placeholder="Power (kW)" value={powerKw} onChange={e => setPowerKw(e.target.value)} className={`${inputCls} mb-0 sm:w-32`} />
+                            <input type="text" placeholder="Appliance name (e.g. Boiler)" value={applianceName} onChange={e => setApplianceName(e.target.value)} className={`${fieldCls} mb-0 sm:flex-1`} />
+                            <input type="number" step="0.1" placeholder="Power (kW)" value={powerKw} onChange={e => setPowerKw(e.target.value)} className={`${fieldCls} mb-0 sm:w-32`} />
                             <button type="button" onClick={handleAddAppliance} className={ghostBtn}>Add</button>
                         </div>
 
                         <div className="space-y-2">
                             {appliances.map((app, idx) => (
-                                <div key={idx} className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/50">
+                                <div key={idx} className="flex items-center justify-between rounded-3xl border border-white/25 bg-white/40 px-4 py-2.5 text-sm backdrop-blur-md dark:border-white/10 dark:bg-white/[0.04]">
                                     <span className="text-slate-700 dark:text-slate-300">{app.name} — {app.powerConsumptionKw} kW</span>
                                     <button type="button" onClick={() => handleRemoveAppliance(idx)} className="text-rose-600 hover:text-rose-500 dark:text-rose-400 dark:hover:text-rose-300">Delete</button>
                                 </div>

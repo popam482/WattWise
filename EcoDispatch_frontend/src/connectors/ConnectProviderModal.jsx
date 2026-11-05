@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState} from 'react';
 import {Cable, X} from 'lucide-react';
+import {ghostBtn, inputCls as inputClass, primaryBtn} from '../ui/ecoStyles.js';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -14,7 +15,7 @@ const PROVIDER_CARDS = [
         id: 'SHELLY',
         title: 'Shelly Smart Meter',
         badge: 'REAL API',
-        badgeClass: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+        badgeClass: 'border-lime-300/40 bg-lime-300/20 text-emerald-900 dark:border-lime-300/30 dark:bg-lime-300/15 dark:text-lime-200',
         description: 'Optional live home-load from Shelly Cloud. Leave blank to keep using WattWise energy models.',
         real: true,
         needsCredentials: true
@@ -23,7 +24,7 @@ const PROVIDER_CARDS = [
         id: 'OPEN_METEO',
         title: 'Open-Meteo Solar Grid',
         badge: 'REAL API',
-        badgeClass: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+        badgeClass: 'border-lime-300/40 bg-lime-300/20 text-emerald-900 dark:border-lime-300/30 dark:bg-lime-300/15 dark:text-lime-200',
         description: 'Always on. Uses your Energy Profile coordinates + PV capacity for live irradiance and solar production.',
         real: true,
         needsCredentials: false,
@@ -33,7 +34,7 @@ const PROVIDER_CARDS = [
         id: 'ENTERPRISE',
         title: 'Huawei FusionSolar / Fronius',
         badge: 'ENTERPRISE',
-        badgeClass: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-300',
+        badgeClass: 'border-white/25 bg-white/40 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300',
         description: 'Plant-level inverter connectors for enterprise demos. Uses the WattWise mock bridge until OAuth is configured.',
         real: false,
         needsCredentials: false,
@@ -41,14 +42,8 @@ const PROVIDER_CARDS = [
     }
 ];
 
-const inputClass =
-    'w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-emerald-500/50';
-const ghostBtn =
-    'rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 disabled:opacity-40 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-300 dark:hover:bg-slate-800';
-const primaryBtn =
-    'rounded-xl border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-40 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25';
 const dangerBtn =
-    'rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 hover:bg-rose-100 disabled:opacity-40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20';
+    'rounded-full border border-rose-200/80 bg-rose-50/80 px-4 py-2 text-sm text-rose-700 hover:bg-rose-100 disabled:opacity-40 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20';
 
 function ConnectProviderModal({userId, open, onClose}) {
     const [connectors, setConnectors] = useState([]);
@@ -190,11 +185,11 @@ function ConnectProviderModal({userId, open, onClose}) {
             role="dialog"
             aria-modal="true"
             aria-label="Integrations"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/40 p-4 backdrop-blur-sm dark:bg-slate-950/70"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/45 p-4 backdrop-blur-md dark:bg-slate-950/75"
             onClick={onClose}
         >
             <div
-                className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-emerald-100/80 bg-white p-6 shadow-2xl shadow-emerald-900/10 dark:border-slate-700 dark:bg-slate-900/95 dark:shadow-none dark:backdrop-blur-md"
+                className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[2rem] border border-white/30 bg-white/70 p-6 shadow-2xl shadow-emerald-950/20 backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/70 dark:shadow-black/40 sm:p-8"
                 onClick={e => e.stopPropagation()}
             >
                 <div className="flex items-start justify-between gap-3">
@@ -233,7 +228,7 @@ function ConnectProviderModal({userId, open, onClose}) {
                     {PROVIDER_CARDS.map(card => (
                         <article
                             key={card.id}
-                            className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 dark:border-slate-800 dark:bg-slate-950/50"
+                            className="rounded-3xl border border-white/25 bg-white/40 p-5 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04]"
                         >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>

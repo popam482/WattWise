@@ -1,5 +1,9 @@
 import {useState, useEffect, useCallback} from 'react';
 import {Activity} from 'lucide-react';
+import {metricChip} from '../ui/ecoStyles.js';
+
+const iconBubble =
+    'flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-white/40 text-sky-700 shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-sky-300';
 
 const FALLBACK_GRID = {
     Predicted_Consumption_MW: 7200,
@@ -62,10 +66,10 @@ function NationalGridWidget({userId}) {
         return (
             <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400">
+                    <div className={iconBubble}>
                         <Activity className="h-5 w-5" />
                     </div>
-                    <h2 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">National Energy Grid (SEN)</h2>
+                    <h2 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">National Energy Grid (SEN)</h2>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Loading national grid data…</p>
             </div>
@@ -104,33 +108,33 @@ function NationalGridWidget({userId}) {
         <div className="space-y-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400">
+                    <div className={iconBubble}>
                         <Activity className="h-5 w-5" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-semibold text-emerald-950 dark:text-slate-100">National Energy Grid (SEN)</h2>
+                        <h2 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">National Energy Grid (SEN)</h2>
                         {timestamp && (
-                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Snapshot {new Date(timestamp).toLocaleString()}
                             </p>
                         )}
                     </div>
                 </div>
                 {(degraded || data._fallback) && (
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-400">
+                    <span className="rounded-full border border-white/25 bg-white/40 px-3 py-1 text-xs font-medium text-slate-600 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
                         Cached / demo-safe snapshot
                     </span>
                 )}
             </div>
 
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+            <div className="rounded-3xl border border-emerald-400/25 bg-emerald-400/10 p-5 backdrop-blur-xl dark:border-emerald-400/20 dark:bg-emerald-500/10">
                 <div className="mb-2 flex items-center justify-between text-sm">
                     <span className="text-slate-600 dark:text-slate-400">Renewable share</span>
-                    <span className="font-semibold text-emerald-800 dark:text-emerald-400">{formatValue(greenShare)}%</span>
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-300">{formatValue(greenShare)}%</span>
                 </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-emerald-100 dark:bg-slate-800">
+                <div className="h-2.5 overflow-hidden rounded-full bg-white/50 dark:bg-white/10">
                     <div
-                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                        className="h-full rounded-full bg-gradient-to-r from-lime-300 via-emerald-400 to-teal-500 shadow-[0_0_16px_rgba(52,211,153,0.55)] transition-all"
                         style={{width: `${greenPct}%`}}
                     />
                 </div>
@@ -141,55 +145,47 @@ function NationalGridWidget({userId}) {
                     {
                         label: 'Production',
                         value: `${formatValue(production)} MW`,
-                        tone: 'text-emerald-950 dark:text-slate-100',
-                        surface: 'border-emerald-100/80 bg-white shadow-sm shadow-emerald-900/5 dark:border-slate-800 dark:bg-slate-950/50 dark:shadow-none'
+                        tone: 'text-slate-900 dark:text-white'
                     },
                     {
                         label: 'Consumption',
                         value: `${formatValue(consumption)} MW`,
-                        tone: 'text-blue-700 dark:text-blue-400',
-                        surface: 'border-blue-200 bg-sky-50/50 dark:border-blue-500/20 dark:bg-slate-950/50'
+                        tone: 'text-sky-700 dark:text-sky-300'
                     },
                     {
                         label: 'Grid balance',
                         value: `${formatValue(balance)} MW`,
-                        tone: balancePositive ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400',
-                        surface: balancePositive
-                            ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/20 dark:bg-slate-950/50'
-                            : 'border-amber-200 bg-amber-50/50 dark:border-amber-500/20 dark:bg-slate-950/50'
+                        tone: balancePositive ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'
                     }
                 ].map(item => (
-                    <div
-                        key={item.label}
-                        className={`rounded-xl border p-3 backdrop-blur-md ${item.surface}`}
-                    >
-                        <p className="text-xs text-slate-600 dark:text-slate-400">{item.label}</p>
-                        <p className={`mt-1 text-lg font-bold ${item.tone}`}>{item.value}</p>
+                    <div key={item.label} className={metricChip}>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{item.label}</p>
+                        <p className={`mt-1 font-display text-lg font-semibold ${item.tone}`}>{item.value}</p>
                     </div>
                 ))}
             </div>
 
             <div>
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-medium text-slate-800 dark:text-slate-300">Generation mix breakdown</h3>
-                    <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">Generation mix breakdown</h3>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
                         Fossil + Nuclear + Renewable = {formatValue(mixSum)} MW
                         {production > 0 ? ` · Production ${formatValue(production)} MW` : ''}
                     </span>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/50">
-                        <p className="text-xs text-slate-600 dark:text-slate-400">Fossil Generation</p>
-                        <p className="mt-1 text-lg font-bold text-slate-800 dark:text-slate-200">{formatValue(totalFossil)} MW</p>
+                    <div className={metricChip}>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Fossil Generation</p>
+                        <p className="mt-1 font-display text-lg font-semibold text-slate-800 dark:text-slate-200">{formatValue(totalFossil)} MW</p>
                     </div>
-                    <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-500/20 dark:bg-blue-500/5">
-                        <p className="text-xs text-slate-600 dark:text-slate-400">Nuclear Generation</p>
-                        <p className="mt-1 text-lg font-bold text-blue-800 dark:text-blue-300">{formatValue(nuclear)} MW</p>
+                    <div className={metricChip}>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Nuclear Generation</p>
+                        <p className="mt-1 font-display text-lg font-semibold text-sky-800 dark:text-sky-300">{formatValue(nuclear)} MW</p>
                     </div>
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                        <p className="text-xs text-emerald-800 dark:text-emerald-400/80">Renewable Generation</p>
-                        <p className="mt-1 text-lg font-bold text-emerald-800 dark:text-emerald-400">{formatValue(renewable)} MW</p>
-                        <p className="mt-1 text-[10px] text-slate-600 dark:text-slate-400">Hydro / Wind / Solar</p>
+                    <div className={`${metricChip} border-emerald-400/25`}>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400/80">Renewable Generation</p>
+                        <p className="mt-1 font-display text-lg font-semibold text-emerald-700 dark:text-emerald-300">{formatValue(renewable)} MW</p>
+                        <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Hydro / Wind / Solar</p>
                     </div>
                 </div>
             </div>
