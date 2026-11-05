@@ -1768,6 +1768,29 @@ function Dashboard({userId, userName, userType, onLogout}) {
                     ecoAnalytics={ecoAnalytics}
                     userAppliances={userAppliances}
                     scheduledTasks={scheduledTasks}
+                    locationName={energyProfile?.locationName || energyProfile?.location_name}
+                    solarKw={isProsumer ? liveEnergy?.pvPowerKw : null}
+                    solarPeakWindow="13:00-15:00"
+                    onScheduleAction={async (action) => {
+                        const durationHours = Number(action?.durationHours) || 2;
+                        const payload = {
+                            id: action.applianceId,
+                            startTime: String(action.startTime).replace(' ', 'T'),
+                            durationMinutes: Math.max(15, Math.round(durationHours * 60)),
+                            decisionReason: action.reason || 'Scheduled via WattAssistant'
+                        };
+                        const res = await fetch(`/users/${userId}/appliances/schedule`, {
+                            method: 'POST',
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) {
+                            const detail = await res.text();
+                            throw new Error(detail || `Failed to schedule (${res.status})`);
+                        }
+                        setScheduledStatus(prev => ({...prev, [action.applianceId]: true}));
+                        await fetchScheduledTasks();
+                    }}
                 />
                 <ConnectProviderModal
                     userId={userId}
